@@ -1,0 +1,589 @@
+import { LanguageCode } from './languages';
+
+export interface Translations {
+  tabs: { expenses: string; settings: string };
+  common: { back: string; save: string };
+  add: {
+    title: string;
+    editTitle: string;
+    tripTotal: string;
+    date: string;
+    category: string;
+    paymentMethod: string;
+    selectMethod: string;
+    description: string;
+    descriptionPlaceholder: string;
+    save: string;
+    saved: string;
+  };
+  manage: {
+    title: string;
+    tripTotal: string;
+    emptyTitle: string;
+    emptySubtitle: string;
+    delete: string;
+    deleteConfirmTitle: string;
+    cancel: string;
+    today: string;
+    yesterday: string;
+    group: string;
+    amount: string;
+    export: string;
+    exportTitle: string;
+    exportCsv: string;
+    exportPdf: string;
+    generatedOn: string;
+  };
+  categories: {
+    Food: string;
+    Transport: string;
+    Lodging: string;
+    Activities: string;
+    Shopping: string;
+    Groceries: string;
+    Entertainment: string;
+    Other: string;
+  };
+  paymentMethods: {
+    cash: string;
+    creditCard: string;
+    debitCard: string;
+    pickerTitle: string;
+    addPlaceholder: string;
+    addButton: string;
+  };
+  currency: { pickerTitle: string };
+  settings: {
+    title: string;
+    subtitle: string;
+    language: string;
+    paymentMethods: string;
+    paymentMethodsHint: string;
+    defaultBadge: string;
+    setAsDefault: string;
+    enable: string;
+    disable: string;
+    deleteMethodConfirmTitle: string;
+    support: string;
+    buyMeCoffee: string;
+  };
+  groups: {
+    pickerTitle: string;
+    createNew: string;
+    createTitle: string;
+    editTitle: string;
+    namePlaceholder: string;
+    color: string;
+    defaultCurrency: string;
+    defaultCurrencyHint: string;
+    leadCurrency: string;
+    leadCurrencyHint: string;
+    leadCurrencyNone: string;
+    deleteLink: string;
+    deleteConfirmTitle: string;
+    deleteConfirmMessage: string;
+    createButton: string;
+    allGroups: string;
+    emptyTitle: string;
+    emptySubtitle: string;
+    emptyButton: string;
+  };
+  rates: {
+    updated: string;
+    refresh: string;
+    loading: string;
+    error: string;
+    never: string;
+  };
+}
+
+export const TRANSLATIONS: Record<LanguageCode, Translations> = {
+  en: {
+    tabs: { expenses: 'Expenses', settings: 'Settings' },
+    common: { back: 'Back', save: 'Save' },
+    add: {
+      title: 'Add Expense',
+      editTitle: 'Edit Expense',
+      tripTotal: 'Trip total:',
+      date: 'Date',
+      category: 'Category',
+      paymentMethod: 'Payment Method',
+      selectMethod: 'Select a method',
+      description: 'Description',
+      descriptionPlaceholder: 'e.g. Dinner at the harbor',
+      save: 'Add Expense',
+      saved: 'Added ✓',
+    },
+    manage: {
+      title: 'Your Expenses',
+      tripTotal: 'Trip total:',
+      emptyTitle: 'No expenses yet.',
+      emptySubtitle: "Tap \"Add Expense\" above to log your first one.",
+      delete: 'Delete',
+      deleteConfirmTitle: 'Delete expense?',
+      cancel: 'Cancel',
+      today: 'Today',
+      yesterday: 'Yesterday',
+      group: 'Vacation',
+      amount: 'Amount',
+      export: 'Export',
+      exportTitle: 'Export Expenses',
+      exportCsv: 'Export as CSV',
+      exportPdf: 'Export as PDF',
+      generatedOn: 'Generated on',
+    },
+    categories: {
+      Food: 'Food',
+      Transport: 'Transport',
+      Lodging: 'Lodging',
+      Activities: 'Activities',
+      Shopping: 'Shopping',
+      Groceries: 'Groceries',
+      Entertainment: 'Entertainment',
+      Other: 'Other',
+    },
+    paymentMethods: {
+      cash: 'Cash',
+      creditCard: 'Credit Card',
+      debitCard: 'Debit Card',
+      pickerTitle: 'Payment Method',
+      addPlaceholder: 'Add new method (e.g. PayPal)',
+      addButton: 'Add',
+    },
+    currency: { pickerTitle: 'Currency' },
+    settings: {
+      title: 'Settings',
+      subtitle: 'Customize your app',
+      language: 'Language',
+      paymentMethods: 'Payment Methods',
+      paymentMethodsHint:
+        'Methods already used in an expense can only be disabled, not deleted.',
+      defaultBadge: 'Default',
+      setAsDefault: 'Set as default',
+      enable: 'Enable',
+      disable: 'Disable',
+      deleteMethodConfirmTitle: 'Delete this payment method?',
+      support: 'Support',
+      buyMeCoffee: 'Buy me a Coffee ☕',
+    },
+    groups: {
+      pickerTitle: 'Select Vacation',
+      createNew: '+ New Vacation',
+      createTitle: 'New Vacation',
+      editTitle: 'Edit Vacation',
+      namePlaceholder: 'e.g. Trip to Paris 2026',
+      color: 'Color',
+      defaultCurrency: 'Default Currency',
+      defaultCurrencyHint: 'Used when adding a new expense to this vacation',
+      leadCurrency: 'Show Totals In',
+      leadCurrencyHint: 'Convert every expense and the vacation total into one currency',
+      leadCurrencyNone: 'Original currencies',
+      deleteLink: 'Delete Vacation',
+      deleteConfirmTitle: 'Delete Vacation?',
+      deleteConfirmMessage: 'This will also permanently delete all expenses in this vacation.',
+      createButton: 'Create Vacation',
+      allGroups: 'All Vacations',
+      emptyTitle: 'Create your first vacation to get started',
+      emptySubtitle: 'Vacations keep separate trips — like Paris 2026 or London 2027 — apart.',
+      emptyButton: 'Create Vacation',
+    },
+    rates: {
+      updated: 'Rates updated',
+      refresh: 'Refresh',
+      loading: 'Updating rates…',
+      error: "Couldn't fetch new rates. Showing last known rates.",
+      never: 'Fetching exchange rates…',
+    },
+  },
+  fr: {
+    tabs: { expenses: 'Dépenses', settings: 'Réglages' },
+    common: { back: 'Retour', save: 'Enregistrer' },
+    add: {
+      title: 'Ajouter une dépense',
+      editTitle: 'Modifier la dépense',
+      tripTotal: 'Total du voyage :',
+      date: 'Date',
+      category: 'Catégorie',
+      paymentMethod: 'Moyen de paiement',
+      selectMethod: 'Choisir un moyen',
+      description: 'Description',
+      descriptionPlaceholder: 'ex. Dîner au port',
+      save: 'Ajouter la dépense',
+      saved: 'Ajouté ✓',
+    },
+    manage: {
+      title: 'Vos dépenses',
+      tripTotal: 'Total du voyage :',
+      emptyTitle: "Aucune dépense pour l'instant.",
+      emptySubtitle: 'Appuyez sur « Ajouter une dépense » ci-dessus pour enregistrer la première.',
+      delete: 'Supprimer',
+      deleteConfirmTitle: 'Supprimer cette dépense ?',
+      cancel: 'Annuler',
+      today: "Aujourd'hui",
+      yesterday: 'Hier',
+      group: 'Séjour',
+      amount: 'Montant',
+      export: 'Exporter',
+      exportTitle: 'Exporter les dépenses',
+      exportCsv: 'Exporter en CSV',
+      exportPdf: 'Exporter en PDF',
+      generatedOn: 'Généré le',
+    },
+    categories: {
+      Food: 'Nourriture',
+      Transport: 'Transport',
+      Lodging: 'Hébergement',
+      Activities: 'Activités',
+      Shopping: 'Shopping',
+      Groceries: 'Courses',
+      Entertainment: 'Divertissement',
+      Other: 'Autre',
+    },
+    paymentMethods: {
+      cash: 'Espèces',
+      creditCard: 'Carte de crédit',
+      debitCard: 'Carte de débit',
+      pickerTitle: 'Moyen de paiement',
+      addPlaceholder: 'Ajouter un moyen (ex. PayPal)',
+      addButton: 'Ajouter',
+    },
+    currency: { pickerTitle: 'Devise' },
+    settings: {
+      title: 'Réglages',
+      subtitle: 'Personnalisez votre application',
+      language: 'Langue',
+      paymentMethods: 'Moyens de paiement',
+      paymentMethodsHint:
+        'Un moyen déjà utilisé dans une dépense ne peut être que désactivé, pas supprimé.',
+      defaultBadge: 'Par défaut',
+      setAsDefault: 'Définir par défaut',
+      enable: 'Activer',
+      disable: 'Désactiver',
+      deleteMethodConfirmTitle: 'Supprimer ce moyen de paiement ?',
+      support: 'Soutien',
+      buyMeCoffee: 'Offrez-moi un café ☕',
+    },
+    groups: {
+      pickerTitle: 'Choisir un séjour',
+      createNew: '+ Nouveau séjour',
+      createTitle: 'Nouveau séjour',
+      editTitle: 'Modifier le séjour',
+      namePlaceholder: 'ex. Voyage à Paris 2026',
+      color: 'Couleur',
+      defaultCurrency: 'Devise par défaut',
+      defaultCurrencyHint: "Utilisée lors de l'ajout d'une dépense à ce séjour",
+      leadCurrency: 'Afficher les totaux en',
+      leadCurrencyHint: 'Convertir chaque dépense et le total du séjour dans une seule devise',
+      leadCurrencyNone: "Devises d'origine",
+      deleteLink: 'Supprimer le séjour',
+      deleteConfirmTitle: 'Supprimer le séjour ?',
+      deleteConfirmMessage:
+        'Cela supprimera également définitivement toutes les dépenses de ce séjour.',
+      createButton: 'Créer le séjour',
+      allGroups: 'Tous les séjours',
+      emptyTitle: 'Créez votre premier séjour pour commencer',
+      emptySubtitle:
+        'Les séjours séparent vos voyages — comme Paris 2026 ou Londres 2027.',
+      emptyButton: 'Créer un séjour',
+    },
+    rates: {
+      updated: 'Taux mis à jour',
+      refresh: 'Actualiser',
+      loading: 'Mise à jour des taux…',
+      error: 'Impossible de récupérer les taux. Affichage des derniers taux connus.',
+      never: 'Récupération des taux de change…',
+    },
+  },
+  de: {
+    tabs: { expenses: 'Ausgaben', settings: 'Einstellungen' },
+    common: { back: 'Zurück', save: 'Speichern' },
+    add: {
+      title: 'Ausgabe hinzufügen',
+      editTitle: 'Ausgabe bearbeiten',
+      tripTotal: 'Reisesumme:',
+      date: 'Datum',
+      category: 'Kategorie',
+      paymentMethod: 'Zahlungsmethode',
+      selectMethod: 'Methode auswählen',
+      description: 'Beschreibung',
+      descriptionPlaceholder: 'z. B. Abendessen am Hafen',
+      save: 'Ausgabe hinzufügen',
+      saved: 'Hinzugefügt ✓',
+    },
+    manage: {
+      title: 'Deine Ausgaben',
+      tripTotal: 'Reisesumme:',
+      emptyTitle: 'Noch keine Ausgaben.',
+      emptySubtitle: 'Tippe oben auf „Ausgabe hinzufügen“, um die erste einzutragen.',
+      delete: 'Löschen',
+      deleteConfirmTitle: 'Ausgabe löschen?',
+      cancel: 'Abbrechen',
+      today: 'Heute',
+      yesterday: 'Gestern',
+      group: 'Urlaub',
+      amount: 'Betrag',
+      export: 'Exportieren',
+      exportTitle: 'Ausgaben exportieren',
+      exportCsv: 'Als CSV exportieren',
+      exportPdf: 'Als PDF exportieren',
+      generatedOn: 'Erstellt am',
+    },
+    categories: {
+      Food: 'Essen',
+      Transport: 'Transport',
+      Lodging: 'Unterkunft',
+      Activities: 'Aktivitäten',
+      Shopping: 'Einkaufen',
+      Groceries: 'Lebensmittel',
+      Entertainment: 'Unterhaltung',
+      Other: 'Sonstiges',
+    },
+    paymentMethods: {
+      cash: 'Bargeld',
+      creditCard: 'Kreditkarte',
+      debitCard: 'Debitkarte',
+      pickerTitle: 'Zahlungsmethode',
+      addPlaceholder: 'Neue Methode hinzufügen (z. B. PayPal)',
+      addButton: 'Hinzufügen',
+    },
+    currency: { pickerTitle: 'Währung' },
+    settings: {
+      title: 'Einstellungen',
+      subtitle: 'Passe deine App an',
+      language: 'Sprache',
+      paymentMethods: 'Zahlungsmethoden',
+      paymentMethodsHint:
+        'Bereits verwendete Methoden können nur deaktiviert, nicht gelöscht werden.',
+      defaultBadge: 'Standard',
+      setAsDefault: 'Als Standard festlegen',
+      enable: 'Aktivieren',
+      disable: 'Deaktivieren',
+      deleteMethodConfirmTitle: 'Diese Zahlungsmethode löschen?',
+      support: 'Unterstützung',
+      buyMeCoffee: 'Spendier mir einen Kaffee ☕',
+    },
+    groups: {
+      pickerTitle: 'Urlaub auswählen',
+      createNew: '+ Neuer Urlaub',
+      createTitle: 'Neuer Urlaub',
+      editTitle: 'Urlaub bearbeiten',
+      namePlaceholder: 'z. B. Reise nach Paris 2026',
+      color: 'Farbe',
+      defaultCurrency: 'Standardwährung',
+      defaultCurrencyHint: 'Wird beim Hinzufügen einer Ausgabe zu diesem Urlaub verwendet',
+      leadCurrency: 'Summen anzeigen in',
+      leadCurrencyHint: 'Jede Ausgabe und die Urlaubssumme in eine Währung umrechnen',
+      leadCurrencyNone: 'Originalwährungen',
+      deleteLink: 'Urlaub löschen',
+      deleteConfirmTitle: 'Urlaub löschen?',
+      deleteConfirmMessage:
+        'Dadurch werden auch alle Ausgaben dieses Urlaubs endgültig gelöscht.',
+      createButton: 'Urlaub erstellen',
+      allGroups: 'Alle Urlaube',
+      emptyTitle: 'Erstelle deinen ersten Urlaub, um loszulegen',
+      emptySubtitle: 'Urlaube halten Reisen getrennt — z. B. Paris 2026 oder London 2027.',
+      emptyButton: 'Urlaub erstellen',
+    },
+    rates: {
+      updated: 'Kurse aktualisiert',
+      refresh: 'Aktualisieren',
+      loading: 'Kurse werden aktualisiert…',
+      error: 'Kurse konnten nicht abgerufen werden. Letzte bekannte Kurse werden angezeigt.',
+      never: 'Wechselkurse werden abgerufen…',
+    },
+  },
+  es: {
+    tabs: { expenses: 'Gastos', settings: 'Ajustes' },
+    common: { back: 'Atrás', save: 'Guardar' },
+    add: {
+      title: 'Añadir gasto',
+      editTitle: 'Editar gasto',
+      tripTotal: 'Total del viaje:',
+      date: 'Fecha',
+      category: 'Categoría',
+      paymentMethod: 'Método de pago',
+      selectMethod: 'Selecciona un método',
+      description: 'Descripción',
+      descriptionPlaceholder: 'p. ej. Cena en el puerto',
+      save: 'Añadir gasto',
+      saved: 'Añadido ✓',
+    },
+    manage: {
+      title: 'Tus gastos',
+      tripTotal: 'Total del viaje:',
+      emptyTitle: 'Aún no hay gastos.',
+      emptySubtitle: 'Toca "Añadir gasto" arriba para registrar el primero.',
+      delete: 'Eliminar',
+      deleteConfirmTitle: '¿Eliminar gasto?',
+      cancel: 'Cancelar',
+      today: 'Hoy',
+      yesterday: 'Ayer',
+      group: 'Viaje',
+      amount: 'Importe',
+      export: 'Exportar',
+      exportTitle: 'Exportar gastos',
+      exportCsv: 'Exportar como CSV',
+      exportPdf: 'Exportar como PDF',
+      generatedOn: 'Generado el',
+    },
+    categories: {
+      Food: 'Comida',
+      Transport: 'Transporte',
+      Lodging: 'Alojamiento',
+      Activities: 'Actividades',
+      Shopping: 'Compras',
+      Groceries: 'Supermercado',
+      Entertainment: 'Entretenimiento',
+      Other: 'Otro',
+    },
+    paymentMethods: {
+      cash: 'Efectivo',
+      creditCard: 'Tarjeta de crédito',
+      debitCard: 'Tarjeta de débito',
+      pickerTitle: 'Método de pago',
+      addPlaceholder: 'Añadir método (p. ej. PayPal)',
+      addButton: 'Añadir',
+    },
+    currency: { pickerTitle: 'Moneda' },
+    settings: {
+      title: 'Ajustes',
+      subtitle: 'Personaliza tu app',
+      language: 'Idioma',
+      paymentMethods: 'Métodos de pago',
+      paymentMethodsHint:
+        'Los métodos ya usados en un gasto solo se pueden desactivar, no eliminar.',
+      defaultBadge: 'Predeterminado',
+      setAsDefault: 'Establecer predeterminado',
+      enable: 'Activar',
+      disable: 'Desactivar',
+      deleteMethodConfirmTitle: '¿Eliminar este método de pago?',
+      support: 'Apoyo',
+      buyMeCoffee: 'Invítame a un café ☕',
+    },
+    groups: {
+      pickerTitle: 'Seleccionar viaje',
+      createNew: '+ Nuevo viaje',
+      createTitle: 'Nuevo viaje',
+      editTitle: 'Editar viaje',
+      namePlaceholder: 'p. ej. Viaje a París 2026',
+      color: 'Color',
+      defaultCurrency: 'Moneda predeterminada',
+      defaultCurrencyHint: 'Se usa al añadir un gasto a este viaje',
+      leadCurrency: 'Mostrar totales en',
+      leadCurrencyHint: 'Convertir cada gasto y el total del viaje a una sola moneda',
+      leadCurrencyNone: 'Monedas originales',
+      deleteLink: 'Eliminar viaje',
+      deleteConfirmTitle: '¿Eliminar viaje?',
+      deleteConfirmMessage: 'Esto también eliminará permanentemente todos los gastos de este viaje.',
+      createButton: 'Crear viaje',
+      allGroups: 'Todos los viajes',
+      emptyTitle: 'Crea tu primer viaje para empezar',
+      emptySubtitle: 'Los viajes mantienen tus gastos separados — como París 2026 o Londres 2027.',
+      emptyButton: 'Crear viaje',
+    },
+    rates: {
+      updated: 'Tasas actualizadas',
+      refresh: 'Actualizar',
+      loading: 'Actualizando tasas…',
+      error: 'No se pudieron obtener las tasas. Mostrando las últimas conocidas.',
+      never: 'Obteniendo tasas de cambio…',
+    },
+  },
+  he: {
+    tabs: { expenses: 'הוצאות', settings: 'הגדרות' },
+    common: { back: 'חזרה', save: 'שמירה' },
+    add: {
+      title: 'הוספת הוצאה',
+      editTitle: 'עריכת הוצאה',
+      tripTotal: 'סך הכול לטיול:',
+      date: 'תאריך',
+      category: 'קטגוריה',
+      paymentMethod: 'אמצעי תשלום',
+      selectMethod: 'בחרו אמצעי תשלום',
+      description: 'תיאור',
+      descriptionPlaceholder: 'לדוגמה: ארוחת ערב בנמל',
+      save: 'הוספת הוצאה',
+      saved: 'נוסף ✓',
+    },
+    manage: {
+      title: 'ההוצאות שלך',
+      tripTotal: 'סך הכול לטיול:',
+      emptyTitle: 'אין עדיין הוצאות.',
+      emptySubtitle: 'הקישו על "הוספת הוצאה" למעלה כדי לרשום את הראשונה.',
+      delete: 'מחיקה',
+      deleteConfirmTitle: 'למחוק את ההוצאה?',
+      cancel: 'ביטול',
+      today: 'היום',
+      yesterday: 'אתמול',
+      group: 'חופשה',
+      amount: 'סכום',
+      export: 'ייצוא',
+      exportTitle: 'ייצוא הוצאות',
+      exportCsv: 'ייצוא כ-CSV',
+      exportPdf: 'ייצוא כ-PDF',
+      generatedOn: 'הופק בתאריך',
+    },
+    categories: {
+      Food: 'אוכל',
+      Transport: 'תחבורה',
+      Lodging: 'לינה',
+      Activities: 'פעילויות',
+      Shopping: 'קניות',
+      Groceries: 'מכולת',
+      Entertainment: 'בידור',
+      Other: 'אחר',
+    },
+    paymentMethods: {
+      cash: 'מזומן',
+      creditCard: 'כרטיס אשראי',
+      debitCard: 'כרטיס חיוב',
+      pickerTitle: 'אמצעי תשלום',
+      addPlaceholder: 'הוספת אמצעי (למשל PayPal)',
+      addButton: 'הוספה',
+    },
+    currency: { pickerTitle: 'מטבע' },
+    settings: {
+      title: 'הגדרות',
+      subtitle: 'התאימו אישית את האפליקציה',
+      language: 'שפה',
+      paymentMethods: 'אמצעי תשלום',
+      paymentMethodsHint:
+        'אמצעי ששימש כבר בהוצאה ניתן רק להשבית, לא למחוק.',
+      defaultBadge: 'ברירת מחדל',
+      setAsDefault: 'הגדרה כברירת מחדל',
+      enable: 'הפעלה',
+      disable: 'השבתה',
+      deleteMethodConfirmTitle: 'למחוק את אמצעי התשלום הזה?',
+      support: 'תמיכה',
+      buyMeCoffee: 'קנו לי קפה ☕',
+    },
+    groups: {
+      pickerTitle: 'בחירת חופשה',
+      createNew: '+ חופשה חדשה',
+      createTitle: 'חופשה חדשה',
+      editTitle: 'עריכת חופשה',
+      namePlaceholder: 'לדוגמה: טיול לפריז 2026',
+      color: 'צבע',
+      defaultCurrency: 'מטבע ברירת מחדל',
+      defaultCurrencyHint: 'בשימוש בעת הוספת הוצאה לחופשה זו',
+      leadCurrency: 'הצגת הסכומים במטבע',
+      leadCurrencyHint: 'המרת כל הוצאה וסך החופשה למטבע אחד',
+      leadCurrencyNone: 'מטבעות מקוריים',
+      deleteLink: 'מחיקת חופשה',
+      deleteConfirmTitle: 'למחוק את החופשה?',
+      deleteConfirmMessage: 'פעולה זו תמחק לצמיתות גם את כל ההוצאות בחופשה זו.',
+      createButton: 'יצירת חופשה',
+      allGroups: 'כל החופשות',
+      emptyTitle: 'צרו חופשה ראשונה כדי להתחיל',
+      emptySubtitle: 'חופשות מפרידות בין טיולים — כמו פריז 2026 או לונדון 2027.',
+      emptyButton: 'יצירת חופשה',
+    },
+    rates: {
+      updated: 'שערים עודכנו',
+      refresh: 'רענון',
+      loading: 'מעדכן שערים…',
+      error: 'לא ניתן היה לעדכן שערים. מוצגים השערים האחרונים הידועים.',
+      never: 'טוען שערי חליפין…',
+    },
+  },
+};
