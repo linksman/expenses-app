@@ -19,6 +19,7 @@ export interface Translations {
   manage: {
     title: string;
     tripTotal: string;
+    expensesCount: string;
     emptyTitle: string;
     emptySubtitle: string;
     delete: string;
@@ -73,7 +74,6 @@ export interface Translations {
     createTitle: string;
     editTitle: string;
     namePlaceholder: string;
-    color: string;
     defaultCurrency: string;
     defaultCurrencyHint: string;
     leadCurrency: string;
@@ -110,13 +110,14 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       paymentMethod: 'Payment Method',
       selectMethod: 'Select a method',
       description: 'Description',
-      descriptionPlaceholder: 'e.g. Dinner at the harbor',
+      descriptionPlaceholder: 'What did you spend on?',
       save: 'Add Expense',
       saved: 'Added ✓',
     },
     manage: {
       title: 'Your Expenses',
       tripTotal: 'Trip total:',
+      expensesCount: 'expenses',
       emptyTitle: 'No expenses yet.',
       emptySubtitle: "Tap \"Add Expense\" above to log your first one.",
       delete: 'Delete',
@@ -172,7 +173,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       createTitle: 'New Vacation',
       editTitle: 'Edit Vacation',
       namePlaceholder: 'e.g. Trip to Paris 2026',
-      color: 'Color',
       defaultCurrency: 'Default Currency',
       defaultCurrencyHint: 'Used when adding a new expense to this vacation',
       leadCurrency: 'Show Totals In',
@@ -207,13 +207,14 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       paymentMethod: 'Moyen de paiement',
       selectMethod: 'Choisir un moyen',
       description: 'Description',
-      descriptionPlaceholder: 'ex. Dîner au port',
+      descriptionPlaceholder: 'Pour quoi avez-vous dépensé ?',
       save: 'Ajouter la dépense',
       saved: 'Ajouté ✓',
     },
     manage: {
       title: 'Vos dépenses',
       tripTotal: 'Total du voyage :',
+      expensesCount: 'dépenses',
       emptyTitle: "Aucune dépense pour l'instant.",
       emptySubtitle: 'Appuyez sur « Ajouter une dépense » ci-dessus pour enregistrer la première.',
       delete: 'Supprimer',
@@ -269,7 +270,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       createTitle: 'Nouveau séjour',
       editTitle: 'Modifier le séjour',
       namePlaceholder: 'ex. Voyage à Paris 2026',
-      color: 'Couleur',
       defaultCurrency: 'Devise par défaut',
       defaultCurrencyHint: "Utilisée lors de l'ajout d'une dépense à ce séjour",
       leadCurrency: 'Afficher les totaux en',
@@ -306,13 +306,14 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       paymentMethod: 'Zahlungsmethode',
       selectMethod: 'Methode auswählen',
       description: 'Beschreibung',
-      descriptionPlaceholder: 'z. B. Abendessen am Hafen',
+      descriptionPlaceholder: 'Wofür hast du bezahlt?',
       save: 'Ausgabe hinzufügen',
       saved: 'Hinzugefügt ✓',
     },
     manage: {
       title: 'Deine Ausgaben',
       tripTotal: 'Reisesumme:',
+      expensesCount: 'Ausgaben',
       emptyTitle: 'Noch keine Ausgaben.',
       emptySubtitle: 'Tippe oben auf „Ausgabe hinzufügen“, um die erste einzutragen.',
       delete: 'Löschen',
@@ -368,7 +369,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       createTitle: 'Neuer Urlaub',
       editTitle: 'Urlaub bearbeiten',
       namePlaceholder: 'z. B. Reise nach Paris 2026',
-      color: 'Farbe',
       defaultCurrency: 'Standardwährung',
       defaultCurrencyHint: 'Wird beim Hinzufügen einer Ausgabe zu diesem Urlaub verwendet',
       leadCurrency: 'Summen anzeigen in',
@@ -404,13 +404,14 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       paymentMethod: 'Método de pago',
       selectMethod: 'Selecciona un método',
       description: 'Descripción',
-      descriptionPlaceholder: 'p. ej. Cena en el puerto',
+      descriptionPlaceholder: '¿En qué gastaste?',
       save: 'Añadir gasto',
       saved: 'Añadido ✓',
     },
     manage: {
       title: 'Tus gastos',
       tripTotal: 'Total del viaje:',
+      expensesCount: 'gastos',
       emptyTitle: 'Aún no hay gastos.',
       emptySubtitle: 'Toca "Añadir gasto" arriba para registrar el primero.',
       delete: 'Eliminar',
@@ -466,7 +467,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       createTitle: 'Nuevo viaje',
       editTitle: 'Editar viaje',
       namePlaceholder: 'p. ej. Viaje a París 2026',
-      color: 'Color',
       defaultCurrency: 'Moneda predeterminada',
       defaultCurrencyHint: 'Se usa al añadir un gasto a este viaje',
       leadCurrency: 'Mostrar totales en',
@@ -501,13 +501,14 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       paymentMethod: 'אמצעי תשלום',
       selectMethod: 'בחרו אמצעי תשלום',
       description: 'תיאור',
-      descriptionPlaceholder: 'לדוגמה: ארוחת ערב בנמל',
+      descriptionPlaceholder: 'על מה הוצאת?',
       save: 'הוספת הוצאה',
       saved: 'נוסף ✓',
     },
     manage: {
       title: 'ההוצאות שלך',
       tripTotal: 'סך הכול לטיול:',
+      expensesCount: 'הוצאות',
       emptyTitle: 'אין עדיין הוצאות.',
       emptySubtitle: 'הקישו על "הוספת הוצאה" למעלה כדי לרשום את הראשונה.',
       delete: 'מחיקה',
@@ -563,7 +564,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       createTitle: 'חופשה חדשה',
       editTitle: 'עריכת חופשה',
       namePlaceholder: 'לדוגמה: טיול לפריז 2026',
-      color: 'צבע',
       defaultCurrency: 'מטבע ברירת מחדל',
       defaultCurrencyHint: 'בשימוש בעת הוספת הוצאה לחופשה זו',
       leadCurrency: 'הצגת הסכומים במטבע',

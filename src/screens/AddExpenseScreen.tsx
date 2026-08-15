@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAudioPlayer } from 'expo-audio';
 import { colors } from '../theme/colors';
 import { useExpenses } from '../storage/ExpensesContext';
 import { usePaymentMethods } from '../storage/PaymentMethodsContext';
@@ -27,11 +28,18 @@ import { dayLabel } from '../utils/dateLabel';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
 import PaymentMethodPickerModal from '../components/PaymentMethodPickerModal';
 import DatePickerModal from '../components/DatePickerModal';
+import CoinBurst from '../components/CoinBurst';
 
 interface RouteParams {
   groupId: string;
   expenseId?: string;
 }
+
+const FIELD_ICON_STYLES = {
+  description: { color: '#7C3AED', tint: '#F1EAFE' },
+  payment: { color: '#159C87', tint: '#E7F6F1' },
+  date: { color: '#EA8C3A', tint: '#FFF4E8' },
+};
 
 export default function AddExpenseScreen() {
   const navigation = useNavigation();
@@ -71,6 +79,8 @@ export default function AddExpenseScreen() {
   const [methodModalVisible, setMethodModalVisible] = useState(false);
   const descriptionInputRef = useRef<TextInput>(null);
   const saveButtonRef = useRef<React.ElementRef<typeof TouchableOpacity>>(null);
+  const [showCoinBurst, setShowCoinBurst] = useState(false);
+  const chaChingPlayer = useAudioPlayer(require('../../assets/sounds/cha-ching.wav'));
 
   const leadCurrency = group?.leadCurrency ?? null;
 
@@ -120,6 +130,8 @@ export default function AddExpenseScreen() {
         paymentMethodId,
         createdAt
       );
+      setActiveGroupId(group.id);
+      navigation.goBack();
     } else {
       await addExpense(
         parsedAmount,
@@ -130,9 +142,13 @@ export default function AddExpenseScreen() {
         group.id,
         createdAt
       );
+      setActiveGroupId(group.id);
+      // Celebrate a brand-new expense with a coin burst + cha-ching, then leave —
+      // editing an existing one skips this and navigates back immediately above.
+      chaChingPlayer.seekTo(0);
+      chaChingPlayer.play();
+      setShowCoinBurst(true);
     }
-    setActiveGroupId(group.id);
-    navigation.goBack();
   };
 
   const selectedMethod = methods.find((m) => m.id === paymentMethodId);
@@ -143,15 +159,17 @@ export default function AddExpenseScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <TouchableOpacity
-        style={[styles.backRow, { flexDirection: rowDirection }]}
-        onPress={() => navigation.goBack()}
-        activeOpacity={0.7}
-      >
-        <Text style={styles.backText}>
-          {isRTL ? '›' : '‹'} {t.common.back}
-        </Text>
-      </TouchableOpacity>
+      <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
+        <Text style={styles.headerTitle}>{isEditing ? t.add.editTitle : t.add.title}</Text>
+        <TouchableOpacity
+          style={[styles.backButton, { flexDirection: rowDirection }]}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.backText}>{t.common.back}</Text>
+          <Ionicons name={isRTL ? 'chevron-forward' : 'chevron-back'} size={14} color={colors.primary} />
+        </TouchableOpacity>
+      </View>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -160,103 +178,116 @@ export default function AddExpenseScreen() {
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={[styles.saveRow, { flexDirection: rowDirection }]}>
-            <View style={[styles.groupColorDot, { backgroundColor: group.color }]} />
-            <TouchableOpacity
-              ref={saveButtonRef}
-              style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={!canSave}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.saveButtonText}>
-                {isEditing ? t.common.save : t.add.save}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            ref={saveButtonRef}
+            style={[
+              styles.saveButton,
+              { flexDirection: rowDirection },
+              (!canSave || showCoinBurst) && styles.saveButtonDisabled,
+            ]}
+            onPress={handleSubmit}
+            disabled={!canSave || showCoinBurst}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+            <Text style={styles.saveButtonText}>{isEditing ? t.common.save : t.add.save}</Text>
+          </TouchableOpacity>
 
-          <View style={styles.amountBlock}>
-            <TouchableOpacity
-              style={styles.currencyButton}
-              onPress={() => setCurrencyModalVisible(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.currencySign}>{currencyInfo(currencyCode).symbol}</Text>
-              <View style={styles.currencyCodeRow}>
-                <Text style={styles.currencyCode}>{currencyCode}</Text>
-                <Text style={styles.currencyChevron}>⌄</Text>
+          <View style={[styles.amountBlock, !amount.trim() && styles.amountBlockInvalid]}>
+            <View style={[styles.amountRow, { flexDirection: rowDirection }]}>
+              <View style={styles.amountColumn}>
+                <TextInput
+                  style={styles.amountInput}
+                  value={amount}
+                  onChangeText={setAmount}
+                  placeholder="0"
+                  placeholderTextColor={colors.textMuted}
+                  autoFocus={!isEditing}
+                  keyboardType="decimal-pad"
+                  returnKeyType="next"
+                  onSubmitEditing={() => descriptionInputRef.current?.focus()}
+                  blurOnSubmit={false}
+                />
+                {convertedAmount !== null && leadCurrency && (
+                  <Text style={styles.convertedHint}>≈ {formatAmount(convertedAmount, leadCurrency)}</Text>
+                )}
               </View>
-            </TouchableOpacity>
-            <TextInput
-              style={styles.amountInput}
-              value={amount}
-              onChangeText={setAmount}
-              autoFocus={!isEditing}
-              keyboardType="decimal-pad"
-              returnKeyType="next"
-              onSubmitEditing={() => descriptionInputRef.current?.focus()}
-              blurOnSubmit={false}
-            />
-          </View>
-          {convertedAmount !== null && leadCurrency && (
-            <Text style={[styles.convertedHint, { textAlign: 'center' }]}>
-              ≈ {formatAmount(convertedAmount, leadCurrency)}
-            </Text>
-          )}
-
-          <View style={[styles.inlineRow, { flexDirection: rowDirection }]}>
-            <Text style={[styles.inlineLabel, { textAlign }]}>{t.add.description}</Text>
-            <TextInput
-              ref={descriptionInputRef}
-              style={[styles.descriptionInput, styles.inlineField, { textAlign }]}
-              value={description}
-              onChangeText={setDescription}
-              placeholder={t.add.descriptionPlaceholder}
-              placeholderTextColor={colors.textMuted}
-              returnKeyType="done"
-              onSubmitEditing={() => saveButtonRef.current?.focus?.()}
-            />
+              <TouchableOpacity
+                style={styles.currencyButton}
+                onPress={() => setCurrencyModalVisible(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.currencySign}>{currencyInfo(currencyCode).symbol}</Text>
+                <View style={styles.currencyCodeRow}>
+                  <Text style={styles.currencyCode}>{currencyCode}</Text>
+                  <Text style={styles.currencyChevron}>⌄</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          <View style={[styles.inlineRow, { flexDirection: rowDirection }]}>
-            <Text style={[styles.inlineLabel, { textAlign }]}>{t.add.paymentMethod}</Text>
-            <TouchableOpacity
-              style={[styles.methodButton, styles.inlineField, { flexDirection: rowDirection }]}
-              onPress={() => setMethodModalVisible(true)}
-              activeOpacity={0.8}
-            >
+          <View
+            style={[
+              styles.fieldCard,
+              { flexDirection: rowDirection },
+              !description.trim() && styles.fieldCardInvalid,
+            ]}
+          >
+            <View style={[styles.fieldIconBadge, { backgroundColor: FIELD_ICON_STYLES.description.tint }]}>
+              <Ionicons name="pencil" size={18} color={FIELD_ICON_STYLES.description.color} />
+            </View>
+            <View style={styles.fieldTextBlock}>
+              <Text style={[styles.fieldLabel, { textAlign }]}>{t.add.description}</Text>
+              <TextInput
+                ref={descriptionInputRef}
+                style={[styles.fieldValueInput, { textAlign }]}
+                value={description}
+                onChangeText={setDescription}
+                placeholder={t.add.descriptionPlaceholder}
+                placeholderTextColor={colors.textMuted}
+                returnKeyType="done"
+                onSubmitEditing={() => saveButtonRef.current?.focus?.()}
+              />
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.fieldCard, { flexDirection: rowDirection }]}
+            onPress={() => setMethodModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.fieldIconBadge, { backgroundColor: FIELD_ICON_STYLES.payment.tint }]}>
               <Ionicons
                 name={selectedMethod?.icon ?? DEFAULT_PAYMENT_METHOD_ICON}
-                size={20}
-                color={colors.text}
-                style={styles.methodIcon}
+                size={18}
+                color={FIELD_ICON_STYLES.payment.color}
               />
-              <Text style={[styles.methodName, { textAlign }]} numberOfLines={1}>
+            </View>
+            <View style={styles.fieldTextBlock}>
+              <Text style={[styles.fieldLabel, { textAlign }]}>{t.add.paymentMethod}</Text>
+              <Text style={[styles.fieldValue, { textAlign }]} numberOfLines={1}>
                 {selectedMethod ? paymentMethodName(selectedMethod, t) : t.add.selectMethod}
               </Text>
-              <Text style={styles.methodChevron}>{isRTL ? '‹' : '›'}</Text>
-            </TouchableOpacity>
-          </View>
+            </View>
+            <Text style={styles.fieldChevron}>{isRTL ? '‹' : '›'}</Text>
+          </TouchableOpacity>
 
-          <View style={[styles.inlineRow, { flexDirection: rowDirection }]}>
-            <Text style={[styles.inlineLabel, { textAlign }]}>{t.add.date}</Text>
-            <TouchableOpacity
-              style={[styles.dateButton, styles.inlineField, { flexDirection: rowDirection }]}
-              onPress={() => setDateModalVisible(true)}
-              activeOpacity={0.8}
-            >
-              <Ionicons
-                name="calendar-outline"
-                size={20}
-                color={colors.text}
-                style={styles.dateIcon}
-              />
-              <Text style={[styles.dateText, { textAlign }]} numberOfLines={1}>
+          <TouchableOpacity
+            style={[styles.fieldCard, { flexDirection: rowDirection }]}
+            onPress={() => setDateModalVisible(true)}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.fieldIconBadge, { backgroundColor: FIELD_ICON_STYLES.date.tint }]}>
+              <Ionicons name="calendar-outline" size={18} color={FIELD_ICON_STYLES.date.color} />
+            </View>
+            <View style={styles.fieldTextBlock}>
+              <Text style={[styles.fieldLabel, { textAlign }]}>{t.add.date}</Text>
+              <Text style={[styles.fieldValue, { textAlign }]} numberOfLines={1}>
                 {dayLabel(expenseDate.toISOString(), t, language.locale)}
               </Text>
-              <Text style={styles.methodChevron}>{isRTL ? '‹' : '›'}</Text>
-            </TouchableOpacity>
-          </View>
+            </View>
+            <Text style={styles.fieldChevron}>{isRTL ? '‹' : '›'}</Text>
+          </TouchableOpacity>
 
           <Text style={[styles.sectionLabel, { textAlign }]}>{t.add.category}</Text>
           <View style={styles.categoryGrid}>
@@ -270,7 +301,13 @@ export default function AddExpenseScreen() {
                   activeOpacity={0.8}
                   accessibilityLabel={t.categories[c.key]}
                 >
-                  <Ionicons name={c.icon} size={26} color={selected ? '#fff' : colors.text} />
+                  <Ionicons name={c.icon} size={22} color={selected ? colors.primary : c.color} />
+                  <Text
+                    style={[styles.categoryChipLabel, selected && styles.categoryChipLabelSelected]}
+                    numberOfLines={1}
+                  >
+                    {t.categories[c.key]}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -296,80 +333,79 @@ export default function AddExpenseScreen() {
         onSelect={handleDateSelect}
         onClose={() => setDateModalVisible(false)}
       />
+
+      {showCoinBurst && <CoinBurst onComplete={() => navigation.goBack()} />}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  container: { padding: 20, paddingBottom: 40 },
-  backRow: { alignItems: 'center', paddingHorizontal: 20, paddingTop: 12 },
-  backText: { fontSize: 15, fontWeight: '600', color: colors.primaryDark },
-  saveRow: {
+  container: { padding: 20, paddingBottom: 20 },
+  headerRow: {
     alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 24,
-    gap: 12,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 12,
   },
-  groupColorDot: { width: 16, height: 16, borderRadius: 8, flexShrink: 0 },
+  headerTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
+  backButton: { alignItems: 'center', gap: 6 },
+  backText: { fontSize: 15, fontWeight: '600', color: colors.primary },
   convertedHint: {
-    fontSize: 14,
+    fontSize: 13,
     color: colors.textMuted,
-    fontWeight: '600',
-    marginTop: -16,
-    marginBottom: 20,
+    marginTop: 2,
   },
   amountBlock: {
-    position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: colors.card,
-    borderRadius: 20,
-    paddingVertical: 22,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 14,
     marginBottom: 24,
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 2,
+    boxShadow: '0 1px 2px rgba(24,20,45,0.05), 0 10px 26px -18px rgba(24,20,45,0.4)',
+    elevation: 3,
   },
+  amountBlockInvalid: { borderColor: '#F1C7D2' },
+  amountRow: { alignItems: 'center', gap: 14 },
+  amountColumn: { flex: 1, minWidth: 0, alignItems: 'flex-start' },
   currencyButton: {
-    position: 'absolute',
-    left: 16,
-    top: 12,
-    bottom: 12,
+    flexShrink: 0,
+    width: 74,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 14,
-    borderRadius: 14,
+    gap: 1,
+    borderRadius: 16,
     backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  currencySign: { fontSize: 26, fontWeight: '700', color: colors.primaryDark },
+  currencySign: { fontSize: 20, fontWeight: '700', color: colors.primary },
   currencyCodeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 2,
   },
   currencyCode: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 12,
+    fontWeight: '600',
     color: colors.textMuted,
     letterSpacing: 0.5,
   },
   currencyChevron: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.primaryDark,
+    color: colors.textMuted,
     marginLeft: 2,
   },
   amountInput: {
-    fontSize: 48,
+    width: '100%',
+    fontSize: 44,
     fontWeight: '700',
     color: colors.text,
-    minWidth: 140,
-    textAlign: 'center',
   },
   sectionLabel: {
     fontSize: 13,
@@ -379,20 +415,39 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 10,
   },
-  inlineRow: {
+  fieldCard: {
     alignItems: 'center',
-    marginBottom: 16,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'transparent',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 12,
+    boxShadow: '0 1px 2px rgba(24,20,45,0.05)',
+    elevation: 1,
   },
-  inlineLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginHorizontal: 10,
+  fieldCardInvalid: { borderColor: '#F1C7D2' },
+  fieldIconBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
     flexShrink: 0,
   },
-  inlineField: { flex: 1, marginBottom: 0 },
+  fieldTextBlock: { flex: 1 },
+  fieldLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
+  fieldValue: { fontSize: 16, fontWeight: '700', color: colors.text, marginTop: 2 },
+  fieldValueInput: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    marginTop: 2,
+    padding: 0,
+  },
+  fieldChevron: { fontSize: 20, color: colors.textMuted, marginLeft: 8 },
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -404,63 +459,39 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.border,
+    borderWidth: 1,
+    borderColor: 'transparent',
     borderRadius: 18,
     backgroundColor: colors.card,
     marginBottom: 12,
+    paddingHorizontal: 4,
+    boxShadow: '0 1px 2px rgba(24,20,45,0.05)',
+    elevation: 1,
   },
-  categoryChipSelected: { backgroundColor: colors.text, borderColor: colors.text },
-  dateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  dateIcon: { marginRight: 10 },
-  dateText: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
-  methodButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  methodIcon: { marginRight: 10 },
-  methodName: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
-  methodChevron: { fontSize: 20, color: colors.textMuted },
-  descriptionInput: {
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
+  categoryChipLabel: {
+    fontSize: 11,
+    fontWeight: '600',
     color: colors.text,
-    marginBottom: 28,
-    borderWidth: 1,
-    borderColor: colors.border,
+    marginTop: 6,
   },
-  saveButton: {
-    flex: 1,
-    backgroundColor: colors.buttonGrey,
-    borderRadius: 16,
-    paddingVertical: 18,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+  categoryChipSelected: {
+    backgroundColor: '#F5F1FE',
+    borderColor: '#DDD1FA',
+    boxShadow: '0 6px 16px -12px rgba(109,40,217,0.9)',
     elevation: 3,
   },
-  saveButtonDisabled: { backgroundColor: colors.border, shadowOpacity: 0 },
+  categoryChipLabelSelected: { color: colors.primaryDark, fontWeight: '700' },
+  saveButton: {
+    backgroundColor: colors.primary,
+    borderRadius: 18,
+    height: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    marginBottom: 16,
+    boxShadow: '0 12px 26px -12px rgba(109,40,217,0.8)',
+    elevation: 3,
+  },
+  saveButtonDisabled: { backgroundColor: colors.border, boxShadow: 'none', elevation: 0 },
   saveButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
 });

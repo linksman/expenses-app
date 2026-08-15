@@ -69,11 +69,6 @@ export default function GroupPickerModal({
                     activeOpacity={0.7}
                   >
                     <View style={[styles.nameRow, { flexDirection: rowDirection }]}>
-                      {!isAll && (
-                        <View
-                          style={[styles.dot, { backgroundColor: (item as ExpenseGroup).color }]}
-                        />
-                      )}
                       <Text style={[styles.name, { textAlign }]}>{label}</Text>
                     </View>
                     {selected && <Text style={styles.check}>✓</Text>}
@@ -141,7 +136,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   nameRow: { flex: 1, alignItems: 'center' },
-  dot: { width: 12, height: 12, borderRadius: 6, marginHorizontal: 8 },
   name: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
   check: { fontSize: 16, fontWeight: '700', color: colors.primary },
   editButton: { paddingHorizontal: 10, paddingVertical: 14 },

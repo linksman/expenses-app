@@ -17,7 +17,6 @@ import { useLanguage } from '../storage/LanguageContext';
 import { useGroups } from '../storage/GroupsContext';
 import { useExpenses } from '../storage/ExpensesContext';
 import { currencyInfo } from '../types/currency';
-import { GROUP_COLORS } from '../types/group';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
 
 interface RouteParams {
@@ -39,7 +38,6 @@ export default function GroupFormScreen() {
   const isEditing = !!group;
 
   const [name, setName] = useState(group?.name ?? '');
-  const [color, setColor] = useState(group?.color ?? GROUP_COLORS[0]);
   const [defaultCurrency, setDefaultCurrency] = useState(group?.defaultCurrency ?? 'USD');
   const [leadCurrency, setLeadCurrency] = useState<string | null>(group?.leadCurrency ?? null);
   const [defaultCurrencyModalVisible, setDefaultCurrencyModalVisible] = useState(false);
@@ -51,9 +49,9 @@ export default function GroupFormScreen() {
   const handleSave = async () => {
     if (!canSave) return;
     if (isEditing && group) {
-      await updateGroup(group.id, name.trim(), color, defaultCurrency, leadCurrency);
+      await updateGroup(group.id, name.trim(), defaultCurrency, leadCurrency);
     } else {
-      await addGroup(name.trim(), color, defaultCurrency, leadCurrency);
+      await addGroup(name.trim(), defaultCurrency, leadCurrency);
     }
     navigation.goBack();
   };
@@ -98,23 +96,6 @@ export default function GroupFormScreen() {
             returnKeyType="done"
             autoFocus
           />
-
-          <Text style={[styles.sectionLabel, { textAlign }]}>{t.groups.color}</Text>
-          <View style={[styles.colorGrid, { flexDirection: rowDirection }]}>
-            {GROUP_COLORS.map((c) => {
-              const selected = c === color;
-              return (
-                <TouchableOpacity
-                  key={c}
-                  onPress={() => setColor(c)}
-                  style={[styles.colorSwatchWrap, selected && styles.colorSwatchWrapSelected]}
-                  activeOpacity={0.8}
-                >
-                  <View style={[styles.colorSwatch, { backgroundColor: c }]} />
-                </TouchableOpacity>
-              );
-            })}
-          </View>
 
           <Text style={[styles.sectionLabel, { textAlign }]}>
             {t.groups.defaultCurrency}
@@ -244,23 +225,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: 10,
   },
-  colorGrid: {
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  colorSwatchWrap: {
-    width: '22%',
-    aspectRatio: 1,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'transparent',
-    marginBottom: 12,
-  },
-  colorSwatchWrapSelected: { borderColor: colors.text },
-  colorSwatch: { width: '70%', aspectRatio: 1, borderRadius: 999 },
   row: {
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -275,7 +239,7 @@ const styles = StyleSheet.create({
   rowLabel: { fontSize: 16, fontWeight: '600', color: colors.text },
   chevron: { fontSize: 20, color: colors.textMuted },
   saveButton: {
-    backgroundColor: colors.buttonGrey,
+    backgroundColor: colors.primary,
     borderRadius: 16,
     paddingVertical: 18,
     alignItems: 'center',

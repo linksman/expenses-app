@@ -204,79 +204,90 @@ export default function ManageExpensesScreen() {
     );
   }
 
+  const totalsText = formatTotalsWithLead(
+    totalsByCurrency,
+    leadCurrency,
+    leadTotal,
+    selectedGroup?.defaultCurrency
+  );
+  const parenIndex = totalsText.indexOf(' (');
+  const heroMainTotal = parenIndex >= 0 ? totalsText.slice(0, parenIndex) : totalsText;
+  const heroConvertedTotal = parenIndex >= 0 ? totalsText.slice(parenIndex) : '';
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      {groups.length > 0 && (
-        <TouchableOpacity
-          style={[styles.groupBar, { flexDirection: rowDirection }]}
-          onPress={() => setGroupModalVisible(true)}
-          activeOpacity={0.7}
-        >
-          {selectedGroup ? (
-            <View
-              style={[
-                styles.groupBarDot,
-                { backgroundColor: selectedGroup.color },
-              ]}
-            />
-          ) : (
-            <Ionicons
-              name="folder-outline"
-              size={18}
-              color={colors.textMuted}
-              style={styles.groupBarIcon}
-            />
+      <View style={styles.container}>
+        <View style={styles.topRow}>
+          <TouchableOpacity
+            style={[styles.titleButton, { flexDirection: rowDirection }]}
+            onPress={() => setGroupModalVisible(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.titleName}>
+              {selectedGroup ? selectedGroup.name : t.groups.allGroups}
+            </Text>
+            <Ionicons name="chevron-down" size={14} color={colors.primary} />
+          </TouchableOpacity>
+          {selectedGroup && (
+            <TouchableOpacity
+              style={[styles.editNameButton, isRTL ? { left: 0 } : { right: 0 }]}
+              onPress={() => openGroupForm(selectedGroup.id)}
+              activeOpacity={0.7}
+              accessibilityLabel={t.groups.editTitle}
+            >
+              <Ionicons name="pencil" size={14} color={colors.primary} />
+            </TouchableOpacity>
           )}
-          <Text style={[styles.groupBarName, { textAlign }]} numberOfLines={1}>
-            {selectedGroup ? selectedGroup.name : t.groups.allGroups}
-          </Text>
-          <Text style={styles.groupBarChevron}>{isRTL ? '‹' : '›'}</Text>
-        </TouchableOpacity>
-      )}
+        </View>
 
-      <View
-        style={[
-          styles.header,
-          { flexDirection: rowDirection, alignItems: 'center', justifyContent: 'space-between' },
-        ]}
-      >
-        <Text style={[styles.subtitle, { textAlign }]}>
-          {t.manage.tripTotal}{' '}
-          <Text style={styles.subtitleStrong}>
-            {formatTotalsWithLead(
-              totalsByCurrency,
-              leadCurrency,
-              leadTotal,
-              selectedGroup?.defaultCurrency
-            )}
-          </Text>
-        </Text>
-        <TouchableOpacity
-          onPress={() => setExportModalVisible(true)}
-          disabled={filteredExpenses.length === 0 || exporting}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityLabel={t.manage.export}
-        >
-          <Ionicons
-            name="download-outline"
-            size={22}
-            color={filteredExpenses.length === 0 || exporting ? colors.border : colors.textMuted}
-          />
-        </TouchableOpacity>
+        <View style={[styles.totalsCard, { flexDirection: rowDirection }]}>
+          <View>
+            <Text style={styles.totalsAmount}>{heroMainTotal}</Text>
+            {heroConvertedTotal ? (
+              <Text style={styles.totalsConverted}>{heroConvertedTotal}</Text>
+            ) : null}
+          </View>
+          <View style={[styles.countPill, { flexDirection: rowDirection }]}>
+            <View style={styles.countPillDot} />
+            <Text style={styles.countPillText}>
+              {filteredExpenses.length} {t.manage.expensesCount}
+            </Text>
+          </View>
+        </View>
+
+        <View style={[styles.actionsRow, { flexDirection: rowDirection }]}>
+          <TouchableOpacity
+            style={[
+              styles.addButton,
+              { flexDirection: rowDirection },
+              !canAdd && styles.addButtonDisabled,
+            ]}
+            onPress={() => {
+              if (canAdd && selectedGroup) {
+                (navigation as any).navigate('AddExpense', { groupId: selectedGroup.id });
+              }
+            }}
+            disabled={!canAdd}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="add" size={16} color="#fff" />
+            <Text style={styles.addButtonText}>{t.add.save}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.exportCircle}
+            onPress={() => setExportModalVisible(true)}
+            disabled={filteredExpenses.length === 0 || exporting}
+            activeOpacity={0.7}
+            accessibilityLabel={t.manage.export}
+          >
+            <Ionicons
+              name="share-outline"
+              size={18}
+              color={filteredExpenses.length === 0 || exporting ? colors.border : colors.textMuted}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
-
-      <TouchableOpacity
-        style={[styles.addButton, !canAdd && styles.addButtonDisabled]}
-        onPress={() => {
-          if (canAdd && selectedGroup) {
-            (navigation as any).navigate('AddExpense', { groupId: selectedGroup.id });
-          }
-        }}
-        disabled={!canAdd}
-        activeOpacity={0.85}
-      >
-        <Text style={styles.addButtonText}>+ {t.add.save}</Text>
-      </TouchableOpacity>
 
       {filteredExpenses.length === 0 ? (
         <View style={styles.empty}>
@@ -315,7 +326,8 @@ export default function ManageExpensesScreen() {
               methods.find((m) => m.id === item.paymentMethodId)?.icon ??
               DEFAULT_PAYMENT_METHOD_ICON;
             const showGroupTag = viewGroupId === ALL_GROUPS;
-            const itemGroup = showGroupTag ? groups.find((g) => g.id === item.groupId) : null;
+            const badgeTint = info ? info.tint : colors.background;
+            const iconColor = info ? info.color : colors.textMuted;
             const descriptionText = item.description
               ? item.description
               : timeLabel(item.createdAt, language.locale);
@@ -331,21 +343,8 @@ export default function ManageExpensesScreen() {
                 onLongPress={() => confirmDelete(item)}
                 activeOpacity={0.7}
               >
-                <View style={styles.iconBadge}>
-                  {showGroupTag ? (
-                    <View
-                      style={[
-                        styles.groupDot,
-                        { backgroundColor: itemGroup?.color ?? colors.textMuted },
-                      ]}
-                    />
-                  ) : (
-                    <Ionicons
-                      name={info ? info.icon : methodIcon}
-                      size={20}
-                      color={info ? colors.text : colors.textMuted}
-                    />
-                  )}
+                <View style={[styles.iconBadge, { backgroundColor: badgeTint }]}>
+                  <Ionicons name={info ? info.icon : methodIcon} size={20} color={iconColor} />
                 </View>
                 <View style={styles.rowMiddle}>
                   <Text style={[styles.rowDescription, { textAlign }]} numberOfLines={1}>
@@ -398,7 +397,7 @@ export default function ManageExpensesScreen() {
                   <Ionicons
                     name={categoryInfo(pendingDelete.category).icon}
                     size={16}
-                    color={colors.textMuted}
+                    color={categoryInfo(pendingDelete.category).color}
                     style={styles.modalDetailIcon}
                   />
                 )}
@@ -483,40 +482,83 @@ export default function ManageExpensesScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 20, paddingBottom: 16 },
-  subtitle: { fontSize: 15, color: colors.textMuted },
-  subtitleStrong: { color: colors.primaryDark, fontWeight: '700' },
-  groupBar: {
+  container: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16, gap: 16 },
+  topRow: {
     alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    minHeight: 32,
+    paddingHorizontal: 44,
+  },
+  titleButton: { alignItems: 'center', gap: 6, maxWidth: '100%' },
+  titleName: {
+    flexShrink: 1,
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.primaryDark,
+    letterSpacing: -0.2,
+    textAlign: 'center',
+  },
+  editNameButton: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -16,
+    width: 32,
+    height: 32,
+    borderRadius: 11,
+    backgroundColor: '#F5F1FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  totalsCard: {
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
     backgroundColor: colors.card,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginHorizontal: 20,
-    marginTop: 12,
-    marginBottom: 16,
+    borderRadius: 24,
+    paddingHorizontal: 22,
+    paddingVertical: 20,
+    boxShadow: '0 1px 2px rgba(24,20,45,0.05), 0 8px 24px -16px rgba(24,20,45,0.35)',
+    elevation: 4,
+  },
+  totalsAmount: { fontSize: 34, fontWeight: '700', color: colors.text, letterSpacing: -0.4 },
+  totalsConverted: { fontSize: 14, color: colors.textMuted, marginTop: 4 },
+  countPill: {
+    alignItems: 'center',
+    gap: 7,
+    backgroundColor: '#F5F1FE',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  countPillDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary },
+  countPillText: { fontSize: 12, fontWeight: '600', color: colors.primary },
+  actionsRow: { gap: 10 },
+  exportCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  groupBarIcon: { fontSize: 16, marginHorizontal: 6 },
-  groupBarDot: { width: 14, height: 14, borderRadius: 7, marginHorizontal: 6 },
-  groupBarName: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.primaryDark },
-  groupBarChevron: { fontSize: 18, color: colors.textMuted },
-  addButton: {
-    backgroundColor: colors.buttonGrey,
-    borderRadius: 16,
-    paddingVertical: 18,
     alignItems: 'center',
-    marginHorizontal: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    justifyContent: 'center',
+    flexShrink: 0,
+    boxShadow: '0 1px 2px rgba(24,20,45,0.05)',
+    elevation: 1,
+  },
+  addButton: {
+    flex: 1,
+    height: 54,
+    backgroundColor: colors.primary,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    boxShadow: '0 10px 22px -10px rgba(109,40,217,0.75)',
     elevation: 3,
   },
-  addButtonDisabled: { backgroundColor: colors.border, shadowOpacity: 0 },
-  addButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  addButtonDisabled: { backgroundColor: colors.border, boxShadow: 'none', elevation: 0 },
+  addButtonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
   listContent: { paddingHorizontal: 20, paddingBottom: 32 },
   sectionHeader: {
     flexDirection: 'row',
@@ -537,25 +579,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.card,
-    borderRadius: 16,
+    borderRadius: 20,
     padding: 14,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
+    boxShadow: '0 1px 2px rgba(24,20,45,0.05)',
     elevation: 1,
   },
   iconBadge: {
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
     backgroundColor: colors.background,
+    flexShrink: 0,
   },
-  groupDot: { width: 20, height: 20, borderRadius: 10 },
   rowMiddle: { flex: 1 },
   rowDescription: { fontSize: 16, fontWeight: '600', color: colors.text },
   rowMethod: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
@@ -573,7 +612,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   emptyButton: {
-    backgroundColor: colors.buttonGrey,
+    backgroundColor: colors.primary,
     borderRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 28,

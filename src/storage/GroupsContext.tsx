@@ -7,15 +7,10 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { ExpenseGroup, GROUP_COLORS } from '../types/group';
+import { ExpenseGroup } from '../types/group';
 
 const GROUPS_KEY = 'vacation-expenses:groups:v1';
 const ACTIVE_GROUP_KEY = 'vacation-expenses:active-group:v1';
-
-// Groups persisted before per-group colors existed lack `color` — backfill it on load.
-function normalizeGroup(raw: any): ExpenseGroup {
-  return { ...raw, color: raw.color ?? GROUP_COLORS[0] };
-}
 
 interface GroupsContextValue {
   groups: ExpenseGroup[];
@@ -24,14 +19,12 @@ interface GroupsContextValue {
   loading: boolean;
   addGroup: (
     name: string,
-    color: string,
     defaultCurrency: string,
     leadCurrency: string | null
   ) => Promise<ExpenseGroup>;
   updateGroup: (
     id: string,
     name: string,
-    color: string,
     defaultCurrency: string,
     leadCurrency: string | null
   ) => Promise<ExpenseGroup>;
@@ -53,9 +46,7 @@ export function GroupsProvider({ children }: { children: React.ReactNode }) {
           AsyncStorage.getItem(GROUPS_KEY),
           AsyncStorage.getItem(ACTIVE_GROUP_KEY),
         ]);
-        const loadedGroups: ExpenseGroup[] = rawGroups
-          ? JSON.parse(rawGroups).map(normalizeGroup)
-          : [];
+        const loadedGroups: ExpenseGroup[] = rawGroups ? JSON.parse(rawGroups) : [];
         setGroups(loadedGroups);
         if (rawGroups) await AsyncStorage.setItem(GROUPS_KEY, JSON.stringify(loadedGroups));
         if (rawActive && loadedGroups.some((g) => g.id === rawActive)) {
@@ -75,16 +66,10 @@ export function GroupsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addGroup = useCallback(
-    async (
-      name: string,
-      color: string,
-      defaultCurrency: string,
-      leadCurrency: string | null
-    ) => {
+    async (name: string, defaultCurrency: string, leadCurrency: string | null) => {
       const group: ExpenseGroup = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         name: name.trim(),
-        color,
         defaultCurrency,
         leadCurrency,
         createdAt: new Date().toISOString(),
@@ -99,17 +84,11 @@ export function GroupsProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateGroup = useCallback(
-    async (
-      id: string,
-      name: string,
-      color: string,
-      defaultCurrency: string,
-      leadCurrency: string | null
-    ) => {
+    async (id: string, name: string, defaultCurrency: string, leadCurrency: string | null) => {
       let updated: ExpenseGroup | undefined;
       const next = groups.map((g) => {
         if (g.id !== id) return g;
-        updated = { ...g, name: name.trim(), color, defaultCurrency, leadCurrency };
+        updated = { ...g, name: name.trim(), defaultCurrency, leadCurrency };
         return updated;
       });
       setGroups(next);
