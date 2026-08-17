@@ -73,7 +73,7 @@ function MainTabs() {
 // Long enough for the splash's own wordmark to actually be seen in the
 // user's saved language (it updates the instant `loading` clears) rather
 // than the screen just flashing past before anyone can read it.
-const MIN_SPLASH_MS = 900;
+const MIN_SPLASH_MS = 2500;
 
 function AppGate() {
   const { loading } = useLanguage();
