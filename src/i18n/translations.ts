@@ -3,6 +3,7 @@ import { LanguageCode } from './languages';
 export interface Translations {
   tabs: { expenses: string; settings: string };
   common: { back: string; save: string };
+  splash: { title: string; tagline: string };
   add: {
     title: string;
     editTitle: string;
@@ -125,6 +126,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   en: {
     tabs: { expenses: 'Expenses', settings: 'Settings' },
     common: { back: 'Back', save: 'Save' },
+    splash: { title: 'Vacation Expenses', tagline: 'Every trip, every currency' },
     add: {
       title: 'Add Expense',
       editTitle: 'Edit Expense',
@@ -214,7 +216,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       createButton: 'Create Vacation',
       allGroups: 'All Vacations',
       emptyTitle: 'Create your first vacation to get started',
-      emptySubtitle: 'Vacations keep separate trips — like Paris 2026 or London 2027 — apart.',
+      emptySubtitle: 'and start keeping track of all your expenses in one place.',
       emptyButton: 'Create Vacation',
     },
     companions: {
@@ -246,6 +248,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   fr: {
     tabs: { expenses: 'Dépenses', settings: 'Réglages' },
     common: { back: 'Retour', save: 'Enregistrer' },
+    splash: { title: 'Dépenses de séjour', tagline: 'Chaque voyage, chaque devise' },
     add: {
       title: 'Ajouter une dépense',
       editTitle: 'Modifier la dépense',
@@ -336,8 +339,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       createButton: 'Créer le séjour',
       allGroups: 'Tous les séjours',
       emptyTitle: 'Créez votre premier séjour pour commencer',
-      emptySubtitle:
-        'Les séjours séparent vos voyages — comme Paris 2026 ou Londres 2027.',
+      emptySubtitle: 'et commencez à suivre toutes vos dépenses au même endroit.',
       emptyButton: 'Créer un séjour',
     },
     companions: {
@@ -370,6 +372,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   de: {
     tabs: { expenses: 'Ausgaben', settings: 'Einstellungen' },
     common: { back: 'Zurück', save: 'Speichern' },
+    splash: { title: 'Urlaubsausgaben', tagline: 'Jede Reise, jede Währung' },
     add: {
       title: 'Ausgabe hinzufügen',
       editTitle: 'Ausgabe bearbeiten',
@@ -460,7 +463,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       createButton: 'Urlaub erstellen',
       allGroups: 'Alle Urlaube',
       emptyTitle: 'Erstelle deinen ersten Urlaub, um loszulegen',
-      emptySubtitle: 'Urlaube halten Reisen getrennt — z. B. Paris 2026 oder London 2027.',
+      emptySubtitle: 'und alle deine Ausgaben an einem Ort im Blick zu behalten.',
       emptyButton: 'Urlaub erstellen',
     },
     companions: {
@@ -493,6 +496,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   es: {
     tabs: { expenses: 'Gastos', settings: 'Ajustes' },
     common: { back: 'Atrás', save: 'Guardar' },
+    splash: { title: 'Gastos de viaje', tagline: 'Cada viaje, cada moneda' },
     add: {
       title: 'Añadir gasto',
       editTitle: 'Editar gasto',
@@ -582,7 +586,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       createButton: 'Crear viaje',
       allGroups: 'Todos los viajes',
       emptyTitle: 'Crea tu primer viaje para empezar',
-      emptySubtitle: 'Los viajes mantienen tus gastos separados — como París 2026 o Londres 2027.',
+      emptySubtitle: 'y empieza a llevar el control de todos tus gastos en un solo lugar.',
       emptyButton: 'Crear viaje',
     },
     companions: {
@@ -615,6 +619,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   he: {
     tabs: { expenses: 'הוצאות', settings: 'הגדרות' },
     common: { back: 'חזרה', save: 'שמירה' },
+    splash: { title: 'הוצאות חופשה', tagline: 'כל טיול, כל מטבע' },
     add: {
       title: 'הוספת הוצאה',
       editTitle: 'עריכת הוצאה',
@@ -704,7 +709,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       createButton: 'יצירת חופשה',
       allGroups: 'כל החופשות',
       emptyTitle: 'צרו חופשה ראשונה כדי להתחיל',
-      emptySubtitle: 'חופשות מפרידות בין טיולים — כמו פריז 2026 או לונדון 2027.',
+      emptySubtitle: 'ותתחילו לעקוב אחרי כל ההוצאות שלכם במקום אחד.',
       emptyButton: 'יצירת חופשה',
     },
     companions: {

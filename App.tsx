@@ -3,8 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
-import { View } from 'react-native';
+import React, { useEffect, useState } from 'react';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from './src/theme/colors';
 import { ExpensesProvider } from './src/storage/ExpensesContext';
@@ -17,6 +16,7 @@ import ManageExpensesScreen from './src/screens/ManageExpensesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import GroupFormScreen from './src/screens/GroupFormScreen';
 import ExpenseSplitScreen from './src/screens/ExpenseSplitScreen';
+import SplashScreen from './src/screens/SplashScreen';
 
 const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
@@ -70,14 +70,25 @@ function MainTabs() {
   );
 }
 
+// Long enough for the splash's own wordmark to actually be seen in the
+// user's saved language (it updates the instant `loading` clears) rather
+// than the screen just flashing past before anyone can read it.
+const MIN_SPLASH_MS = 900;
+
 function AppGate() {
   const { loading } = useLanguage();
+  const [minSplashDone, setMinSplashDone] = useState(false);
 
-  // Wait for the persisted language to load before rendering anything — the whole
-  // app's layout direction (LTR/RTL) depends on it, so rendering early would flash
-  // English/LTR and then jump to the real language, instead of just loading blank.
-  if (loading) {
-    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+  useEffect(() => {
+    const timer = setTimeout(() => setMinSplashDone(true), MIN_SPLASH_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Wait for the persisted language to load before rendering the real app — the
+  // whole app's layout direction (LTR/RTL) depends on it, so rendering early would
+  // flash English/LTR and then jump to the real language, instead of just splashing.
+  if (loading || !minSplashDone) {
+    return <SplashScreen />;
   }
 
   return <AppNavigator />;

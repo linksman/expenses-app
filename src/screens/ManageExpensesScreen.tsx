@@ -202,15 +202,18 @@ export default function ManageExpensesScreen() {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>🧳</Text>
-          <Text style={styles.emptyText}>{t.groups.emptyTitle}</Text>
-          <Text style={styles.emptySubtext}>{t.groups.emptySubtitle}</Text>
+          <View style={styles.noGroupsIconTile}>
+            <Ionicons name="briefcase-outline" size={48} color="#7C3AED" />
+          </View>
+          <Text style={styles.noGroupsTitle}>{t.groups.emptyTitle}</Text>
+          <Text style={styles.noGroupsSubtitle}>{t.groups.emptySubtitle}</Text>
           <TouchableOpacity
-            style={styles.emptyButton}
+            style={[styles.noGroupsButton, { flexDirection: rowDirection }]}
             onPress={() => openGroupForm()}
             activeOpacity={0.85}
           >
-            <Text style={styles.emptyButtonText}>{t.groups.emptyButton}</Text>
+            <Ionicons name="add" size={16} color="#fff" />
+            <Text style={styles.noGroupsButtonText}>{t.groups.emptyButton}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -712,6 +715,46 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   emptyButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  noGroupsIconTile: {
+    width: 104,
+    height: 104,
+    borderRadius: 34,
+    backgroundColor: '#F5F1FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  noGroupsTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: -0.2,
+    textAlign: 'center',
+    lineHeight: 28,
+  },
+  noGroupsSubtitle: {
+    fontSize: 15,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginTop: 9,
+  },
+  noGroupsButton: {
+    minWidth: 210,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    marginTop: 24,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 3,
+  },
+  noGroupsButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(24, 24, 27, 0.45)',
