@@ -31,7 +31,7 @@ export interface Translations {
     cancel: string;
     today: string;
     yesterday: string;
-    group: string;
+    vacation: string;
     amount: string;
     export: string;
     exportTitle: string;
@@ -92,7 +92,7 @@ export interface Translations {
     support: string;
     buyMeCoffee: string;
   };
-  groups: {
+  vacations: {
     pickerTitle: string;
     createNew: string;
     createTitle: string;
@@ -108,7 +108,7 @@ export interface Translations {
     deleteConfirmTitle: string;
     deleteConfirmMessage: string;
     createButton: string;
-    allGroups: string;
+    allVacations: string;
     emptyTitle: string;
     emptySubtitle: string;
     emptyButton: string;
@@ -154,7 +154,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       cancel: 'Cancel',
       today: 'Today',
       yesterday: 'Yesterday',
-      group: 'Vacation',
+      vacation: 'Vacation',
       amount: 'Amount',
       export: 'Export',
       exportTitle: 'Export Expenses',
@@ -198,7 +198,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       support: 'Support',
       buyMeCoffee: 'Buy me a Coffee ☕',
     },
-    groups: {
+    vacations: {
       pickerTitle: 'Select Vacation',
       createNew: 'New Vacation',
       createTitle: 'New Vacation',
@@ -214,7 +214,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       deleteConfirmTitle: 'Delete Vacation?',
       deleteConfirmMessage: 'This will also permanently delete all expenses in this vacation.',
       createButton: 'Create Vacation',
-      allGroups: 'All Vacations',
+      allVacations: 'All Vacations',
       emptyTitle: 'Create your first vacation to get started',
       emptySubtitle: 'and start keeping track of all your expenses in one place.',
       emptyButton: 'Create Vacation',
@@ -276,7 +276,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       cancel: 'Annuler',
       today: "Aujourd'hui",
       yesterday: 'Hier',
-      group: 'Séjour',
+      vacation: 'Séjour',
       amount: 'Montant',
       export: 'Exporter',
       exportTitle: 'Exporter les dépenses',
@@ -320,7 +320,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       support: 'Soutien',
       buyMeCoffee: 'Offrez-moi un café ☕',
     },
-    groups: {
+    vacations: {
       pickerTitle: 'Choisir un séjour',
       createNew: 'Nouveau séjour',
       createTitle: 'Nouveau séjour',
@@ -337,7 +337,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       deleteConfirmMessage:
         'Cela supprimera également définitivement toutes les dépenses de ce séjour.',
       createButton: 'Créer le séjour',
-      allGroups: 'Tous les séjours',
+      allVacations: 'Tous les séjours',
       emptyTitle: 'Créez votre premier séjour pour commencer',
       emptySubtitle: 'et commencez à suivre toutes vos dépenses au même endroit.',
       emptyButton: 'Créer un séjour',
@@ -400,7 +400,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       cancel: 'Abbrechen',
       today: 'Heute',
       yesterday: 'Gestern',
-      group: 'Urlaub',
+      vacation: 'Urlaub',
       amount: 'Betrag',
       export: 'Exportieren',
       exportTitle: 'Ausgaben exportieren',
@@ -444,7 +444,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       support: 'Unterstützung',
       buyMeCoffee: 'Spendier mir einen Kaffee ☕',
     },
-    groups: {
+    vacations: {
       pickerTitle: 'Urlaub auswählen',
       createNew: 'Neuer Urlaub',
       createTitle: 'Neuer Urlaub',
@@ -461,7 +461,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       deleteConfirmMessage:
         'Dadurch werden auch alle Ausgaben dieses Urlaubs endgültig gelöscht.',
       createButton: 'Urlaub erstellen',
-      allGroups: 'Alle Urlaube',
+      allVacations: 'Alle Urlaube',
       emptyTitle: 'Erstelle deinen ersten Urlaub, um loszulegen',
       emptySubtitle: 'und alle deine Ausgaben an einem Ort im Blick zu behalten.',
       emptyButton: 'Urlaub erstellen',
@@ -524,7 +524,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       cancel: 'Cancelar',
       today: 'Hoy',
       yesterday: 'Ayer',
-      group: 'Viaje',
+      vacation: 'Viaje',
       amount: 'Importe',
       export: 'Exportar',
       exportTitle: 'Exportar gastos',
@@ -568,7 +568,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       support: 'Apoyo',
       buyMeCoffee: 'Invítame a un café ☕',
     },
-    groups: {
+    vacations: {
       pickerTitle: 'Seleccionar viaje',
       createNew: 'Nuevo viaje',
       createTitle: 'Nuevo viaje',
@@ -584,7 +584,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       deleteConfirmTitle: '¿Eliminar viaje?',
       deleteConfirmMessage: 'Esto también eliminará permanentemente todos los gastos de este viaje.',
       createButton: 'Crear viaje',
-      allGroups: 'Todos los viajes',
+      allVacations: 'Todos los viajes',
       emptyTitle: 'Crea tu primer viaje para empezar',
       emptySubtitle: 'y empieza a llevar el control de todos tus gastos en un solo lugar.',
       emptyButton: 'Crear viaje',
@@ -647,7 +647,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       cancel: 'ביטול',
       today: 'היום',
       yesterday: 'אתמול',
-      group: 'חופשה',
+      vacation: 'חופשה',
       amount: 'סכום',
       export: 'ייצוא',
       exportTitle: 'ייצוא הוצאות',
@@ -691,7 +691,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       support: 'תמיכה',
       buyMeCoffee: 'קנו לי קפה ☕',
     },
-    groups: {
+    vacations: {
       pickerTitle: 'בחירת חופשה',
       createNew: 'חופשה חדשה',
       createTitle: 'חופשה חדשה',
@@ -707,7 +707,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       deleteConfirmTitle: 'למחוק את החופשה?',
       deleteConfirmMessage: 'פעולה זו תמחק לצמיתות גם את כל ההוצאות בחופשה זו.',
       createButton: 'יצירת חופשה',
-      allGroups: 'כל החופשות',
+      allVacations: 'כל החופשות',
       emptyTitle: 'צרו חופשה ראשונה כדי להתחיל',
       emptySubtitle: 'ותתחילו לעקוב אחרי כל ההוצאות שלכם במקום אחד.',
       emptyButton: 'יצירת חופשה',

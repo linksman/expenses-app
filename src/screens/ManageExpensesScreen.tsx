@@ -14,7 +14,7 @@ import { colors } from '../theme/colors';
 import { useExpenses } from '../storage/ExpensesContext';
 import { usePaymentMethods } from '../storage/PaymentMethodsContext';
 import { useLanguage } from '../storage/LanguageContext';
-import { useGroups } from '../storage/GroupsContext';
+import { useVacations } from '../storage/VacationsContext';
 import { useExchangeRates } from '../storage/ExchangeRatesContext';
 import { categoryInfo, Expense } from '../types/expense';
 import { DEFAULT_PAYMENT_METHOD_ICON } from '../types/paymentMethod';
@@ -37,7 +37,7 @@ import {
   exportCsvFile,
   exportPdfFile,
 } from '../utils/exportExpenses';
-import GroupPickerModal, { ALL_GROUPS } from '../components/GroupPickerModal';
+import VacationPickerModal, { ALL_VACATIONS } from '../components/VacationPickerModal';
 
 interface Section {
   title: string;
@@ -51,43 +51,43 @@ export default function ManageExpensesScreen() {
   const { methods } = usePaymentMethods();
   const { t, language, isRTL } = useLanguage();
   const rowDirection = isRTL ? 'row-reverse' : 'row';
-  const { groups, activeGroupId, loading: groupsLoading } = useGroups();
+  const { vacations, activeVacationId, loading: vacationsLoading } = useVacations();
   const { ensureRates, convert: rawConvert } = useExchangeRates();
   const textAlign = isRTL ? 'right' : 'left';
   const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
-  const [groupModalVisible, setGroupModalVisible] = useState(false);
+  const [vacationModalVisible, setVacationModalVisible] = useState(false);
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [viewGroupId, setViewGroupId] = useState<string>(ALL_GROUPS);
-  // True once the initial filter has been resolved to the real active group (or,
-  // failing that, confirmed to legitimately be "all groups"). Prevents an initial
-  // paint of the ALL_GROUPS state — with its group-colored row dots — before the
-  // effect below has a chance to switch to the actual active group.
+  const [viewVacationId, setViewVacationId] = useState<string>(ALL_VACATIONS);
+  // True once the initial filter has been resolved to the real active vacation (or,
+  // failing that, confirmed to legitimately be "all vacations"). Prevents an initial
+  // paint of the ALL_VACATIONS state — with its vacation-colored row dots — before the
+  // effect below has a chance to switch to the actual active vacation.
   const [filterReady, setFilterReady] = useState(false);
   const userTouchedFilter = useRef(false);
-  const pendingGroupSync = useRef(false);
+  const pendingVacationSync = useRef(false);
 
   useEffect(() => {
-    if (!groupsLoading && !userTouchedFilter.current) {
-      if (activeGroupId) setViewGroupId(activeGroupId);
+    if (!vacationsLoading && !userTouchedFilter.current) {
+      if (activeVacationId) setViewVacationId(activeVacationId);
       setFilterReady(true);
     }
-  }, [groupsLoading, activeGroupId]);
+  }, [vacationsLoading, activeVacationId]);
 
-  // After creating, editing, or deleting a group on the GroupForm screen, follow
-  // whatever GroupsContext now considers the active group once we regain focus.
+  // After creating, editing, or deleting a vacation on the VacationForm screen, follow
+  // whatever VacationsContext now considers the active vacation once we regain focus.
   useFocusEffect(
     useCallback(() => {
-      if (pendingGroupSync.current) {
-        pendingGroupSync.current = false;
+      if (pendingVacationSync.current) {
+        pendingVacationSync.current = false;
         userTouchedFilter.current = true;
-        setViewGroupId(activeGroupId ?? ALL_GROUPS);
+        setViewVacationId(activeVacationId ?? ALL_VACATIONS);
       }
-    }, [activeGroupId])
+    }, [activeVacationId])
   );
 
-  const selectedGroup = groups.find((g) => g.id === viewGroupId) ?? null;
-  const leadCurrency = selectedGroup?.leadCurrency ?? null;
+  const selectedVacation = vacations.find((v) => v.id === viewVacationId) ?? null;
+  const leadCurrency = selectedVacation?.leadCurrency ?? null;
 
   useEffect(() => {
     if (leadCurrency) ensureRates(leadCurrency);
@@ -98,11 +98,11 @@ export default function ManageExpensesScreen() {
 
   const filteredExpenses = useMemo(() => {
     const list =
-      viewGroupId === ALL_GROUPS ? expenses : expenses.filter((e) => e.groupId === viewGroupId);
+      viewVacationId === ALL_VACATIONS ? expenses : expenses.filter((e) => e.vacationId === viewVacationId);
     return [...list].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
-  }, [expenses, viewGroupId]);
+  }, [expenses, viewVacationId]);
 
   const totalsByCurrency = useMemo(
     () => totalsByCurrencyFor(filteredExpenses),
@@ -115,8 +115,8 @@ export default function ManageExpensesScreen() {
   );
   const splitParticipantIds = useMemo(
     () =>
-      selectedGroup ? [ME_COMPANION_ID, ...selectedGroup.companions.map((c) => c.id)] : [],
-    [selectedGroup]
+      selectedVacation ? [ME_COMPANION_ID, ...selectedVacation.companions.map((c) => c.id)] : [],
+    [selectedVacation]
   );
 
   const sections: Section[] = useMemo(() => {
@@ -138,8 +138,8 @@ export default function ManageExpensesScreen() {
     return method ? paymentMethodName(method, t) : null;
   };
 
-  const groupName = (id: string): string =>
-    groups.find((g) => g.id === id)?.name ?? '';
+  const vacationName = (id: string): string =>
+    vacations.find((g) => g.id === id)?.name ?? '';
 
   const confirmDelete = (expense: Expense) => setPendingDelete(expense);
 
@@ -148,19 +148,19 @@ export default function ManageExpensesScreen() {
     setPendingDelete(null);
   };
 
-  const exportTitle = selectedGroup ? selectedGroup.name : t.groups.allGroups;
+  const exportTitle = selectedVacation ? selectedVacation.name : t.vacations.allVacations;
   const exportTotalsLine = `${t.manage.tripTotal} ${formatTotalsWithLead(
     totalsByCurrency,
     leadCurrency,
     leadTotal,
-    selectedGroup?.defaultCurrency
+    selectedVacation?.defaultCurrency
   )}`;
 
   const handleExportCsv = async () => {
     setExportModalVisible(false);
     setExporting(true);
     try {
-      const csv = buildExpensesCsv(filteredExpenses, groups, methods, t, language.locale);
+      const csv = buildExpensesCsv(filteredExpenses, vacations, methods, t, language.locale);
       await exportCsvFile(csv, exportTitle);
     } finally {
       setExporting(false);
@@ -173,7 +173,7 @@ export default function ManageExpensesScreen() {
     try {
       const html = buildExpensesHtml(
         filteredExpenses,
-        groups,
+        vacations,
         methods,
         t,
         language.locale,
@@ -187,33 +187,33 @@ export default function ManageExpensesScreen() {
     }
   };
 
-  const canAdd = viewGroupId !== ALL_GROUPS && !!selectedGroup;
+  const canAdd = viewVacationId !== ALL_VACATIONS && !!selectedVacation;
 
-  const openGroupForm = (groupId?: string) => {
-    pendingGroupSync.current = true;
-    (navigation as any).navigate('GroupForm', groupId ? { groupId } : undefined);
+  const openVacationForm = (vacationId?: string) => {
+    pendingVacationSync.current = true;
+    (navigation as any).navigate('VacationForm', vacationId ? { vacationId } : undefined);
   };
 
-  if (groupsLoading || !filterReady) {
+  if (vacationsLoading || !filterReady) {
     return <SafeAreaView style={styles.safe} edges={['top']} />;
   }
 
-  if (groups.length === 0) {
+  if (vacations.length === 0) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.empty}>
-          <View style={styles.noGroupsIconTile}>
+          <View style={styles.noVacationsIconTile}>
             <Ionicons name="briefcase-outline" size={48} color="#7C3AED" />
           </View>
-          <Text style={styles.noGroupsTitle}>{t.groups.emptyTitle}</Text>
-          <Text style={styles.noGroupsSubtitle}>{t.groups.emptySubtitle}</Text>
+          <Text style={styles.noVacationsTitle}>{t.vacations.emptyTitle}</Text>
+          <Text style={styles.noVacationsSubtitle}>{t.vacations.emptySubtitle}</Text>
           <TouchableOpacity
-            style={[styles.noGroupsButton, { flexDirection: rowDirection }]}
-            onPress={() => openGroupForm()}
+            style={[styles.noVacationsButton, { flexDirection: rowDirection }]}
+            onPress={() => openVacationForm()}
             activeOpacity={0.85}
           >
             <Ionicons name="add" size={16} color="#fff" />
-            <Text style={styles.noGroupsButtonText}>{t.groups.emptyButton}</Text>
+            <Text style={styles.noVacationsButtonText}>{t.vacations.emptyButton}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -224,7 +224,7 @@ export default function ManageExpensesScreen() {
     totalsByCurrency,
     leadCurrency,
     leadTotal,
-    selectedGroup?.defaultCurrency
+    selectedVacation?.defaultCurrency
   );
   const parenIndex = totalsText.indexOf(' (');
   const heroMainTotal = parenIndex >= 0 ? totalsText.slice(0, parenIndex) : totalsText;
@@ -236,20 +236,20 @@ export default function ManageExpensesScreen() {
         <View style={styles.topRow}>
           <TouchableOpacity
             style={[styles.titleButton, { flexDirection: rowDirection }]}
-            onPress={() => setGroupModalVisible(true)}
+            onPress={() => setVacationModalVisible(true)}
             activeOpacity={0.7}
           >
             <Text style={styles.titleName}>
-              {selectedGroup ? selectedGroup.name : t.groups.allGroups}
+              {selectedVacation ? selectedVacation.name : t.vacations.allVacations}
             </Text>
             <Ionicons name="chevron-down" size={14} color={colors.primary} />
           </TouchableOpacity>
-          {selectedGroup && (
+          {selectedVacation && (
             <TouchableOpacity
               style={[styles.editNameButton, isRTL ? { left: 0 } : { right: 0 }]}
-              onPress={() => openGroupForm(selectedGroup.id)}
+              onPress={() => openVacationForm(selectedVacation.id)}
               activeOpacity={0.7}
-              accessibilityLabel={t.groups.editTitle}
+              accessibilityLabel={t.vacations.editTitle}
             >
               <Ionicons name="pencil" size={14} color={colors.primary} />
             </TouchableOpacity>
@@ -281,8 +281,8 @@ export default function ManageExpensesScreen() {
               !canAdd && styles.addButtonDisabled,
             ]}
             onPress={() => {
-              if (canAdd && selectedGroup) {
-                (navigation as any).navigate('AddExpense', { groupId: selectedGroup.id });
+              if (canAdd && selectedVacation) {
+                (navigation as any).navigate('AddExpense', { vacationId: selectedVacation.id });
               }
             }}
             disabled={!canAdd}
@@ -306,7 +306,7 @@ export default function ManageExpensesScreen() {
           </TouchableOpacity>
         </View>
 
-        {selectedGroup && selectedGroup.companions.length > 0 && hasAnySplit && (
+        {selectedVacation && selectedVacation.companions.length > 0 && hasAnySplit && (
           <View style={styles.splitCard}>
             <Text style={[styles.splitCardTitle, { textAlign }]}>
               {t.manage.splitTotalsTitle}
@@ -320,14 +320,14 @@ export default function ManageExpensesScreen() {
               return (
                 <View key={id} style={[styles.splitCardRow, { flexDirection: rowDirection }]}>
                   <Text style={[styles.splitCardName, { textAlign }]} numberOfLines={1}>
-                    {companionName(id, selectedGroup.companions, t)}
+                    {companionName(id, selectedVacation.companions, t)}
                   </Text>
                   <Text style={[styles.splitCardAmount, { textAlign }]} numberOfLines={1}>
                     {formatTotalsWithLead(
                       totals,
                       leadCurrency,
                       personLeadTotal,
-                      selectedGroup.defaultCurrency
+                      selectedVacation.defaultCurrency
                     )}
                   </Text>
                 </View>
@@ -360,7 +360,7 @@ export default function ManageExpensesScreen() {
                     section.totals,
                     leadCurrency,
                     sectionLeadTotal,
-                    selectedGroup?.defaultCurrency
+                    selectedVacation?.defaultCurrency
                   )}
                 </Text>
               </View>
@@ -373,17 +373,17 @@ export default function ManageExpensesScreen() {
             const methodIcon =
               methods.find((m) => m.id === item.paymentMethodId)?.icon ??
               DEFAULT_PAYMENT_METHOD_ICON;
-            const showGroupTag = viewGroupId === ALL_GROUPS;
+            const showVacationTag = viewVacationId === ALL_VACATIONS;
             const badgeTint = info ? info.tint : colors.background;
             const iconColor = info ? info.color : colors.textMuted;
             const descriptionText = item.description
               ? item.description
               : timeLabel(item.createdAt, language.locale);
-            const itemGroup = groups.find((g) => g.id === item.groupId);
+            const itemVacation = vacations.find((g) => g.id === item.vacationId);
             const splitLabel =
               item.split.length > 0
                 ? `${t.manage.splitBadge}: ${[ME_COMPANION_ID, ...item.split.map((s) => s.companionId)]
-                    .map((id) => companionName(id, itemGroup?.companions ?? [], t))
+                    .map((id) => companionName(id, itemVacation?.companions ?? [], t))
                     .join(', ')}`
                 : null;
             return (
@@ -391,7 +391,7 @@ export default function ManageExpensesScreen() {
                 style={[styles.row, { flexDirection: rowDirection }]}
                 onPress={() =>
                   (navigation as any).navigate('AddExpense', {
-                    groupId: item.groupId,
+                    vacationId: item.vacationId,
                     expenseId: item.id,
                   })
                 }
@@ -407,7 +407,7 @@ export default function ManageExpensesScreen() {
                   </Text>
                   <Text style={[styles.rowMethod, { textAlign }]} numberOfLines={1}>
                     {method ?? ''}
-                    {showGroupTag ? `  ·  ${groupName(item.groupId)}` : ''}
+                    {showVacationTag ? `  ·  ${vacationName(item.vacationId)}` : ''}
                   </Text>
                   {splitLabel && (
                     <Text style={[styles.rowSplit, { textAlign }]} numberOfLines={1}>
@@ -523,18 +523,18 @@ export default function ManageExpensesScreen() {
         </View>
       </Modal>
 
-      <GroupPickerModal
-        visible={groupModalVisible}
-        selectedId={viewGroupId}
+      <VacationPickerModal
+        visible={vacationModalVisible}
+        selectedId={viewVacationId}
         onSelect={(id) => {
           userTouchedFilter.current = true;
-          setViewGroupId(id);
+          setViewVacationId(id);
         }}
-        onClose={() => setGroupModalVisible(false)}
+        onClose={() => setVacationModalVisible(false)}
         allowAll
         allowCreate
-        onCreateNew={() => openGroupForm()}
-        onEditGroup={(group) => openGroupForm(group.id)}
+        onCreateNew={() => openVacationForm()}
+        onEditVacation={(vacation) => openVacationForm(vacation.id)}
       />
     </SafeAreaView>
   );
@@ -715,7 +715,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   emptyButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  noGroupsIconTile: {
+  noVacationsIconTile: {
     width: 104,
     height: 104,
     borderRadius: 34,
@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 24,
   },
-  noGroupsTitle: {
+  noVacationsTitle: {
     fontSize: 22,
     fontWeight: '700',
     color: colors.text,
@@ -732,14 +732,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 28,
   },
-  noGroupsSubtitle: {
+  noVacationsSubtitle: {
     fontSize: 15,
     color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 22,
     marginTop: 9,
   },
-  noGroupsButton: {
+  noVacationsButton: {
     minWidth: 210,
     height: 54,
     borderRadius: 18,
@@ -754,7 +754,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     elevation: 3,
   },
-  noGroupsButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  noVacationsButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(24, 24, 27, 0.45)',

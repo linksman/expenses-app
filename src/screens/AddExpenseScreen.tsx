@@ -17,7 +17,7 @@ import { colors } from '../theme/colors';
 import { useExpenses } from '../storage/ExpensesContext';
 import { usePaymentMethods } from '../storage/PaymentMethodsContext';
 import { useLanguage } from '../storage/LanguageContext';
-import { useGroups } from '../storage/GroupsContext';
+import { useVacations } from '../storage/VacationsContext';
 import { useExchangeRates } from '../storage/ExchangeRatesContext';
 import { CATEGORIES, Category, ExpenseSplitShare } from '../types/expense';
 import { currencyInfo } from '../types/currency';
@@ -33,7 +33,7 @@ import DatePickerModal from '../components/DatePickerModal';
 import CoinBurst from '../components/CoinBurst';
 
 interface RouteParams {
-  groupId: string;
+  vacationId: string;
   expenseId?: string;
 }
 
@@ -47,18 +47,18 @@ const FIELD_ICON_STYLES = {
 export default function AddExpenseScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { groupId, expenseId } = (route.params ?? {}) as RouteParams;
+  const { vacationId, expenseId } = (route.params ?? {}) as RouteParams;
   const isEditing = !!expenseId;
 
   const { addExpense, updateExpense, expenses } = useExpenses();
   const { methods, effectiveDefaultMethodId } = usePaymentMethods();
   const { t, isRTL, language } = useLanguage();
-  const { groups, setActiveGroupId } = useGroups();
+  const { vacations, setActiveVacationId } = useVacations();
   const { ensureRates, convert: rawConvert } = useExchangeRates();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
 
-  const group = groups.find((g) => g.id === groupId) ?? null;
+  const vacation = vacations.find((v) => v.id === vacationId) ?? null;
   const existingExpense = isEditing ? expenses.find((e) => e.id === expenseId) : undefined;
 
   const [amount, setAmount] = useState(() =>
@@ -73,7 +73,7 @@ export default function AddExpenseScreen() {
   );
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [currencyCode, setCurrencyCode] = useState(
-    () => existingExpense?.currencyCode ?? group?.defaultCurrency ?? 'USD'
+    () => existingExpense?.currencyCode ?? vacation?.defaultCurrency ?? 'USD'
   );
   const [paymentMethodId, setPaymentMethodId] = useState(
     () => existingExpense?.paymentMethodId ?? ''
@@ -86,7 +86,7 @@ export default function AddExpenseScreen() {
   const [showCoinBurst, setShowCoinBurst] = useState(false);
   const chaChingPlayer = useAudioPlayer(require('../../assets/sounds/cha-ching.wav'));
 
-  const leadCurrency = group?.leadCurrency ?? null;
+  const leadCurrency = vacation?.leadCurrency ?? null;
 
   useEffect(() => {
     if (leadCurrency) ensureRates(leadCurrency);
@@ -117,7 +117,7 @@ export default function AddExpenseScreen() {
     !Number.isNaN(parsedAmount) &&
     parsedAmount > 0 &&
     !!paymentMethodId &&
-    !!group &&
+    !!vacation &&
     description.trim().length > 0;
   const convertedAmount =
     leadCurrency && !Number.isNaN(parsedAmount) && parsedAmount > 0
@@ -154,7 +154,7 @@ export default function AddExpenseScreen() {
   }, [amount, category, description, currencyCode, paymentMethodId, expenseDate, split]);
 
   const handleSubmit = async () => {
-    if (!canSave || !group) return;
+    if (!canSave || !vacation) return;
     const createdAt = expenseDate.toISOString();
     await addExpense(
       parsedAmount,
@@ -162,11 +162,11 @@ export default function AddExpenseScreen() {
       description,
       currencyCode,
       paymentMethodId,
-      group.id,
+      vacation.id,
       createdAt,
       split
     );
-    setActiveGroupId(group.id);
+    setActiveVacationId(vacation.id);
     // Celebrate a brand-new expense with a coin burst + cha-ching, then leave.
     chaChingPlayer.seekTo(0);
     chaChingPlayer.play();
@@ -175,7 +175,7 @@ export default function AddExpenseScreen() {
 
   const selectedMethod = methods.find((m) => m.id === paymentMethodId);
 
-  if (!group) {
+  if (!vacation) {
     return <SafeAreaView style={styles.safe} edges={['top']} />;
   }
 
@@ -183,7 +183,7 @@ export default function AddExpenseScreen() {
     split.length === 0
       ? t.add.splitNotSplit
       : `${t.add.splitWith} ${split
-          .map((s) => companionName(s.companionId, group.companions, t))
+          .map((s) => companionName(s.companionId, vacation.companions, t))
           .join(', ')}`;
 
   return (
@@ -193,7 +193,7 @@ export default function AddExpenseScreen() {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => {
-            if (isEditing && group) setActiveGroupId(group.id);
+            if (isEditing && vacation) setActiveVacationId(vacation.id);
             navigation.goBack();
           }}
           activeOpacity={0.7}
@@ -345,7 +345,7 @@ export default function AddExpenseScreen() {
             onPress={() => {
               if (Number.isNaN(parsedAmount) || parsedAmount <= 0) return;
               (navigation as any).navigate('ExpenseSplit', {
-                groupId: group.id,
+                vacationId: vacation.id,
                 amount: parsedAmount,
                 currencyCode,
                 initialSplit: split,

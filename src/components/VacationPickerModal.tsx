@@ -3,12 +3,12 @@ import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../storage/LanguageContext';
-import { useGroups } from '../storage/GroupsContext';
+import { useVacations } from '../storage/VacationsContext';
 import { useExpenses } from '../storage/ExpensesContext';
-import { ExpenseGroup } from '../types/group';
+import { Vacation } from '../types/vacation';
 import { formatTotals, totalsByCurrencyFor } from '../utils/formatCurrency';
 
-export const ALL_GROUPS = 'all';
+export const ALL_VACATIONS = 'all';
 
 interface Props {
   visible: boolean;
@@ -18,10 +18,10 @@ interface Props {
   allowCreate?: boolean;
   onCreateNew?: () => void;
   allowAll?: boolean;
-  onEditGroup?: (group: ExpenseGroup) => void;
+  onEditVacation?: (vacation: Vacation) => void;
 }
 
-export default function GroupPickerModal({
+export default function VacationPickerModal({
   visible,
   selectedId,
   onSelect,
@@ -29,17 +29,17 @@ export default function GroupPickerModal({
   allowCreate,
   onCreateNew,
   allowAll,
-  onEditGroup,
+  onEditVacation,
 }: Props) {
   const { t, isRTL } = useLanguage();
-  const { groups } = useGroups();
+  const { vacations } = useVacations();
   const { expenses } = useExpenses();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
 
-  const data: (ExpenseGroup | typeof ALL_GROUPS)[] = allowAll
-    ? [ALL_GROUPS, ...groups]
-    : groups;
+  const data: (Vacation | typeof ALL_VACATIONS)[] = allowAll
+    ? [ALL_VACATIONS, ...vacations]
+    : vacations;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -48,7 +48,7 @@ export default function GroupPickerModal({
         <View style={styles.sheet}>
           <View style={styles.grabber} />
           <View style={[styles.header, { flexDirection: rowDirection }]}>
-            <Text style={[styles.title, { textAlign }]}>{t.groups.pickerTitle}</Text>
+            <Text style={[styles.title, { textAlign }]}>{t.vacations.pickerTitle}</Text>
             <TouchableOpacity
               onPress={onClose}
               style={styles.closeButton}
@@ -62,19 +62,19 @@ export default function GroupPickerModal({
             keyExtractor={(item) => (typeof item === 'string' ? item : item.id)}
             style={styles.list}
             renderItem={({ item, index }) => {
-              const isAll = item === ALL_GROUPS;
-              const id = isAll ? ALL_GROUPS : (item as ExpenseGroup).id;
-              const label = isAll ? t.groups.allGroups : (item as ExpenseGroup).name;
+              const isAll = item === ALL_VACATIONS;
+              const id = isAll ? ALL_VACATIONS : (item as Vacation).id;
+              const label = isAll ? t.vacations.allVacations : (item as Vacation).name;
               const selected = id === selectedId;
               const isLast = index === data.length - 1;
-              const groupExpenses = isAll
+              const vacationExpenses = isAll
                 ? []
-                : expenses.filter((e) => e.groupId === (item as ExpenseGroup).id);
+                : expenses.filter((e) => e.vacationId === (item as Vacation).id);
               const statsText = isAll
                 ? null
-                : `${groupExpenses.length} ${t.manage.expensesCount} · ${formatTotals(
-                    totalsByCurrencyFor(groupExpenses),
-                    (item as ExpenseGroup).defaultCurrency
+                : `${vacationExpenses.length} ${t.manage.expensesCount} · ${formatTotals(
+                    totalsByCurrencyFor(vacationExpenses),
+                    (item as Vacation).defaultCurrency
                   )}`;
               return (
                 <View
@@ -119,11 +119,11 @@ export default function GroupPickerModal({
                       )}
                     </View>
                   </TouchableOpacity>
-                  {!isAll && onEditGroup ? (
+                  {!isAll && onEditVacation ? (
                     <TouchableOpacity
                       onPress={() => {
                         onClose();
-                        onEditGroup(item as ExpenseGroup);
+                        onEditVacation(item as Vacation);
                       }}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       style={[
@@ -150,7 +150,7 @@ export default function GroupPickerModal({
                   activeOpacity={0.7}
                 >
                   <Ionicons name="add" size={16} color={colors.primary} />
-                  <Text style={styles.createNew}>{t.groups.createNew}</Text>
+                  <Text style={styles.createNew}>{t.vacations.createNew}</Text>
                 </TouchableOpacity>
               ) : null
             }

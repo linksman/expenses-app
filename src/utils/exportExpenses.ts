@@ -3,7 +3,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { File, Paths } from 'expo-file-system';
 import { Expense } from '../types/expense';
-import { ExpenseGroup } from '../types/group';
+import { Vacation } from '../types/vacation';
 import { PaymentMethod } from '../types/paymentMethod';
 import { Translations } from '../i18n/translations';
 import { paymentMethodName } from './paymentMethodName';
@@ -13,21 +13,21 @@ interface ExportRow {
   description: string;
   category: string;
   paymentMethod: string;
-  group: string;
+  vacation: string;
   amount: string;
   currency: string;
 }
 
 function buildRows(
   expenses: Expense[],
-  groups: ExpenseGroup[],
+  vacations: Vacation[],
   methods: PaymentMethod[],
   t: Translations,
   locale: string
 ): ExportRow[] {
   return expenses.map((e) => {
     const method = methods.find((m) => m.id === e.paymentMethodId);
-    const group = groups.find((g) => g.id === e.groupId);
+    const vacation = vacations.find((v) => v.id === e.vacationId);
     return {
       date: new Date(e.createdAt).toLocaleString(locale, {
         dateStyle: 'medium',
@@ -36,7 +36,7 @@ function buildRows(
       description: e.description,
       category: e.category ? t.categories[e.category] : '',
       paymentMethod: method ? paymentMethodName(method, t) : '',
-      group: group?.name ?? '',
+      vacation: vacation?.name ?? '',
       amount: e.amount.toFixed(2),
       currency: e.currencyCode,
     };
@@ -52,7 +52,7 @@ function csvField(value: string): string {
 
 export function buildExpensesCsv(
   expenses: Expense[],
-  groups: ExpenseGroup[],
+  vacations: Vacation[],
   methods: PaymentMethod[],
   t: Translations,
   locale: string
@@ -62,15 +62,15 @@ export function buildExpensesCsv(
     t.add.description,
     t.add.category,
     t.add.paymentMethod,
-    t.manage.group,
+    t.manage.vacation,
     t.manage.amount,
     t.currency.pickerTitle,
   ];
-  const rows = buildRows(expenses, groups, methods, t, locale);
+  const rows = buildRows(expenses, vacations, methods, t, locale);
   const lines = [headers.map(csvField).join(',')];
   for (const r of rows) {
     lines.push(
-      [r.date, r.description, r.category, r.paymentMethod, r.group, r.amount, r.currency]
+      [r.date, r.description, r.category, r.paymentMethod, r.vacation, r.amount, r.currency]
         .map(csvField)
         .join(',')
     );
@@ -87,7 +87,7 @@ function escapeHtml(value: string): string {
 
 export function buildExpensesHtml(
   expenses: Expense[],
-  groups: ExpenseGroup[],
+  vacations: Vacation[],
   methods: PaymentMethod[],
   t: Translations,
   locale: string,
@@ -95,7 +95,7 @@ export function buildExpensesHtml(
   totalsLine: string,
   isRTL: boolean
 ): string {
-  const rows = buildRows(expenses, groups, methods, t, locale);
+  const rows = buildRows(expenses, vacations, methods, t, locale);
   const dir = isRTL ? 'rtl' : 'ltr';
   const align = isRTL ? 'right' : 'left';
   const amountAlign = isRTL ? 'left' : 'right';
@@ -107,7 +107,7 @@ export function buildExpensesHtml(
           <td>${escapeHtml(r.description)}</td>
           <td>${escapeHtml(r.category)}</td>
           <td>${escapeHtml(r.paymentMethod)}</td>
-          <td>${escapeHtml(r.group)}</td>
+          <td>${escapeHtml(r.vacation)}</td>
           <td class="amount">${escapeHtml(r.amount)} ${escapeHtml(r.currency)}</td>
         </tr>`
     )
@@ -141,7 +141,7 @@ export function buildExpensesHtml(
               <th>${escapeHtml(t.add.description)}</th>
               <th>${escapeHtml(t.add.category)}</th>
               <th>${escapeHtml(t.add.paymentMethod)}</th>
-              <th>${escapeHtml(t.manage.group)}</th>
+              <th>${escapeHtml(t.manage.vacation)}</th>
               <th>${escapeHtml(t.manage.amount)}</th>
             </tr>
           </thead>

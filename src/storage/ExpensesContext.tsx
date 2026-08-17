@@ -11,13 +11,21 @@ import { Category, Expense, ExpenseSplitShare } from '../types/expense';
 
 const STORAGE_KEY = 'vacation-expenses:v1';
 
-// Expenses persisted before "note" was renamed to "description", or before
-// expense splitting existed, lack those fields.
+// Expenses persisted before "note" was renamed to "description", before expense
+// splitting existed, or before "groupId" was renamed to "vacationId" lack those
+// fields (or have the old one instead).
 function normalizeExpense(raw: any): Expense {
   const description = raw.description !== undefined ? raw.description : raw.note ?? '';
   const split = raw.split !== undefined ? raw.split : [];
-  if (raw.description !== undefined && raw.split !== undefined) return raw;
-  return { ...raw, description, split };
+  const vacationId = raw.vacationId !== undefined ? raw.vacationId : raw.groupId;
+  if (
+    raw.description !== undefined &&
+    raw.split !== undefined &&
+    raw.vacationId !== undefined
+  ) {
+    return raw;
+  }
+  return { ...raw, description, split, vacationId };
 }
 
 interface ExpensesContextValue {
@@ -29,7 +37,7 @@ interface ExpensesContextValue {
     description: string,
     currencyCode: string,
     paymentMethodId: string,
-    groupId: string,
+    vacationId: string,
     createdAt: string,
     split: ExpenseSplitShare[]
   ) => Promise<void>;
@@ -44,7 +52,7 @@ interface ExpensesContextValue {
     split: ExpenseSplitShare[]
   ) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
-  deleteExpensesByGroup: (groupId: string) => Promise<void>;
+  deleteExpensesByVacation: (vacationId: string) => Promise<void>;
 }
 
 const ExpensesContext = createContext<ExpensesContextValue | undefined>(undefined);
@@ -80,7 +88,7 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
       description: string,
       currencyCode: string,
       paymentMethodId: string,
-      groupId: string,
+      vacationId: string,
       createdAt: string,
       split: ExpenseSplitShare[]
     ) => {
@@ -92,7 +100,7 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
         createdAt,
         currencyCode,
         paymentMethodId,
-        groupId,
+        vacationId,
         split,
       };
       await persist([expense, ...expenses]);
@@ -138,9 +146,9 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
     [expenses, persist]
   );
 
-  const deleteExpensesByGroup = useCallback(
-    async (groupId: string) => {
-      await persist(expenses.filter((e) => e.groupId !== groupId));
+  const deleteExpensesByVacation = useCallback(
+    async (vacationId: string) => {
+      await persist(expenses.filter((e) => e.vacationId !== vacationId));
     },
     [expenses, persist]
   );
@@ -152,9 +160,9 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
       addExpense,
       updateExpense,
       deleteExpense,
-      deleteExpensesByGroup,
+      deleteExpensesByVacation,
     }),
-    [expenses, loading, addExpense, updateExpense, deleteExpense, deleteExpensesByGroup]
+    [expenses, loading, addExpense, updateExpense, deleteExpense, deleteExpensesByVacation]
   );
 
   return <ExpensesContext.Provider value={value}>{children}</ExpensesContext.Provider>;

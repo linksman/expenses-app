@@ -1,6 +1,6 @@
 import { TravelCompanion } from './companion';
 
-export interface ExpenseGroup {
+export interface Vacation {
   id: string;
   name: string;
   defaultCurrency: string;

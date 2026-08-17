@@ -4,7 +4,7 @@ import { ExpenseSplitShare } from '../types/expense';
 // goBack(). Route params can't carry this: navigating back to an already-mounted
 // AddExpense screen replaces its params rather than merging them, which would
 // wipe the in-progress amount/description/etc. the user hasn't saved yet. This
-// mirrors the pendingGroupSync ref pattern ManageExpensesScreen uses for the
+// mirrors the pendingVacationSync ref pattern ManageExpensesScreen uses for the
 // same reason (see CLAUDE.md's navigation-shape notes).
 let pendingSplit: ExpenseSplitShare[] | null = null;
 

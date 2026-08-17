@@ -9,12 +9,12 @@ import { colors } from './src/theme/colors';
 import { ExpensesProvider } from './src/storage/ExpensesContext';
 import { PaymentMethodsProvider } from './src/storage/PaymentMethodsContext';
 import { LanguageProvider, useLanguage } from './src/storage/LanguageContext';
-import { GroupsProvider } from './src/storage/GroupsContext';
+import { VacationsProvider } from './src/storage/VacationsContext';
 import { ExchangeRatesProvider } from './src/storage/ExchangeRatesContext';
 import AddExpenseScreen from './src/screens/AddExpenseScreen';
 import ManageExpensesScreen from './src/screens/ManageExpensesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
-import GroupFormScreen from './src/screens/GroupFormScreen';
+import VacationFormScreen from './src/screens/VacationFormScreen';
 import ExpenseSplitScreen from './src/screens/ExpenseSplitScreen';
 import SplashScreen from './src/screens/SplashScreen';
 
@@ -106,8 +106,8 @@ function AppNavigator() {
           options={{ presentation: 'modal' }}
         />
         <RootStack.Screen
-          name="GroupForm"
-          component={GroupFormScreen}
+          name="VacationForm"
+          component={VacationFormScreen}
           options={{ presentation: 'modal' }}
         />
         <RootStack.Screen
@@ -124,7 +124,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <LanguageProvider>
-        <GroupsProvider>
+        <VacationsProvider>
           <ExchangeRatesProvider>
             <PaymentMethodsProvider>
               <ExpensesProvider>
@@ -132,7 +132,7 @@ export default function App() {
               </ExpensesProvider>
             </PaymentMethodsProvider>
           </ExchangeRatesProvider>
-        </GroupsProvider>
+        </VacationsProvider>
       </LanguageProvider>
     </SafeAreaProvider>
   );

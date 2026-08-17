@@ -1,0 +1,188 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { Vacation } from '../types/vacation';
+import { TravelCompanion } from '../types/companion';
+
+const VACATIONS_KEY = 'vacation-expenses:vacations:v1';
+const ACTIVE_VACATION_KEY = 'vacation-expenses:active-vacation:v1';
+// Pre-rename keys (back when vacations were called "groups"). Read once to
+// migrate existing users' data over; never written to again.
+const LEGACY_VACATIONS_KEY = 'vacation-expenses:groups:v1';
+const LEGACY_ACTIVE_VACATION_KEY = 'vacation-expenses:active-group:v1';
+
+// Vacations persisted before travel companions existed lack the field entirely.
+function normalizeVacation(raw: any): Vacation {
+  if (raw.companions !== undefined) return raw;
+  return { ...raw, companions: [] };
+}
+
+interface VacationsContextValue {
+  vacations: Vacation[];
+  activeVacationId: string | null;
+  activeVacation: Vacation | null;
+  loading: boolean;
+  addVacation: (
+    name: string,
+    defaultCurrency: string,
+    leadCurrency: string | null,
+    companions: TravelCompanion[]
+  ) => Promise<Vacation>;
+  updateVacation: (
+    id: string,
+    name: string,
+    defaultCurrency: string,
+    leadCurrency: string | null,
+    companions: TravelCompanion[]
+  ) => Promise<Vacation>;
+  deleteVacation: (id: string) => Promise<void>;
+  setActiveVacationId: (id: string) => void;
+}
+
+const VacationsContext = createContext<VacationsContextValue | undefined>(undefined);
+
+export function VacationsProvider({ children }: { children: React.ReactNode }) {
+  const [vacations, setVacations] = useState<Vacation[]>([]);
+  const [activeVacationId, setActiveVacationIdState] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        let [rawVacations, rawActive] = await Promise.all([
+          AsyncStorage.getItem(VACATIONS_KEY),
+          AsyncStorage.getItem(ACTIVE_VACATION_KEY),
+        ]);
+        if (rawVacations === null) {
+          const [legacyVacations, legacyActive] = await Promise.all([
+            AsyncStorage.getItem(LEGACY_VACATIONS_KEY),
+            AsyncStorage.getItem(LEGACY_ACTIVE_VACATION_KEY),
+          ]);
+          if (legacyVacations !== null) rawVacations = legacyVacations;
+          if (rawActive === null && legacyActive !== null) rawActive = legacyActive;
+        }
+        const loadedVacations: Vacation[] = rawVacations
+          ? JSON.parse(rawVacations).map(normalizeVacation)
+          : [];
+        setVacations(loadedVacations);
+        if (rawVacations) await AsyncStorage.setItem(VACATIONS_KEY, JSON.stringify(loadedVacations));
+        if (rawActive && loadedVacations.some((v) => v.id === rawActive)) {
+          setActiveVacationIdState(rawActive);
+          await AsyncStorage.setItem(ACTIVE_VACATION_KEY, rawActive);
+        } else if (loadedVacations.length > 0) {
+          setActiveVacationIdState(loadedVacations[0].id);
+        }
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const setActiveVacationId = useCallback((id: string) => {
+    setActiveVacationIdState(id);
+    AsyncStorage.setItem(ACTIVE_VACATION_KEY, id);
+  }, []);
+
+  const addVacation = useCallback(
+    async (
+      name: string,
+      defaultCurrency: string,
+      leadCurrency: string | null,
+      companions: TravelCompanion[]
+    ) => {
+      const vacation: Vacation = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        name: name.trim(),
+        defaultCurrency,
+        leadCurrency,
+        companions,
+        createdAt: new Date().toISOString(),
+      };
+      const next = [...vacations, vacation];
+      setVacations(next);
+      await AsyncStorage.setItem(VACATIONS_KEY, JSON.stringify(next));
+      setActiveVacationId(vacation.id);
+      return vacation;
+    },
+    [vacations, setActiveVacationId]
+  );
+
+  const updateVacation = useCallback(
+    async (
+      id: string,
+      name: string,
+      defaultCurrency: string,
+      leadCurrency: string | null,
+      companions: TravelCompanion[]
+    ) => {
+      let updated: Vacation | undefined;
+      const next = vacations.map((v) => {
+        if (v.id !== id) return v;
+        updated = { ...v, name: name.trim(), defaultCurrency, leadCurrency, companions };
+        return updated;
+      });
+      setVacations(next);
+      await AsyncStorage.setItem(VACATIONS_KEY, JSON.stringify(next));
+      setActiveVacationId(id);
+      return updated!;
+    },
+    [vacations, setActiveVacationId]
+  );
+
+  const deleteVacation = useCallback(
+    async (id: string) => {
+      const next = vacations.filter((v) => v.id !== id);
+      setVacations(next);
+      await AsyncStorage.setItem(VACATIONS_KEY, JSON.stringify(next));
+      if (activeVacationId === id) {
+        const fallback = next[0]?.id ?? null;
+        setActiveVacationIdState(fallback);
+        if (fallback) await AsyncStorage.setItem(ACTIVE_VACATION_KEY, fallback);
+        else await AsyncStorage.removeItem(ACTIVE_VACATION_KEY);
+      }
+    },
+    [vacations, activeVacationId]
+  );
+
+  const activeVacation = useMemo(
+    () => vacations.find((v) => v.id === activeVacationId) ?? null,
+    [vacations, activeVacationId]
+  );
+
+  const value = useMemo(
+    () => ({
+      vacations,
+      activeVacationId,
+      activeVacation,
+      loading,
+      addVacation,
+      updateVacation,
+      deleteVacation,
+      setActiveVacationId,
+    }),
+    [
+      vacations,
+      activeVacationId,
+      activeVacation,
+      loading,
+      addVacation,
+      updateVacation,
+      deleteVacation,
+      setActiveVacationId,
+    ]
+  );
+
+  return <VacationsContext.Provider value={value}>{children}</VacationsContext.Provider>;
+}
+
+export function useVacations(): VacationsContextValue {
+  const ctx = useContext(VacationsContext);
+  if (!ctx) throw new Error('useVacations must be used within a VacationsProvider');
+  return ctx;
+}

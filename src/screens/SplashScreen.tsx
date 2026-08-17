@@ -33,7 +33,7 @@ function LoadingDot({ delay }: { delay: number }) {
   return <Animated.View style={[styles.dot, { opacity }]} />;
 }
 
-// The app's boot splash — shown while persisted state (language, groups,
+// The app's boot splash — shown while persisted state (language, vacations,
 // expenses) loads from AsyncStorage. App.tsx keeps this mounted for a
 // minimum duration so the wordmark below has time to reflect the user's
 // saved language rather than flashing the 'en' default and vanishing.

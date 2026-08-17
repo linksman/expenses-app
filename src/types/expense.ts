@@ -49,6 +49,6 @@ export interface Expense {
   createdAt: string; // ISO timestamp
   currencyCode: string;
   paymentMethodId: string;
-  groupId: string;
+  vacationId: string;
   split: ExpenseSplitShare[];
 }

@@ -15,7 +15,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../storage/LanguageContext';
-import { useGroups } from '../storage/GroupsContext';
+import { useVacations } from '../storage/VacationsContext';
 import { useExpenses } from '../storage/ExpensesContext';
 import { currencyInfo } from '../types/currency';
 import { TravelCompanion } from '../types/companion';
@@ -23,27 +23,27 @@ import CurrencyPickerModal from '../components/CurrencyPickerModal';
 import { companionAvatarColor } from '../utils/companionAvatar';
 
 interface RouteParams {
-  groupId?: string;
+  vacationId?: string;
 }
 
-export default function GroupFormScreen() {
+export default function VacationFormScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { groupId } = (route.params ?? {}) as RouteParams;
+  const { vacationId } = (route.params ?? {}) as RouteParams;
 
   const { t, isRTL } = useLanguage();
-  const { groups, addGroup, updateGroup, deleteGroup } = useGroups();
-  const { expenses, deleteExpensesByGroup } = useExpenses();
+  const { vacations, addVacation, updateVacation, deleteVacation } = useVacations();
+  const { expenses, deleteExpensesByVacation } = useExpenses();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
 
-  const group = groupId ? groups.find((g) => g.id === groupId) ?? null : null;
-  const isEditing = !!group;
+  const vacation = vacationId ? vacations.find((v) => v.id === vacationId) ?? null : null;
+  const isEditing = !!vacation;
 
-  const [name, setName] = useState(group?.name ?? '');
-  const [defaultCurrency, setDefaultCurrency] = useState(group?.defaultCurrency ?? 'USD');
-  const [leadCurrency, setLeadCurrency] = useState<string | null>(group?.leadCurrency ?? null);
-  const [companions, setCompanions] = useState<TravelCompanion[]>(group?.companions ?? []);
+  const [name, setName] = useState(vacation?.name ?? '');
+  const [defaultCurrency, setDefaultCurrency] = useState(vacation?.defaultCurrency ?? 'USD');
+  const [leadCurrency, setLeadCurrency] = useState<string | null>(vacation?.leadCurrency ?? null);
+  const [companions, setCompanions] = useState<TravelCompanion[]>(vacation?.companions ?? []);
   const [newCompanionName, setNewCompanionName] = useState('');
   const [defaultCurrencyModalVisible, setDefaultCurrencyModalVisible] = useState(false);
   const [leadCurrencyModalVisible, setLeadCurrencyModalVisible] = useState(false);
@@ -55,14 +55,14 @@ export default function GroupFormScreen() {
   const canSave = name.trim().length > 0;
 
   const companionIdsInUse = useMemo(() => {
-    if (!group) return new Set<string>();
+    if (!vacation) return new Set<string>();
     const ids = new Set<string>();
     for (const e of expenses) {
-      if (e.groupId !== group.id) continue;
+      if (e.vacationId !== vacation.id) continue;
       for (const s of e.split) ids.add(s.companionId);
     }
     return ids;
-  }, [expenses, group]);
+  }, [expenses, vacation]);
 
   const handleAddCompanion = () => {
     const trimmed = newCompanionName.trim();
@@ -83,18 +83,18 @@ export default function GroupFormScreen() {
 
   const handleSave = async () => {
     if (!canSave) return;
-    if (isEditing && group) {
-      await updateGroup(group.id, name.trim(), defaultCurrency, leadCurrency, companions);
+    if (isEditing && vacation) {
+      await updateVacation(vacation.id, name.trim(), defaultCurrency, leadCurrency, companions);
     } else {
-      await addGroup(name.trim(), defaultCurrency, leadCurrency, companions);
+      await addVacation(name.trim(), defaultCurrency, leadCurrency, companions);
     }
     navigation.goBack();
   };
 
   const handleDelete = async () => {
-    if (!group) return;
-    await deleteExpensesByGroup(group.id);
-    await deleteGroup(group.id);
+    if (!vacation) return;
+    await deleteExpensesByVacation(vacation.id);
+    await deleteVacation(vacation.id);
     setDeleteConfirmVisible(false);
     navigation.goBack();
   };
@@ -112,7 +112,7 @@ export default function GroupFormScreen() {
         </TouchableOpacity>
         {isEditing && (
           <TouchableOpacity onPress={() => setDeleteConfirmVisible(true)} activeOpacity={0.7}>
-            <Text style={styles.deleteLinkText}>{t.groups.deleteLink}</Text>
+            <Text style={styles.deleteLinkText}>{t.vacations.deleteLink}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -125,7 +125,7 @@ export default function GroupFormScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <Text style={[styles.title, { textAlign }]}>
-            {isEditing ? t.groups.editTitle : t.groups.createTitle}
+            {isEditing ? t.vacations.editTitle : t.vacations.createTitle}
           </Text>
 
           <View
@@ -139,12 +139,12 @@ export default function GroupFormScreen() {
               <Ionicons name="pencil" size={16} color="#7C3AED" />
             </View>
             <View style={styles.nameTextBlock}>
-              <Text style={[styles.fieldLabel, { textAlign }]}>{t.groups.nameLabel}</Text>
+              <Text style={[styles.fieldLabel, { textAlign }]}>{t.vacations.nameLabel}</Text>
               <TextInput
                 style={[styles.nameInput, { textAlign }]}
                 value={name}
                 onChangeText={setName}
-                placeholder={t.groups.namePlaceholder}
+                placeholder={t.vacations.namePlaceholder}
                 placeholderTextColor={colors.textMuted}
                 returnKeyType="done"
                 autoFocus
@@ -152,7 +152,7 @@ export default function GroupFormScreen() {
             </View>
           </View>
 
-          <Text style={[styles.sectionLabel, { textAlign }]}>{t.groups.defaultCurrency}</Text>
+          <Text style={[styles.sectionLabel, { textAlign }]}>{t.vacations.defaultCurrency}</Text>
           <View style={styles.card}>
             <TouchableOpacity
               style={[styles.row, styles.rowBorder, { flexDirection: rowDirection }]}
@@ -165,7 +165,7 @@ export default function GroupFormScreen() {
                 </Text>
               </View>
               <View style={styles.rowTextBlock}>
-                <Text style={[styles.fieldLabel, { textAlign }]}>{t.groups.defaultCurrency}</Text>
+                <Text style={[styles.fieldLabel, { textAlign }]}>{t.vacations.defaultCurrency}</Text>
                 <Text style={[styles.rowValue, { textAlign }]}>{defaultCurrency}</Text>
               </View>
               <Ionicons
@@ -186,9 +186,9 @@ export default function GroupFormScreen() {
                 </Text>
               </View>
               <View style={styles.rowTextBlock}>
-                <Text style={[styles.fieldLabel, { textAlign }]}>{t.groups.leadCurrency}</Text>
+                <Text style={[styles.fieldLabel, { textAlign }]}>{t.vacations.leadCurrency}</Text>
                 <Text style={[styles.rowValue, { textAlign }]}>
-                  {leadCurrency ? leadCurrency : t.groups.leadCurrencyNone}
+                  {leadCurrency ? leadCurrency : t.vacations.leadCurrencyNone}
                 </Text>
               </View>
               <Ionicons
@@ -282,7 +282,7 @@ export default function GroupFormScreen() {
         >
           <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
           <Text style={styles.saveButtonText}>
-            {isEditing ? t.common.save : t.groups.createButton}
+            {isEditing ? t.common.save : t.vacations.createButton}
           </Text>
         </TouchableOpacity>
       </View>
@@ -296,10 +296,10 @@ export default function GroupFormScreen() {
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmCard}>
             <Text style={[styles.confirmTitle, { textAlign }]}>
-              {t.groups.deleteConfirmTitle}
+              {t.vacations.deleteConfirmTitle}
             </Text>
             <Text style={[styles.confirmMessage, { textAlign }]}>
-              {t.groups.deleteConfirmMessage}
+              {t.vacations.deleteConfirmMessage}
             </Text>
             <View style={styles.confirmActions}>
               <TouchableOpacity
@@ -369,7 +369,7 @@ export default function GroupFormScreen() {
         onSelect={(code) => setLeadCurrency(code === '' ? null : code)}
         onClose={() => setLeadCurrencyModalVisible(false)}
         allowNone
-        noneLabel={t.groups.leadCurrencyNone}
+        noneLabel={t.vacations.leadCurrencyNone}
       />
     </SafeAreaView>
   );

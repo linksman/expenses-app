@@ -14,7 +14,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../storage/LanguageContext';
-import { useGroups } from '../storage/GroupsContext';
+import { useVacations } from '../storage/VacationsContext';
 import { currencyInfo } from '../types/currency';
 import { ExpenseSplitShare } from '../types/expense';
 import { formatAmount } from '../utils/formatCurrency';
@@ -24,7 +24,7 @@ import { companionAvatarColor } from '../utils/companionAvatar';
 const ME_AVATAR = { color: '#6D28D9', tint: '#F1EAFE' };
 
 interface RouteParams {
-  groupId: string;
+  vacationId: string;
   amount: number;
   currencyCode: string;
   initialSplit?: ExpenseSplitShare[];
@@ -34,15 +34,15 @@ interface RouteParams {
 export default function ExpenseSplitScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { groupId, amount, currencyCode, initialSplit, isEditing } = (route.params ??
+  const { vacationId, amount, currencyCode, initialSplit, isEditing } = (route.params ??
     {}) as RouteParams;
   const { t, isRTL } = useLanguage();
-  const { groups } = useGroups();
+  const { vacations } = useVacations();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
 
-  const group = groups.find((g) => g.id === groupId) ?? null;
-  const companions = group?.companions ?? [];
+  const vacation = vacations.find((v) => v.id === vacationId) ?? null;
+  const companions = vacation?.companions ?? [];
 
   const [inputs, setInputs] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
