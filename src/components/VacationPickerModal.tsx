@@ -18,7 +18,6 @@ interface Props {
   allowCreate?: boolean;
   onCreateNew?: () => void;
   allowAll?: boolean;
-  onEditVacation?: (vacation: Vacation) => void;
 }
 
 export default function VacationPickerModal({
@@ -29,7 +28,6 @@ export default function VacationPickerModal({
   allowCreate,
   onCreateNew,
   allowAll,
-  onEditVacation,
 }: Props) {
   const { t, isRTL } = useLanguage();
   const { vacations } = useVacations();
@@ -119,23 +117,6 @@ export default function VacationPickerModal({
                       )}
                     </View>
                   </TouchableOpacity>
-                  {!isAll && onEditVacation ? (
-                    <TouchableOpacity
-                      onPress={() => {
-                        onClose();
-                        onEditVacation(item as Vacation);
-                      }}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      style={[
-                        styles.editButton,
-                        { backgroundColor: selected ? '#F1EAFE' : '#F5F5F8' },
-                      ]}
-                    >
-                      <Ionicons name="pencil" size={13} color={selected ? '#6D28D9' : '#71717A'} />
-                    </TouchableOpacity>
-                  ) : (
-                    <View style={styles.editButtonSpacer} />
-                  )}
                 </View>
               );
             }}
@@ -216,15 +197,6 @@ const styles = StyleSheet.create({
   name: { fontSize: 16, fontWeight: '600', color: colors.text },
   nameSelected: { fontWeight: '700' },
   stats: { fontSize: 12, color: colors.textMuted },
-  editButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  editButtonSpacer: { width: 30, flexShrink: 0 },
   createNewButton: {
     height: 50,
     marginTop: 4,

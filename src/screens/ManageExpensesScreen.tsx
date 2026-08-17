@@ -59,6 +59,7 @@ export default function ManageExpensesScreen() {
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [viewVacationId, setViewVacationId] = useState<string>(ALL_VACATIONS);
+  const [collapsedOverrides, setCollapsedOverrides] = useState<Record<string, boolean>>({});
   // True once the initial filter has been resolved to the real active vacation (or,
   // failing that, confirmed to legitimately be "all vacations"). Prevents an initial
   // paint of the ALL_VACATIONS state — with its vacation-colored row dots — before the
@@ -132,6 +133,15 @@ export default function ManageExpensesScreen() {
       totals: totalsByCurrencyFor(data),
     }));
   }, [filteredExpenses, t, language.locale]);
+
+  // All day-groups start collapsed except today's, until the user toggles one.
+  const isSectionCollapsed = (title: string) =>
+    collapsedOverrides[title] !== undefined ? collapsedOverrides[title] : title !== t.manage.today;
+  const toggleSection = (title: string) =>
+    setCollapsedOverrides((prev) => ({ ...prev, [title]: !isSectionCollapsed(title) }));
+  const displaySections = sections.map((s) =>
+    isSectionCollapsed(s.title) ? { ...s, data: [] } : s
+  );
 
   const methodName = (id: string): string | null => {
     const method = methods.find((m) => m.id === id);
@@ -246,7 +256,7 @@ export default function ManageExpensesScreen() {
           </TouchableOpacity>
           {selectedVacation && (
             <TouchableOpacity
-              style={[styles.editNameButton, isRTL ? { left: 0 } : { right: 0 }]}
+              style={[styles.editNameButton, isRTL ? { right: 0 } : { left: 0 }]}
               onPress={() => openVacationForm(selectedVacation.id)}
               activeOpacity={0.7}
               accessibilityLabel={t.vacations.editTitle}
@@ -302,6 +312,7 @@ export default function ManageExpensesScreen() {
               name="share-outline"
               size={18}
               color={filteredExpenses.length === 0 || exporting ? colors.border : colors.textMuted}
+              style={styles.exportIcon}
             />
           </TouchableOpacity>
         </View>
@@ -345,25 +356,40 @@ export default function ManageExpensesScreen() {
         </View>
       ) : (
         <SectionList
-          sections={sections}
+          sections={displaySections}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           renderSectionHeader={({ section }) => {
+            // section.data may have been emptied for display while collapsed;
+            // look totals up from the full (un-collapsed) section for the header.
+            const fullSection = sections.find((s) => s.title === section.title) ?? section;
+            const collapsed = isSectionCollapsed(section.title);
             const sectionLeadTotal = leadCurrency
-              ? convertedTotal(section.data, convert)
+              ? convertedTotal(fullSection.data, convert)
               : null;
             return (
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{section.title}</Text>
+              <TouchableOpacity
+                style={[styles.sectionHeader, { flexDirection: rowDirection }]}
+                onPress={() => toggleSection(section.title)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.sectionTitleRow, { flexDirection: rowDirection }]}>
+                  <Ionicons
+                    name={collapsed ? (isRTL ? 'chevron-back' : 'chevron-forward') : 'chevron-down'}
+                    size={14}
+                    color={colors.textMuted}
+                  />
+                  <Text style={styles.sectionTitle}>{section.title}</Text>
+                </View>
                 <Text style={styles.sectionTotal}>
                   {formatTotalsWithLead(
-                    section.totals,
+                    fullSection.totals,
                     leadCurrency,
                     sectionLeadTotal,
                     selectedVacation?.defaultCurrency
                   )}
                 </Text>
-              </View>
+              </TouchableOpacity>
             );
           }}
           renderItem={({ item }) => {
@@ -513,11 +539,11 @@ export default function ManageExpensesScreen() {
               <Text style={[styles.exportOptionText, { textAlign }]}>{t.manage.exportPdf}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.modalButton, styles.modalCancelButton, styles.exportCancelButton]}
+              style={styles.exportBackLink}
               onPress={() => setExportModalVisible(false)}
-              activeOpacity={0.8}
+              activeOpacity={0.7}
             >
-              <Text style={styles.modalCancelText}>{t.manage.cancel}</Text>
+              <Text style={styles.exportBackLinkText}>{t.common.back}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -534,7 +560,6 @@ export default function ManageExpensesScreen() {
         allowAll
         allowCreate
         onCreateNew={() => openVacationForm()}
-        onEditVacation={(vacation) => openVacationForm(vacation.id)}
       />
     </SafeAreaView>
   );
@@ -653,12 +678,15 @@ const styles = StyleSheet.create({
   splitCardAmount: { fontSize: 14, fontWeight: '700', color: colors.text, marginLeft: 8 },
   listContent: { paddingHorizontal: 20, paddingBottom: 32 },
   sectionHeader: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'baseline',
+    alignItems: 'center',
     marginTop: 18,
     paddingHorizontal: 4,
-    paddingBottom: 10,
+    paddingVertical: 6,
+  },
+  sectionTitleRow: {
+    alignItems: 'center',
+    gap: 5,
   },
   sectionTitle: {
     fontSize: 14,
@@ -791,5 +819,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   exportOptionText: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
-  exportCancelButton: { marginTop: 16 },
+  exportIcon: { transform: [{ rotate: '180deg' }] },
+  exportBackLink: { alignSelf: 'center', marginTop: 16, padding: 8 },
+  exportBackLinkText: { color: colors.primary, fontWeight: '600', fontSize: 15 },
 });

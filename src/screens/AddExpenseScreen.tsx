@@ -12,7 +12,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAudioPlayer } from 'expo-audio';
 import { colors } from '../theme/colors';
 import { useExpenses } from '../storage/ExpensesContext';
 import { usePaymentMethods } from '../storage/PaymentMethodsContext';
@@ -27,6 +26,7 @@ import { paymentMethodName } from '../utils/paymentMethodName';
 import { companionName } from '../utils/companionName';
 import { takePendingSplit } from '../utils/pendingExpenseSplit';
 import { dayLabel } from '../utils/dateLabel';
+import { scrollToFocusedInput } from '../utils/scrollToFocusedInput';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
 import PaymentMethodPickerModal from '../components/PaymentMethodPickerModal';
 import DatePickerModal from '../components/DatePickerModal';
@@ -81,10 +81,12 @@ export default function AddExpenseScreen() {
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
   const [methodModalVisible, setMethodModalVisible] = useState(false);
   const [split, setSplit] = useState<ExpenseSplitShare[]>(() => existingExpense?.split ?? []);
+  const [showSplitLockedHint, setShowSplitLockedHint] = useState(false);
+  const amountInputRef = useRef<TextInput>(null);
   const descriptionInputRef = useRef<TextInput>(null);
   const saveButtonRef = useRef<React.ElementRef<typeof TouchableOpacity>>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
   const [showCoinBurst, setShowCoinBurst] = useState(false);
-  const chaChingPlayer = useAudioPlayer(require('../../assets/sounds/cha-ching.wav'));
 
   const leadCurrency = vacation?.leadCurrency ?? null;
 
@@ -123,6 +125,11 @@ export default function AddExpenseScreen() {
     leadCurrency && !Number.isNaN(parsedAmount) && parsedAmount > 0
       ? convert(parsedAmount, currencyCode)
       : null;
+  const hasSplit = split.length > 0;
+
+  useEffect(() => {
+    if (!hasSplit) setShowSplitLockedHint(false);
+  }, [hasSplit]);
 
   const handleDateSelect = (pickedDay: Date) => {
     const combined = new Date(expenseDate);
@@ -167,9 +174,7 @@ export default function AddExpenseScreen() {
       split
     );
     setActiveVacationId(vacation.id);
-    // Celebrate a brand-new expense with a coin burst + cha-ching, then leave.
-    chaChingPlayer.seekTo(0);
-    chaChingPlayer.play();
+    // Celebrate a brand-new expense with a coin burst, then leave.
     setShowCoinBurst(true);
   };
 
@@ -189,7 +194,6 @@ export default function AddExpenseScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
-        <Text style={styles.headerTitle}>{isEditing ? t.add.editTitle : t.add.title}</Text>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => {
@@ -197,15 +201,20 @@ export default function AddExpenseScreen() {
             navigation.goBack();
           }}
           activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Text style={styles.backText}>{t.common.back}</Text>
+          <Ionicons name={isRTL ? 'chevron-forward' : 'chevron-back'} size={20} color={colors.primary} />
         </TouchableOpacity>
+        <Text style={[styles.headerTitle, { textAlign }]} numberOfLines={1}>
+          {isEditing ? t.add.editTitle : t.add.title}
+        </Text>
       </View>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          ref={scrollViewRef}
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
         >
@@ -226,11 +235,19 @@ export default function AddExpenseScreen() {
             </TouchableOpacity>
           )}
 
-          <View style={[styles.amountBlock, !amount.trim() && styles.amountBlockInvalid]}>
+          <TouchableOpacity
+            style={[styles.amountBlock, !amount.trim() && styles.amountBlockInvalid]}
+            onPress={() => {
+              if (hasSplit) setShowSplitLockedHint(true);
+              else amountInputRef.current?.focus();
+            }}
+            activeOpacity={hasSplit ? 1 : 0.8}
+          >
             <View style={[styles.amountRow, { flexDirection: rowDirection }]}>
-              <View style={styles.amountColumn}>
+              <View style={[styles.amountColumn, { alignItems: isRTL ? 'flex-end' : 'flex-start' }]}>
                 <TextInput
-                  style={styles.amountInput}
+                  ref={amountInputRef}
+                  style={[styles.amountInput, { textAlign }, hasSplit && styles.amountInputLocked]}
                   value={amount}
                   onChangeText={setAmount}
                   placeholder="0"
@@ -240,10 +257,20 @@ export default function AddExpenseScreen() {
                   returnKeyType="next"
                   onSubmitEditing={() => descriptionInputRef.current?.focus()}
                   blurOnSubmit={false}
+                  editable={!hasSplit}
+                  onFocus={(e) => scrollToFocusedInput(scrollViewRef, e)}
                 />
-                {convertedAmount !== null && leadCurrency && (
-                  <Text style={styles.convertedHint}>≈ {formatAmount(convertedAmount, leadCurrency)}</Text>
-                )}
+                <Text
+                  style={[
+                    styles.convertedHint,
+                    { textAlign },
+                    (convertedAmount === null || !leadCurrency) && styles.convertedHintHidden,
+                  ]}
+                >
+                  {convertedAmount !== null && leadCurrency
+                    ? `≈ ${formatAmount(convertedAmount, leadCurrency)}`
+                    : ' '}
+                </Text>
               </View>
               <TouchableOpacity
                 style={styles.currencyButton}
@@ -257,14 +284,19 @@ export default function AddExpenseScreen() {
                 </View>
               </TouchableOpacity>
             </View>
-          </View>
+            {showSplitLockedHint && (
+              <Text style={[styles.splitLockedHint, { textAlign }]}>{t.add.splitLockedHint}</Text>
+            )}
+          </TouchableOpacity>
 
-          <View
+          <TouchableOpacity
             style={[
               styles.fieldCard,
               { flexDirection: rowDirection },
               !description.trim() && styles.fieldCardInvalid,
             ]}
+            onPress={() => descriptionInputRef.current?.focus()}
+            activeOpacity={0.8}
           >
             <View
               style={[
@@ -286,9 +318,10 @@ export default function AddExpenseScreen() {
                 placeholderTextColor={colors.textMuted}
                 returnKeyType="done"
                 onSubmitEditing={() => saveButtonRef.current?.focus?.()}
+                onFocus={(e) => scrollToFocusedInput(scrollViewRef, e)}
               />
             </View>
-          </View>
+          </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.fieldCard, { flexDirection: rowDirection }]}
@@ -427,17 +460,39 @@ const styles = StyleSheet.create({
   container: { padding: 20, paddingBottom: 20 },
   headerRow: {
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 12,
     paddingHorizontal: 20,
     paddingTop: 12,
+    paddingBottom: 8,
   },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
-  backButton: { alignItems: 'center', gap: 6 },
-  backText: { fontSize: 15, fontWeight: '600', color: colors.primary },
+  headerTitle: {
+    flex: 1,
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: -0.2,
+  },
+  backButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F1FE',
+    flexShrink: 0,
+  },
   convertedHint: {
     fontSize: 13,
     color: colors.textMuted,
     marginTop: 3,
+  },
+  convertedHintHidden: {
+    opacity: 0,
+  },
+  splitLockedHint: {
+    fontSize: 12,
+    color: colors.danger,
+    marginTop: 10,
   },
   amountBlock: {
     backgroundColor: colors.card,
@@ -447,7 +502,7 @@ const styles = StyleSheet.create({
     padding: 18,
     paddingBottom: 14,
     marginBottom: 24,
-    height: 132,
+    minHeight: 132,
     shadowColor: '#18142D',
     shadowOpacity: 0.06,
     shadowRadius: 10,
@@ -486,6 +541,9 @@ const styles = StyleSheet.create({
     fontSize: 48,
     fontWeight: '800',
     color: colors.text,
+  },
+  amountInputLocked: {
+    color: colors.textMuted,
   },
   sectionLabel: {
     fontSize: 12,

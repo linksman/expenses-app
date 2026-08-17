@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../storage/LanguageContext';
@@ -21,6 +21,7 @@ import { currencyInfo } from '../types/currency';
 import { TravelCompanion } from '../types/companion';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
 import { companionAvatarColor } from '../utils/companionAvatar';
+import { scrollNodeIntoViewAboveKeyboard, scrollToFocusedInput } from '../utils/scrollToFocusedInput';
 
 interface RouteParams {
   vacationId?: string;
@@ -53,6 +54,51 @@ export default function VacationFormScreen() {
   );
 
   const canSave = name.trim().length > 0;
+  const nameInputRef = useRef<TextInput>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const companionInputNodeRef = useRef<unknown>(null);
+  const [companionInputFocused, setCompanionInputFocused] = useState(false);
+
+  // Adding a companion inserts a row above this input while the keyboard stays
+  // open and the field keeps focus, so the one-shot onFocus scroll isn't enough
+  // — the newly grown list pushes the field back under the keyboard. Re-measure
+  // once the new row has actually laid out.
+  useEffect(() => {
+    if (!companionInputFocused) return;
+    const timer = setTimeout(() => {
+      if (companionInputNodeRef.current) {
+        scrollNodeIntoViewAboveKeyboard(scrollViewRef, companionInputNodeRef.current);
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [companions.length, companionInputFocused]);
+
+  // Reaching this screen via the vacation-picker's "New Vacation" row closes that
+  // Modal and navigates in the same tick; the Modal's own close animation is still
+  // resigning first-responder when TextInput.autoFocus would fire, so the keyboard
+  // never opens (the plain "create your first vacation" entry point has no Modal
+  // in the way and works fine with autoFocus). Deferring past the transition fixes it.
+  useFocusEffect(
+    useCallback(() => {
+      if (isEditing) return;
+      const timer = setTimeout(() => nameInputRef.current?.focus(), 350);
+      return () => clearTimeout(timer);
+    }, [isEditing])
+  );
+
+  // Editing a vacation has no separate save step — every field change is
+  // persisted immediately, like AddExpenseScreen does for an existing expense.
+  // Skip the first run (mount's initial state already matches disk).
+  const didMountRef = useRef(false);
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+    if (!isEditing || !vacation || !canSave) return;
+    updateVacation(vacation.id, name.trim(), defaultCurrency, leadCurrency, companions);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [name, defaultCurrency, leadCurrency, companions]);
 
   const companionIdsInUse = useMemo(() => {
     if (!vacation) return new Set<string>();
@@ -83,11 +129,7 @@ export default function VacationFormScreen() {
 
   const handleSave = async () => {
     if (!canSave) return;
-    if (isEditing && vacation) {
-      await updateVacation(vacation.id, name.trim(), defaultCurrency, leadCurrency, companions);
-    } else {
-      await addVacation(name.trim(), defaultCurrency, leadCurrency, companions);
-    }
+    await addVacation(name.trim(), defaultCurrency, leadCurrency, companions);
     navigation.goBack();
   };
 
@@ -103,30 +145,37 @@ export default function VacationFormScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
         <TouchableOpacity
-          style={[styles.backButton, { flexDirection: rowDirection }]}
+          style={styles.backButton}
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name={isRTL ? 'chevron-forward' : 'chevron-back'} size={14} color={colors.primary} />
-          <Text style={styles.backText}>{t.common.back}</Text>
+          <Ionicons name={isRTL ? 'chevron-forward' : 'chevron-back'} size={20} color={colors.primary} />
         </TouchableOpacity>
-        {isEditing && (
-          <TouchableOpacity onPress={() => setDeleteConfirmVisible(true)} activeOpacity={0.7}>
-            <Text style={styles.deleteLinkText}>{t.vacations.deleteLink}</Text>
-          </TouchableOpacity>
-        )}
+        <Text style={[styles.title, { textAlign }]} numberOfLines={1}>
+          {isEditing ? t.vacations.editTitle : t.vacations.createTitle}
+        </Text>
       </View>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
+          ref={scrollViewRef}
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={[styles.title, { textAlign }]}>
-            {isEditing ? t.vacations.editTitle : t.vacations.createTitle}
-          </Text>
+          {!isEditing && (
+            <TouchableOpacity
+              style={[styles.saveButton, { flexDirection: rowDirection }, !canSave && styles.saveButtonDisabled]}
+              onPress={handleSave}
+              disabled={!canSave}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+              <Text style={styles.saveButtonText}>{t.vacations.createButton}</Text>
+            </TouchableOpacity>
+          )}
 
           <View
             style={[
@@ -141,13 +190,14 @@ export default function VacationFormScreen() {
             <View style={styles.nameTextBlock}>
               <Text style={[styles.fieldLabel, { textAlign }]}>{t.vacations.nameLabel}</Text>
               <TextInput
+                ref={nameInputRef}
                 style={[styles.nameInput, { textAlign }]}
                 value={name}
                 onChangeText={setName}
                 placeholder={t.vacations.namePlaceholder}
                 placeholderTextColor={colors.textMuted}
                 returnKeyType="done"
-                autoFocus
+                onFocus={(e) => scrollToFocusedInput(scrollViewRef, e)}
               />
             </View>
           </View>
@@ -253,6 +303,12 @@ export default function VacationFormScreen() {
               placeholderTextColor={colors.textMuted}
               returnKeyType="done"
               onSubmitEditing={handleAddCompanion}
+              onFocus={(e) => {
+                companionInputNodeRef.current = e.target;
+                setCompanionInputFocused(true);
+                scrollToFocusedInput(scrollViewRef, e);
+              }}
+              onBlur={() => setCompanionInputFocused(false)}
             />
             <TouchableOpacity
               style={[styles.addButton, !newCompanionName.trim() && styles.addButtonDisabled]}
@@ -270,22 +326,19 @@ export default function VacationFormScreen() {
               </Text>
             </TouchableOpacity>
           </View>
+
+          {isEditing && (
+            <TouchableOpacity
+              style={[styles.deleteVacationButton, { alignSelf: isRTL ? 'flex-end' : 'flex-start' }]}
+              onPress={() => setDeleteConfirmVisible(true)}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.deleteLinkText}>{t.vacations.deleteLink}</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <View style={styles.saveWrap}>
-        <TouchableOpacity
-          style={[styles.saveButton, { flexDirection: rowDirection }, !canSave && styles.saveButtonDisabled]}
-          onPress={handleSave}
-          disabled={!canSave}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-          <Text style={styles.saveButtonText}>
-            {isEditing ? t.common.save : t.vacations.createButton}
-          </Text>
-        </TouchableOpacity>
-      </View>
 
       <Modal
         visible={deleteConfirmVisible}
@@ -380,14 +433,23 @@ const styles = StyleSheet.create({
   container: { padding: 20, paddingBottom: 24 },
   headerRow: {
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 12,
     paddingHorizontal: 20,
     paddingTop: 12,
+    paddingBottom: 8,
   },
-  backButton: { alignItems: 'center', gap: 4 },
-  backText: { fontSize: 15, fontWeight: '600', color: colors.primary },
+  backButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F1FE',
+    flexShrink: 0,
+  },
+  deleteVacationButton: { marginTop: 4, marginBottom: 8 },
   deleteLinkText: { fontSize: 13, fontWeight: '600', color: colors.danger },
-  title: { fontSize: 26, fontWeight: '700', color: colors.text, letterSpacing: -0.3, marginBottom: 16 },
+  title: { flex: 1, fontSize: 20, fontWeight: '700', color: colors.text, letterSpacing: -0.2 },
   nameCard: {
     alignItems: 'center',
     backgroundColor: colors.card,
@@ -504,7 +566,6 @@ const styles = StyleSheet.create({
   addButtonDisabled: { backgroundColor: colors.divider },
   addButtonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   addButtonTextDisabled: { color: '#B4B4BE' },
-  saveWrap: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 26 },
   saveButton: {
     backgroundColor: colors.primary,
     borderRadius: 18,
@@ -512,6 +573,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 9,
+    marginBottom: 16,
     shadowColor: colors.primary,
     shadowOpacity: 0.4,
     shadowRadius: 16,

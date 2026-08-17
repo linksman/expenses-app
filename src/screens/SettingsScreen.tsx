@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Linking,
   Modal,
@@ -20,6 +20,7 @@ import { useExpenses } from '../storage/ExpensesContext';
 import { PaymentMethod } from '../types/paymentMethod';
 import { paymentMethodName } from '../utils/paymentMethodName';
 import LanguagePickerModal from '../components/LanguagePickerModal';
+import { scrollNodeIntoViewAboveKeyboard, scrollToFocusedInput } from '../utils/scrollToFocusedInput';
 
 const METHOD_ICON_PALETTE = [
   { color: '#159C87', tint: '#E7F6F1' },
@@ -67,6 +68,7 @@ export default function SettingsScreen() {
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const currentLanguage = LANGUAGES.find((l) => l.code === languageCode);
 
@@ -82,6 +84,22 @@ export default function SettingsScreen() {
   const { expenses } = useExpenses();
   const [newMethodName, setNewMethodName] = useState('');
   const [pendingDeleteMethod, setPendingDeleteMethod] = useState<PaymentMethod | null>(null);
+  const methodInputNodeRef = useRef<unknown>(null);
+  const [methodInputFocused, setMethodInputFocused] = useState(false);
+
+  // Adding a method inserts a row above this input while the keyboard stays
+  // open and the field keeps focus, so the one-shot onFocus scroll isn't enough
+  // — the newly grown list pushes the field back under the keyboard. Re-measure
+  // once the new row has actually laid out.
+  useEffect(() => {
+    if (!methodInputFocused) return;
+    const timer = setTimeout(() => {
+      if (methodInputNodeRef.current) {
+        scrollNodeIntoViewAboveKeyboard(scrollViewRef, methodInputNodeRef.current);
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [methods.length, methodInputFocused]);
 
   const methodIdsInUse = useMemo(
     () => new Set(expenses.map((e) => e.paymentMethodId)),
@@ -102,7 +120,11 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.header}>
           <Text style={[styles.title, { textAlign }]}>{t.settings.title}</Text>
           <Text style={[styles.subtitle, { textAlign }]}>{t.settings.subtitle}</Text>
@@ -117,7 +139,7 @@ export default function SettingsScreen() {
           <View style={[styles.languageIconBadge]}>
             <Ionicons name="globe-outline" size={19} color="#7C3AED" />
           </View>
-          <Text style={styles.rowLabel}>{currentLanguage?.nativeLabel}</Text>
+          <Text style={[styles.rowLabel, { textAlign }]}>{currentLanguage?.nativeLabel}</Text>
           <Text style={styles.chevron}>{isRTL ? '‹' : '›'}</Text>
         </TouchableOpacity>
 
@@ -247,6 +269,12 @@ export default function SettingsScreen() {
             placeholderTextColor={colors.textMuted}
             returnKeyType="done"
             onSubmitEditing={handleAddMethod}
+            onFocus={(e) => {
+              methodInputNodeRef.current = e.target;
+              setMethodInputFocused(true);
+              scrollToFocusedInput(scrollViewRef, e);
+            }}
+            onBlur={() => setMethodInputFocused(false)}
           />
           <TouchableOpacity
             style={[styles.addButton, !newMethodName.trim() && styles.addButtonDisabled]}

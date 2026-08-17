@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -20,6 +20,7 @@ import { ExpenseSplitShare } from '../types/expense';
 import { formatAmount } from '../utils/formatCurrency';
 import { setPendingSplit } from '../utils/pendingExpenseSplit';
 import { companionAvatarColor } from '../utils/companionAvatar';
+import { scrollToFocusedInput } from '../utils/scrollToFocusedInput';
 
 const ME_AVATAR = { color: '#6D28D9', tint: '#F1EAFE' };
 
@@ -43,6 +44,7 @@ export default function ExpenseSplitScreen() {
 
   const vacation = vacations.find((v) => v.id === vacationId) ?? null;
   const companions = vacation?.companions ?? [];
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [inputs, setInputs] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
@@ -91,17 +93,28 @@ export default function ExpenseSplitScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
-        <Text style={styles.headerTitle}>{t.splitScreen.title}</Text>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.7}>
-          <Text style={styles.backText}>{t.common.back}</Text>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={handleBack}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name={isRTL ? 'chevron-forward' : 'chevron-back'} size={20} color={colors.primary} />
         </TouchableOpacity>
+        <Text style={[styles.headerTitle, { textAlign }]} numberOfLines={1}>
+          {t.splitScreen.title}
+        </Text>
       </View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.totalCard}>
             <View style={[styles.totalCardTop, { flexDirection: rowDirection }]}>
               <View>
@@ -112,22 +125,6 @@ export default function ExpenseSplitScreen() {
                 {t.splitScreen.assigned} {formatAmount(assignedTotal, currencyCode)}
               </Text>
             </View>
-            {amount > 0 && (
-              <View style={[styles.progressBar, { flexDirection: rowDirection }]}>
-                {companions.map((c, index) => {
-                  const share = numericShares[c.id];
-                  if (share <= 0) return null;
-                  const palette = companionAvatarColor(index);
-                  const pct = Math.max(0, Math.min(100, (share / amount) * 100));
-                  return (
-                    <View
-                      key={c.id}
-                      style={{ width: `${pct}%`, backgroundColor: palette.color }}
-                    />
-                  );
-                })}
-              </View>
-            )}
           </View>
 
           <View style={[styles.participantRow, { flexDirection: rowDirection }]}>
@@ -169,6 +166,7 @@ export default function ExpenseSplitScreen() {
                       placeholder="0"
                       placeholderTextColor={colors.textMuted}
                       keyboardType="decimal-pad"
+                      onFocus={(e) => scrollToFocusedInput(scrollViewRef, e)}
                     />
                   </View>
                 </View>
@@ -218,13 +216,27 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   headerRow: {
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 12,
     paddingHorizontal: 20,
     paddingTop: 12,
+    paddingBottom: 8,
   },
-  headerTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
-  backButton: { alignItems: 'center' },
-  backText: { fontSize: 15, fontWeight: '600', color: colors.primary },
+  headerTitle: {
+    flex: 1,
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: -0.2,
+  },
+  backButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F1FE',
+    flexShrink: 0,
+  },
   container: { padding: 20, paddingBottom: 20 },
   totalCard: {
     backgroundColor: colors.card,
@@ -242,12 +254,6 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: 11, fontWeight: '700', color: colors.textMuted, letterSpacing: 1 },
   totalAmount: { fontSize: 32, fontWeight: '800', color: colors.text, letterSpacing: -0.4, marginTop: 3 },
   assignedLabel: { fontSize: 12, fontWeight: '600', color: colors.primary, paddingBottom: 3 },
-  progressBar: {
-    height: 6,
-    borderRadius: 999,
-    overflow: 'hidden',
-    backgroundColor: colors.divider,
-  },
   participantRow: {
     alignItems: 'center',
     gap: 13,

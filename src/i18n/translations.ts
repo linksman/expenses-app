@@ -19,6 +19,7 @@ export interface Translations {
     split: string;
     splitNotSplit: string;
     splitWith: string;
+    splitLockedHint: string;
   };
   manage: {
     title: string;
@@ -140,8 +141,9 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       save: 'Add Expense',
       saved: 'Added ✓',
       split: 'Split',
-      splitNotSplit: 'Not split',
+      splitNotSplit: '-',
       splitWith: 'Split with:',
+      splitLockedHint: "Split expense total can't be changed here — edit the split instead.",
     },
     manage: {
       title: 'Your Expenses',
@@ -205,11 +207,11 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       editTitle: 'Edit Vacation',
       nameLabel: 'Vacation name',
       namePlaceholder: 'e.g. Trip to Paris 2026',
-      defaultCurrency: 'Default Currency',
+      defaultCurrency: 'Default Expenses Currency',
       defaultCurrencyHint: 'Used when adding a new expense to this vacation',
-      leadCurrency: 'Show Totals In',
+      leadCurrency: 'Show Totals Also In',
       leadCurrencyHint: 'Convert every expense and the vacation total into one currency',
-      leadCurrencyNone: 'Original currencies',
+      leadCurrencyNone: 'None',
       deleteLink: 'Delete Vacation',
       deleteConfirmTitle: 'Delete Vacation?',
       deleteConfirmMessage: 'This will also permanently delete all expenses in this vacation.',
@@ -262,8 +264,10 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       save: 'Ajouter la dépense',
       saved: 'Ajouté ✓',
       split: 'Partager',
-      splitNotSplit: 'Non partagée',
+      splitNotSplit: '-',
       splitWith: 'Partagée avec :',
+      splitLockedHint:
+        "Le total d'une dépense partagée ne peut pas être modifié ici — modifiez le partage à la place.",
     },
     manage: {
       title: 'Vos dépenses',
@@ -327,11 +331,11 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       editTitle: 'Modifier le séjour',
       nameLabel: 'Nom du séjour',
       namePlaceholder: 'ex. Voyage à Paris 2026',
-      defaultCurrency: 'Devise par défaut',
+      defaultCurrency: 'Devise par défaut des dépenses',
       defaultCurrencyHint: "Utilisée lors de l'ajout d'une dépense à ce séjour",
-      leadCurrency: 'Afficher les totaux en',
+      leadCurrency: 'Afficher aussi les totaux en',
       leadCurrencyHint: 'Convertir chaque dépense et le total du séjour dans une seule devise',
-      leadCurrencyNone: "Devises d'origine",
+      leadCurrencyNone: 'Aucune',
       deleteLink: 'Supprimer le séjour',
       deleteConfirmTitle: 'Supprimer le séjour ?',
       deleteConfirmMessage:
@@ -386,8 +390,10 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       save: 'Ausgabe hinzufügen',
       saved: 'Hinzugefügt ✓',
       split: 'Aufteilen',
-      splitNotSplit: 'Nicht aufgeteilt',
+      splitNotSplit: '-',
       splitWith: 'Aufgeteilt mit:',
+      splitLockedHint:
+        'Der Gesamtbetrag einer aufgeteilten Ausgabe kann hier nicht geändert werden — bearbeite stattdessen die Aufteilung.',
     },
     manage: {
       title: 'Deine Ausgaben',
@@ -451,11 +457,11 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       editTitle: 'Urlaub bearbeiten',
       nameLabel: 'Urlaubsname',
       namePlaceholder: 'z. B. Reise nach Paris 2026',
-      defaultCurrency: 'Standardwährung',
+      defaultCurrency: 'Standardwährung für Ausgaben',
       defaultCurrencyHint: 'Wird beim Hinzufügen einer Ausgabe zu diesem Urlaub verwendet',
-      leadCurrency: 'Summen anzeigen in',
+      leadCurrency: 'Summen zusätzlich anzeigen in',
       leadCurrencyHint: 'Jede Ausgabe und die Urlaubssumme in eine Währung umrechnen',
-      leadCurrencyNone: 'Originalwährungen',
+      leadCurrencyNone: 'Keine',
       deleteLink: 'Urlaub löschen',
       deleteConfirmTitle: 'Urlaub löschen?',
       deleteConfirmMessage:
@@ -510,8 +516,10 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       save: 'Añadir gasto',
       saved: 'Añadido ✓',
       split: 'Dividir',
-      splitNotSplit: 'Sin dividir',
+      splitNotSplit: '-',
       splitWith: 'Dividido con:',
+      splitLockedHint:
+        'El total de un gasto dividido no se puede cambiar aquí — edita la división en su lugar.',
     },
     manage: {
       title: 'Tus gastos',
@@ -575,11 +583,11 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       editTitle: 'Editar viaje',
       nameLabel: 'Nombre del viaje',
       namePlaceholder: 'p. ej. Viaje a París 2026',
-      defaultCurrency: 'Moneda predeterminada',
+      defaultCurrency: 'Moneda predeterminada de gastos',
       defaultCurrencyHint: 'Se usa al añadir un gasto a este viaje',
-      leadCurrency: 'Mostrar totales en',
+      leadCurrency: 'Mostrar también los totales en',
       leadCurrencyHint: 'Convertir cada gasto y el total del viaje a una sola moneda',
-      leadCurrencyNone: 'Monedas originales',
+      leadCurrencyNone: 'Ninguna',
       deleteLink: 'Eliminar viaje',
       deleteConfirmTitle: '¿Eliminar viaje?',
       deleteConfirmMessage: 'Esto también eliminará permanentemente todos los gastos de este viaje.',
@@ -633,8 +641,9 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       save: 'הוספת הוצאה',
       saved: 'נוסף ✓',
       split: 'פיצול',
-      splitNotSplit: 'לא מפוצלת',
+      splitNotSplit: '-',
       splitWith: 'מפוצלת עם:',
+      splitLockedHint: 'לא ניתן לשנות כאן את סכום ההוצאה המפוצלת — יש לערוך את הפיצול במקום זאת.',
     },
     manage: {
       title: 'ההוצאות שלך',
@@ -698,11 +707,11 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       editTitle: 'עריכת חופשה',
       nameLabel: 'שם החופשה',
       namePlaceholder: 'לדוגמה: טיול לפריז 2026',
-      defaultCurrency: 'מטבע ברירת מחדל',
+      defaultCurrency: 'מטבע ברירת מחדל להוצאות',
       defaultCurrencyHint: 'בשימוש בעת הוספת הוצאה לחופשה זו',
-      leadCurrency: 'הצגת הסכומים במטבע',
+      leadCurrency: 'הצגת הסכומים גם במטבע',
       leadCurrencyHint: 'המרת כל הוצאה וסך החופשה למטבע אחד',
-      leadCurrencyNone: 'מטבעות מקוריים',
+      leadCurrencyNone: 'ללא',
       deleteLink: 'מחיקת חופשה',
       deleteConfirmTitle: 'למחוק את החופשה?',
       deleteConfirmMessage: 'פעולה זו תמחק לצמיתות גם את כל ההוצאות בחופשה זו.',
