@@ -20,19 +20,11 @@ import { useExpenses } from '../storage/ExpensesContext';
 import { currencyInfo } from '../types/currency';
 import { TravelCompanion } from '../types/companion';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
+import { companionAvatarColor } from '../utils/companionAvatar';
 
 interface RouteParams {
   groupId?: string;
 }
-
-const COMPANION_AVATAR_PALETTE = [
-  { color: '#7C3AED', tint: '#F1EAFE' },
-  { color: '#3B82D6', tint: '#E9F1FF' },
-  { color: '#159C87', tint: '#E7F6F1' },
-  { color: '#EA8C3A', tint: '#FFF4E8' },
-  { color: '#DB5C8C', tint: '#FDECF2' },
-  { color: '#4C9E4C', tint: '#EAF4EA' },
-];
 
 export default function GroupFormScreen() {
   const navigation = useNavigation();
@@ -213,7 +205,7 @@ export default function GroupFormScreen() {
             <View style={styles.card}>
               {companions.map((c, index) => {
                 const inUse = companionIdsInUse.has(c.id);
-                const palette = COMPANION_AVATAR_PALETTE[index % COMPANION_AVATAR_PALETTE.length];
+                const palette = companionAvatarColor(index);
                 return (
                   <View
                     key={c.id}

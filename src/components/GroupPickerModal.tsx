@@ -1,9 +1,12 @@
 import React from 'react';
 import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../storage/LanguageContext';
 import { useGroups } from '../storage/GroupsContext';
+import { useExpenses } from '../storage/ExpensesContext';
 import { ExpenseGroup } from '../types/group';
+import { formatTotals, totalsByCurrencyFor } from '../utils/formatCurrency';
 
 export const ALL_GROUPS = 'all';
 
@@ -30,6 +33,7 @@ export default function GroupPickerModal({
 }: Props) {
   const { t, isRTL } = useLanguage();
   const { groups } = useGroups();
+  const { expenses } = useExpenses();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
 
@@ -42,24 +46,48 @@ export default function GroupPickerModal({
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
         <View style={styles.sheet}>
-          <Text style={[styles.title, { textAlign }]}>{t.groups.pickerTitle}</Text>
+          <View style={styles.grabber} />
+          <View style={[styles.header, { flexDirection: rowDirection }]}>
+            <Text style={[styles.title, { textAlign }]}>{t.groups.pickerTitle}</Text>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close" size={14} color="#71717A" />
+            </TouchableOpacity>
+          </View>
           <FlatList
             data={data}
             keyExtractor={(item) => (typeof item === 'string' ? item : item.id)}
             style={styles.list}
-            renderItem={({ item }) => {
+            renderItem={({ item, index }) => {
               const isAll = item === ALL_GROUPS;
               const id = isAll ? ALL_GROUPS : (item as ExpenseGroup).id;
               const label = isAll ? t.groups.allGroups : (item as ExpenseGroup).name;
               const selected = id === selectedId;
+              const isLast = index === data.length - 1;
+              const groupExpenses = isAll
+                ? []
+                : expenses.filter((e) => e.groupId === (item as ExpenseGroup).id);
+              const statsText = isAll
+                ? null
+                : `${groupExpenses.length} ${t.manage.expensesCount} · ${formatTotals(
+                    totalsByCurrencyFor(groupExpenses),
+                    (item as ExpenseGroup).defaultCurrency
+                  )}`;
               return (
                 <View
                   style={[
                     styles.row,
-                    selected && styles.rowSelected,
                     { flexDirection: rowDirection },
+                    selected && styles.rowSelected,
+                    !isLast && styles.rowBorder,
                   ]}
                 >
+                  <View style={styles.checkSlot}>
+                    {selected && <Ionicons name="checkmark" size={16} color={colors.primary} />}
+                  </View>
                   <TouchableOpacity
                     style={[styles.rowSelectable, { flexDirection: rowDirection }]}
                     onPress={() => {
@@ -68,22 +96,45 @@ export default function GroupPickerModal({
                     }}
                     activeOpacity={0.7}
                   >
-                    <View style={[styles.nameRow, { flexDirection: rowDirection }]}>
-                      <Text style={[styles.name, { textAlign }]}>{label}</Text>
+                    <View
+                      style={[styles.iconBadge, { backgroundColor: selected ? '#F1EAFE' : '#F5F5F8' }]}
+                    >
+                      <Ionicons
+                        name={isAll ? 'grid-outline' : 'location-outline'}
+                        size={17}
+                        color={selected ? '#7C3AED' : '#8B8B96'}
+                      />
                     </View>
-                    {selected && <Text style={styles.check}>✓</Text>}
+                    <View style={styles.textBlock}>
+                      <Text
+                        style={[styles.name, { textAlign }, selected && styles.nameSelected]}
+                        numberOfLines={1}
+                      >
+                        {label}
+                      </Text>
+                      {statsText && (
+                        <Text style={[styles.stats, { textAlign }]} numberOfLines={1}>
+                          {statsText}
+                        </Text>
+                      )}
+                    </View>
                   </TouchableOpacity>
-                  {!isAll && onEditGroup && (
+                  {!isAll && onEditGroup ? (
                     <TouchableOpacity
                       onPress={() => {
                         onClose();
                         onEditGroup(item as ExpenseGroup);
                       }}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      style={styles.editButton}
+                      style={[
+                        styles.editButton,
+                        { backgroundColor: selected ? '#F1EAFE' : '#F5F5F8' },
+                      ]}
                     >
-                      <Text style={styles.editIcon}>✏️</Text>
+                      <Ionicons name="pencil" size={13} color={selected ? '#6D28D9' : '#71717A'} />
                     </TouchableOpacity>
+                  ) : (
+                    <View style={styles.editButtonSpacer} />
                   )}
                 </View>
               );
@@ -91,14 +142,15 @@ export default function GroupPickerModal({
             ListFooterComponent={
               allowCreate ? (
                 <TouchableOpacity
-                  style={[styles.rowSelectable, { flexDirection: rowDirection }]}
+                  style={[styles.createNewButton, { flexDirection: rowDirection }]}
                   onPress={() => {
                     onClose();
                     onCreateNew?.();
                   }}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.createNew, { textAlign }]}>{t.groups.createNew}</Text>
+                  <Ionicons name="add" size={16} color={colors.primary} />
+                  <Text style={styles.createNew}>{t.groups.createNew}</Text>
                 </TouchableOpacity>
               ) : null
             }
@@ -111,34 +163,79 @@ export default function GroupPickerModal({
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(27, 39, 51, 0.45)' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(24, 20, 45, 0.42)' },
   sheet: {
     backgroundColor: colors.card,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 18,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderBottomLeftRadius: 38,
+    borderBottomRightRadius: 38,
+    paddingTop: 14,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingBottom: 26,
     maxHeight: '75%',
+    shadowColor: '#18142D',
+    shadowOpacity: 0.25,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: -10 },
+    elevation: 8,
   },
-  title: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 8 },
+  grabber: {
+    width: 44,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#E4E4EA',
+    alignSelf: 'center',
+    marginBottom: 14,
+  },
+  header: { alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  title: { fontSize: 18, fontWeight: '700', color: colors.text },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 11,
+    backgroundColor: '#F5F5F8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   list: { marginBottom: 4 },
-  row: {
+  row: { alignItems: 'center', gap: 12 },
+  rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.divider },
+  rowSelected: { backgroundColor: '#F9F6FE', borderRadius: 14 },
+  checkSlot: { width: 17, flexShrink: 0, alignItems: 'center' },
+  rowSelectable: { flex: 1, alignItems: 'center', gap: 12, paddingVertical: 14, minWidth: 0 },
+  iconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    justifyContent: 'center',
+    flexShrink: 0,
   },
-  rowSelected: { backgroundColor: colors.background },
-  rowSelectable: {
-    flex: 1,
+  textBlock: { flex: 1, minWidth: 0, gap: 1 },
+  name: { fontSize: 16, fontWeight: '600', color: colors.text },
+  nameSelected: { fontWeight: '700' },
+  stats: { fontSize: 12, color: colors.textMuted },
+  editButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
+    justifyContent: 'center',
+    flexShrink: 0,
   },
-  nameRow: { flex: 1, alignItems: 'center' },
-  name: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
-  check: { fontSize: 16, fontWeight: '700', color: colors.primary },
-  editButton: { paddingHorizontal: 10, paddingVertical: 14 },
-  editIcon: { fontSize: 16 },
-  createNew: { flex: 1, fontSize: 16, fontWeight: '700', color: colors.primary },
+  editButtonSpacer: { width: 30, flexShrink: 0 },
+  createNewButton: {
+    height: 50,
+    marginTop: 4,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#DDD1FA',
+    borderStyle: 'dashed',
+    backgroundColor: '#FBF9FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  createNew: { fontSize: 16, fontWeight: '700', color: colors.primary },
 });

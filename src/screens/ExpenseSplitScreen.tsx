@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../storage/LanguageContext';
 import { useGroups } from '../storage/GroupsContext';
@@ -18,6 +19,9 @@ import { currencyInfo } from '../types/currency';
 import { ExpenseSplitShare } from '../types/expense';
 import { formatAmount } from '../utils/formatCurrency';
 import { setPendingSplit } from '../utils/pendingExpenseSplit';
+import { companionAvatarColor } from '../utils/companionAvatar';
+
+const ME_AVATAR = { color: '#6D28D9', tint: '#F1EAFE' };
 
 interface RouteParams {
   groupId: string;
@@ -91,11 +95,39 @@ export default function ExpenseSplitScreen() {
       >
         <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
           <View style={styles.totalCard}>
-            <Text style={[styles.totalLabel, { textAlign }]}>{t.splitScreen.totalLabel}</Text>
-            <Text style={styles.totalAmount}>{formatAmount(amount, currencyCode)}</Text>
+            <View style={[styles.totalCardTop, { flexDirection: rowDirection }]}>
+              <View>
+                <Text style={[styles.totalLabel, { textAlign }]}>{t.splitScreen.totalLabel}</Text>
+                <Text style={styles.totalAmount}>{formatAmount(amount, currencyCode)}</Text>
+              </View>
+              <Text style={styles.assignedLabel}>
+                {t.splitScreen.assigned} {formatAmount(assignedTotal, currencyCode)}
+              </Text>
+            </View>
+            {amount > 0 && (
+              <View style={[styles.progressBar, { flexDirection: rowDirection }]}>
+                {companions.map((c, index) => {
+                  const share = numericShares[c.id];
+                  if (share <= 0) return null;
+                  const palette = companionAvatarColor(index);
+                  const pct = Math.max(0, Math.min(100, (share / amount) * 100));
+                  return (
+                    <View
+                      key={c.id}
+                      style={{ width: `${pct}%`, backgroundColor: palette.color }}
+                    />
+                  );
+                })}
+              </View>
+            )}
           </View>
 
           <View style={[styles.participantRow, { flexDirection: rowDirection }]}>
+            <View style={[styles.avatar, { backgroundColor: ME_AVATAR.tint }]}>
+              <Text style={[styles.avatarText, { color: ME_AVATAR.color }]}>
+                {t.companions.me.slice(0, 1).toUpperCase()}
+              </Text>
+            </View>
             <View style={styles.participantTextBlock}>
               <Text style={[styles.participantName, { textAlign }]}>{t.companions.me}</Text>
               <Text style={[styles.autoHint, { textAlign }]}>{t.splitScreen.autoHint}</Text>
@@ -108,39 +140,61 @@ export default function ExpenseSplitScreen() {
           {companions.length === 0 ? (
             <Text style={[styles.emptyText, { textAlign }]}>{t.splitScreen.emptyCompanions}</Text>
           ) : (
-            companions.map((c) => (
-              <View key={c.id} style={[styles.participantRow, { flexDirection: rowDirection }]}>
-                <Text style={[styles.participantName, { textAlign }]} numberOfLines={1}>
-                  {c.name}
-                </Text>
-                <View style={[styles.amountInputWrap, { flexDirection: rowDirection }]}>
-                  <Text style={styles.currencyPrefix}>{currencyInfo(currencyCode).symbol}</Text>
-                  <TextInput
-                    style={[styles.amountInput, { textAlign }]}
-                    value={inputs[c.id] ?? ''}
-                    onChangeText={(text) => setInputs((prev) => ({ ...prev, [c.id]: text }))}
-                    placeholder="0"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="decimal-pad"
-                  />
+            companions.map((c, index) => {
+              const palette = companionAvatarColor(index);
+              return (
+                <View key={c.id} style={[styles.participantRow, { flexDirection: rowDirection }]}>
+                  <View style={[styles.avatar, { backgroundColor: palette.tint }]}>
+                    <Text style={[styles.avatarText, { color: palette.color }]}>
+                      {c.name.slice(0, 1).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={[styles.participantName, { textAlign, flex: 1 }]} numberOfLines={1}>
+                    {c.name}
+                  </Text>
+                  <View style={[styles.amountInputWrap, { flexDirection: rowDirection }]}>
+                    <Text style={styles.currencyPrefix}>{currencyInfo(currencyCode).symbol}</Text>
+                    <TextInput
+                      style={[styles.amountInput, { textAlign }]}
+                      value={inputs[c.id] ?? ''}
+                      onChangeText={(text) => setInputs((prev) => ({ ...prev, [c.id]: text }))}
+                      placeholder="0"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
                 </View>
-              </View>
-            ))
+              );
+            })
           )}
 
           {overAllocated && (
-            <Text style={[styles.overAllocatedText, { textAlign }]}>
-              {t.splitScreen.overAllocated}
-            </Text>
+            <View style={styles.overAllocatedBanner}>
+              <Ionicons name="alert-circle-outline" size={17} color="#B03A52" />
+              <Text style={[styles.overAllocatedText, { textAlign }]}>
+                {t.splitScreen.overAllocated}
+              </Text>
+            </View>
           )}
 
           <TouchableOpacity
-            style={[styles.saveButton, overAllocated && styles.saveButtonDisabled]}
+            style={[
+              styles.saveButton,
+              { flexDirection: rowDirection },
+              overAllocated && styles.saveButtonDisabled,
+            ]}
             onPress={handleSave}
             disabled={overAllocated}
             activeOpacity={0.85}
           >
-            <Text style={styles.saveButtonText}>{t.splitScreen.save}</Text>
+            <Ionicons
+              name="checkmark-circle-outline"
+              size={19}
+              color={overAllocated ? '#A1A1AA' : '#fff'}
+            />
+            <Text style={[styles.saveButtonText, overAllocated && styles.saveButtonTextDisabled]}>
+              {t.splitScreen.save}
+            </Text>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -165,17 +219,26 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: 20,
     marginBottom: 20,
+    gap: 12,
     shadowColor: '#18142D',
     shadowOpacity: 0.08,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
     elevation: 2,
   },
-  totalLabel: { fontSize: 12, fontWeight: '700', color: colors.textMuted, letterSpacing: 1 },
-  totalAmount: { fontSize: 30, fontWeight: '800', color: colors.text, marginTop: 4 },
+  totalCardTop: { alignItems: 'flex-end', justifyContent: 'space-between' },
+  totalLabel: { fontSize: 11, fontWeight: '700', color: colors.textMuted, letterSpacing: 1 },
+  totalAmount: { fontSize: 32, fontWeight: '800', color: colors.text, letterSpacing: -0.4, marginTop: 3 },
+  assignedLabel: { fontSize: 12, fontWeight: '600', color: colors.primary, paddingBottom: 3 },
+  progressBar: {
+    height: 6,
+    borderRadius: 999,
+    overflow: 'hidden',
+    backgroundColor: colors.divider,
+  },
   participantRow: {
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 13,
     backgroundColor: colors.card,
     borderRadius: 20,
     paddingHorizontal: 16,
@@ -187,6 +250,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
+  avatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  avatarText: { fontSize: 13, fontWeight: '700' },
   participantTextBlock: { flex: 1 },
   participantName: { fontSize: 16, fontWeight: '600', color: colors.text },
   autoHint: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
@@ -194,28 +266,42 @@ const styles = StyleSheet.create({
   meAmountNegative: { color: colors.danger },
   amountInputWrap: {
     alignItems: 'center',
-    gap: 4,
-    borderRadius: 12,
+    gap: 5,
+    borderRadius: 13,
     backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minWidth: 90,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+    minWidth: 96,
   },
   currencyPrefix: { fontSize: 15, fontWeight: '700', color: colors.textMuted },
   amountInput: { flex: 1, fontSize: 16, fontWeight: '700', color: colors.text, padding: 0 },
   emptyText: { fontSize: 14, color: colors.textMuted, marginBottom: 10, lineHeight: 20 },
-  overAllocatedText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.danger,
+  overAllocatedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    backgroundColor: '#FDECF0',
+    borderWidth: 1,
+    borderColor: '#F5CBD5',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     marginBottom: 12,
   },
+  overAllocatedText: {
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#B03A52',
+    lineHeight: 18,
+  },
   saveButton: {
+    gap: 9,
     backgroundColor: colors.primary,
     borderRadius: 18,
-    height: 54,
+    height: 56,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 8,
@@ -226,5 +312,6 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   saveButtonDisabled: { backgroundColor: colors.border, shadowOpacity: 0, elevation: 0 },
-  saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  saveButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  saveButtonTextDisabled: { color: '#A1A1AA' },
 });

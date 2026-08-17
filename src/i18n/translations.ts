@@ -53,6 +53,7 @@ export interface Translations {
   splitScreen: {
     title: string;
     totalLabel: string;
+    assigned: string;
     autoHint: string;
     emptyCompanions: string;
     overAllocated: string;
@@ -198,7 +199,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
     },
     groups: {
       pickerTitle: 'Select Vacation',
-      createNew: '+ New Vacation',
+      createNew: 'New Vacation',
       createTitle: 'New Vacation',
       editTitle: 'Edit Vacation',
       nameLabel: 'Vacation name',
@@ -230,6 +231,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
     splitScreen: {
       title: 'Split Expense',
       totalLabel: 'Total',
+      assigned: 'Assigned',
       autoHint: 'Covers the rest automatically',
       emptyCompanions: 'Add travel companions in this vacation’s settings to split expenses.',
       overAllocated: 'Assigned shares add up to more than the total.',
@@ -319,7 +321,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
     },
     groups: {
       pickerTitle: 'Choisir un séjour',
-      createNew: '+ Nouveau séjour',
+      createNew: 'Nouveau séjour',
       createTitle: 'Nouveau séjour',
       editTitle: 'Modifier le séjour',
       nameLabel: 'Nom du séjour',
@@ -353,6 +355,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
     splitScreen: {
       title: 'Partager la dépense',
       totalLabel: 'Total',
+      assigned: 'Attribué',
       autoHint: 'Couvre automatiquement le reste',
       emptyCompanions:
         'Ajoutez des compagnons de voyage dans les réglages de ce séjour pour partager des dépenses.',
@@ -443,7 +446,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
     },
     groups: {
       pickerTitle: 'Urlaub auswählen',
-      createNew: '+ Neuer Urlaub',
+      createNew: 'Neuer Urlaub',
       createTitle: 'Neuer Urlaub',
       editTitle: 'Urlaub bearbeiten',
       nameLabel: 'Urlaubsname',
@@ -476,6 +479,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
     splitScreen: {
       title: 'Ausgabe aufteilen',
       totalLabel: 'Gesamt',
+      assigned: 'Zugewiesen',
       autoHint: 'Deckt den Rest automatisch ab',
       emptyCompanions:
         'Füge in den Einstellungen dieses Urlaubs Reisebegleiter hinzu, um Ausgaben aufzuteilen.',
@@ -566,7 +570,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
     },
     groups: {
       pickerTitle: 'Seleccionar viaje',
-      createNew: '+ Nuevo viaje',
+      createNew: 'Nuevo viaje',
       createTitle: 'Nuevo viaje',
       editTitle: 'Editar viaje',
       nameLabel: 'Nombre del viaje',
@@ -598,6 +602,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
     splitScreen: {
       title: 'Dividir gasto',
       totalLabel: 'Total',
+      assigned: 'Asignado',
       autoHint: 'Cubre el resto automáticamente',
       emptyCompanions:
         'Añade compañeros de viaje en los ajustes de este viaje para dividir gastos.',
@@ -688,7 +693,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
     },
     groups: {
       pickerTitle: 'בחירת חופשה',
-      createNew: '+ חופשה חדשה',
+      createNew: 'חופשה חדשה',
       createTitle: 'חופשה חדשה',
       editTitle: 'עריכת חופשה',
       nameLabel: 'שם החופשה',
@@ -720,6 +725,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
     splitScreen: {
       title: 'פיצול הוצאה',
       totalLabel: 'סך הכול',
+      assigned: 'הוקצו',
       autoHint: 'מכסה את השאר באופן אוטומטי',
       emptyCompanions: 'הוסיפו מלווים בהגדרות החופשה כדי לפצל הוצאות.',
       overAllocated: 'סכום החלקים שהוקצו גבוה מסך ההוצאה.',
