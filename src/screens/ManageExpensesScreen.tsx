@@ -350,7 +350,9 @@ export default function ManageExpensesScreen() {
 
       {filteredExpenses.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>🧳</Text>
+          <View style={styles.emptyIconTile}>
+            <Ionicons name="briefcase-outline" size={48} color="#7C3AED" />
+          </View>
           <Text style={styles.emptyText}>{t.manage.emptyTitle}</Text>
           <Text style={styles.emptySubtext}>{t.manage.emptySubtitle}</Text>
         </View>
@@ -567,7 +569,7 @@ export default function ManageExpensesScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  container: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16, gap: 16 },
+  container: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16, gap: 18 },
   topRow: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -578,8 +580,8 @@ const styles = StyleSheet.create({
   titleButton: { alignItems: 'center', gap: 7, maxWidth: '100%' },
   titleName: {
     flexShrink: 1,
-    fontSize: 19,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: '700',
     color: colors.primaryDark,
     letterSpacing: -0.2,
     textAlign: 'center',
@@ -598,7 +600,8 @@ const styles = StyleSheet.create({
   totalsCard: {
     backgroundColor: colors.card,
     borderRadius: 24,
-    padding: 20,
+    paddingVertical: 20,
+    paddingHorizontal: 22,
     shadowColor: '#18142D',
     shadowOpacity: 0.08,
     shadowRadius: 16,
@@ -608,10 +611,10 @@ const styles = StyleSheet.create({
   totalsRow: { alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
   totalsMain: { flex: 1, minWidth: 0 },
   totalsAmount: {
-    fontSize: 30,
-    fontWeight: '800',
+    fontSize: 34,
+    fontWeight: '700',
     color: colors.text,
-    letterSpacing: -0.4,
+    letterSpacing: -0.7,
     flexWrap: 'wrap',
   },
   totalsConverted: { fontSize: 14, color: colors.textMuted, marginTop: 5, flexWrap: 'wrap' },
@@ -628,9 +631,9 @@ const styles = StyleSheet.create({
   countPillText: { fontSize: 12, fontWeight: '600', color: colors.primary },
   actionsRow: { gap: 10 },
   exportCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
+    width: 54,
+    height: 54,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.card,
@@ -645,9 +648,9 @@ const styles = StyleSheet.create({
   },
   addButton: {
     flex: 1,
-    height: 50,
+    height: 54,
     backgroundColor: colors.primary,
-    borderRadius: 16,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
@@ -658,7 +661,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   addButtonDisabled: { backgroundColor: colors.border },
-  addButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  addButtonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
   splitCard: {
     backgroundColor: colors.card,
     borderRadius: 20,
@@ -726,14 +729,30 @@ const styles = StyleSheet.create({
   rowAmount: { fontSize: 16, fontWeight: '700', color: colors.text },
   rowConverted: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
   deleteText: { fontSize: 12, color: colors.danger, marginTop: 4, fontWeight: '600' },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
-  emptyEmoji: { fontSize: 48, marginBottom: 12 },
-  emptyText: { fontSize: 18, fontWeight: '700', color: colors.text },
-  emptySubtext: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginTop: 6,
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 34 },
+  emptyIconTile: {
+    width: 104,
+    height: 104,
+    borderRadius: 34,
+    backgroundColor: '#F5F1FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  emptyText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: -0.2,
     textAlign: 'center',
+    lineHeight: 28,
+  },
+  emptySubtext: {
+    fontSize: 15,
+    color: colors.textMuted,
+    marginTop: 9,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   emptyButton: {
     backgroundColor: colors.primary,

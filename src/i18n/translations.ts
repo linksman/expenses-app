@@ -718,7 +718,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       createButton: 'יצירת חופשה',
       allVacations: 'כל החופשות',
       emptyTitle: 'צרו חופשה ראשונה כדי להתחיל',
-      emptySubtitle: 'ותתחילו לעקוב אחרי כל ההוצאות שלכם במקום אחד.',
+      emptySubtitle: 'והתחילו לעקוב אחרי כל ההוצאות שלכם במקום אחד.',
       emptyButton: 'יצירת חופשה',
     },
     companions: {

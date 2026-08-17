@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
   amountInput: {
     width: '100%',
     fontSize: 48,
-    fontWeight: '800',
+    fontWeight: '700',
     color: colors.text,
   },
   amountInputLocked: {

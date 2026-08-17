@@ -173,7 +173,7 @@ export default function VacationFormScreen() {
               activeOpacity={0.85}
             >
               <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-              <Text style={styles.saveButtonText}>{t.vacations.createButton}</Text>
+              <Text style={styles.saveButtonText}>{t.common.save}</Text>
             </TouchableOpacity>
           )}
 

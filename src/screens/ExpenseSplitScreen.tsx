@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
   },
   totalCardTop: { alignItems: 'flex-end', justifyContent: 'space-between' },
   totalLabel: { fontSize: 11, fontWeight: '700', color: colors.textMuted, letterSpacing: 1 },
-  totalAmount: { fontSize: 32, fontWeight: '800', color: colors.text, letterSpacing: -0.4, marginTop: 3 },
+  totalAmount: { fontSize: 32, fontWeight: '700', color: colors.text, letterSpacing: -0.6, marginTop: 3 },
   assignedLabel: { fontSize: 12, fontWeight: '600', color: colors.primary, paddingBottom: 3 },
   participantRow: {
     alignItems: 'center',
