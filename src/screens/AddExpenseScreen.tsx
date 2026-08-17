@@ -125,47 +125,52 @@ export default function AddExpenseScreen() {
       : null;
 
   const handleDateSelect = (pickedDay: Date) => {
-    setExpenseDate((prev) => {
-      const combined = new Date(prev);
-      combined.setFullYear(pickedDay.getFullYear(), pickedDay.getMonth(), pickedDay.getDate());
-      return combined;
-    });
+    const combined = new Date(expenseDate);
+    combined.setFullYear(pickedDay.getFullYear(), pickedDay.getMonth(), pickedDay.getDate());
+    setExpenseDate(combined);
   };
+
+  // Editing an existing expense saves every field change immediately — there's
+  // no explicit save step, so skip the first run (the mount's initial state is
+  // already what's on disk) and only persist once something actually changes.
+  const didMountRef = useRef(false);
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+    if (!isEditing || !expenseId || !canSave) return;
+    updateExpense(
+      expenseId,
+      parsedAmount,
+      category,
+      description,
+      currencyCode,
+      paymentMethodId,
+      expenseDate.toISOString(),
+      split
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [amount, category, description, currencyCode, paymentMethodId, expenseDate, split]);
 
   const handleSubmit = async () => {
     if (!canSave || !group) return;
     const createdAt = expenseDate.toISOString();
-    if (isEditing && expenseId) {
-      await updateExpense(
-        expenseId,
-        parsedAmount,
-        category,
-        description,
-        currencyCode,
-        paymentMethodId,
-        createdAt,
-        split
-      );
-      setActiveGroupId(group.id);
-      navigation.goBack();
-    } else {
-      await addExpense(
-        parsedAmount,
-        category,
-        description,
-        currencyCode,
-        paymentMethodId,
-        group.id,
-        createdAt,
-        split
-      );
-      setActiveGroupId(group.id);
-      // Celebrate a brand-new expense with a coin burst + cha-ching, then leave —
-      // editing an existing one skips this and navigates back immediately above.
-      chaChingPlayer.seekTo(0);
-      chaChingPlayer.play();
-      setShowCoinBurst(true);
-    }
+    await addExpense(
+      parsedAmount,
+      category,
+      description,
+      currencyCode,
+      paymentMethodId,
+      group.id,
+      createdAt,
+      split
+    );
+    setActiveGroupId(group.id);
+    // Celebrate a brand-new expense with a coin burst + cha-ching, then leave.
+    chaChingPlayer.seekTo(0);
+    chaChingPlayer.play();
+    setShowCoinBurst(true);
   };
 
   const selectedMethod = methods.find((m) => m.id === paymentMethodId);
@@ -187,7 +192,10 @@ export default function AddExpenseScreen() {
         <Text style={styles.headerTitle}>{isEditing ? t.add.editTitle : t.add.title}</Text>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            if (isEditing && group) setActiveGroupId(group.id);
+            navigation.goBack();
+          }}
           activeOpacity={0.7}
         >
           <Text style={styles.backText}>{t.common.back}</Text>
@@ -201,20 +209,22 @@ export default function AddExpenseScreen() {
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
         >
-          <TouchableOpacity
-            ref={saveButtonRef}
-            style={[
-              styles.saveButton,
-              { flexDirection: rowDirection },
-              (!canSave || showCoinBurst) && styles.saveButtonDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={!canSave || showCoinBurst}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="checkmark-circle-outline" size={19} color="#fff" />
-            <Text style={styles.saveButtonText}>{isEditing ? t.common.save : t.add.save}</Text>
-          </TouchableOpacity>
+          {!isEditing && (
+            <TouchableOpacity
+              ref={saveButtonRef}
+              style={[
+                styles.saveButton,
+                { flexDirection: rowDirection },
+                (!canSave || showCoinBurst) && styles.saveButtonDisabled,
+              ]}
+              onPress={handleSubmit}
+              disabled={!canSave || showCoinBurst}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="checkmark-circle-outline" size={19} color="#fff" />
+              <Text style={styles.saveButtonText}>{t.common.save}</Text>
+            </TouchableOpacity>
+          )}
 
           <View style={[styles.amountBlock, !amount.trim() && styles.amountBlockInvalid]}>
             <View style={[styles.amountRow, { flexDirection: rowDirection }]}>
@@ -339,6 +349,7 @@ export default function AddExpenseScreen() {
                 amount: parsedAmount,
                 currencyCode,
                 initialSplit: split,
+                isEditing,
               });
             }}
             activeOpacity={0.8}

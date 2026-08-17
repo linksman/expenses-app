@@ -28,12 +28,14 @@ interface RouteParams {
   amount: number;
   currencyCode: string;
   initialSplit?: ExpenseSplitShare[];
+  isEditing?: boolean;
 }
 
 export default function ExpenseSplitScreen() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { groupId, amount, currencyCode, initialSplit } = (route.params ?? {}) as RouteParams;
+  const { groupId, amount, currencyCode, initialSplit, isEditing } = (route.params ??
+    {}) as RouteParams;
   const { t, isRTL } = useLanguage();
   const { groups } = useGroups();
   const textAlign = isRTL ? 'right' : 'left';
@@ -67,12 +69,22 @@ export default function ExpenseSplitScreen() {
   const meAmount = amount - assignedTotal;
   const overAllocated = assignedTotal > amount + 0.005;
 
-  const handleSave = () => {
-    if (overAllocated) return;
-    const split: ExpenseSplitShare[] = companions
+  const commitSplit = (): ExpenseSplitShare[] =>
+    companions
       .filter((c) => numericShares[c.id] > 0)
       .map((c) => ({ companionId: c.id, amount: numericShares[c.id] }));
-    setPendingSplit(split);
+
+  const handleSave = () => {
+    if (overAllocated) return;
+    setPendingSplit(commitSplit());
+    navigation.goBack();
+  };
+
+  // Editing an expense has no separate save step — the split is applied
+  // inline as soon as you leave, unless the shares are currently invalid, in
+  // which case the change is simply dropped and the last valid split stands.
+  const handleBack = () => {
+    if (isEditing && !overAllocated) setPendingSplit(commitSplit());
     navigation.goBack();
   };
 
@@ -80,11 +92,7 @@ export default function ExpenseSplitScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
         <Text style={styles.headerTitle}>{t.splitScreen.title}</Text>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.7}>
           <Text style={styles.backText}>{t.common.back}</Text>
         </TouchableOpacity>
       </View>
@@ -177,25 +185,29 @@ export default function ExpenseSplitScreen() {
             </View>
           )}
 
-          <TouchableOpacity
-            style={[
-              styles.saveButton,
-              { flexDirection: rowDirection },
-              overAllocated && styles.saveButtonDisabled,
-            ]}
-            onPress={handleSave}
-            disabled={overAllocated}
-            activeOpacity={0.85}
-          >
-            <Ionicons
-              name="checkmark-circle-outline"
-              size={19}
-              color={overAllocated ? '#A1A1AA' : '#fff'}
-            />
-            <Text style={[styles.saveButtonText, overAllocated && styles.saveButtonTextDisabled]}>
-              {t.splitScreen.save}
-            </Text>
-          </TouchableOpacity>
+          {!isEditing && (
+            <TouchableOpacity
+              style={[
+                styles.saveButton,
+                { flexDirection: rowDirection },
+                overAllocated && styles.saveButtonDisabled,
+              ]}
+              onPress={handleSave}
+              disabled={overAllocated}
+              activeOpacity={0.85}
+            >
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={19}
+                color={overAllocated ? '#A1A1AA' : '#fff'}
+              />
+              <Text
+                style={[styles.saveButtonText, overAllocated && styles.saveButtonTextDisabled]}
+              >
+                {t.common.save}
+              </Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

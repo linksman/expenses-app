@@ -57,7 +57,6 @@ export interface Translations {
     autoHint: string;
     emptyCompanions: string;
     overAllocated: string;
-    save: string;
   };
   categories: {
     Food: string;
@@ -235,7 +234,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       autoHint: 'Covers the rest automatically',
       emptyCompanions: 'Add travel companions in this vacation’s settings to split expenses.',
       overAllocated: 'Assigned shares add up to more than the total.',
-      save: 'Save Split',
     },
     rates: {
       updated: 'Rates updated',
@@ -360,7 +358,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       emptyCompanions:
         'Ajoutez des compagnons de voyage dans les réglages de ce séjour pour partager des dépenses.',
       overAllocated: 'Les parts attribuées dépassent le total.',
-      save: 'Enregistrer le partage',
     },
     rates: {
       updated: 'Taux mis à jour',
@@ -484,7 +481,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       emptyCompanions:
         'Füge in den Einstellungen dieses Urlaubs Reisebegleiter hinzu, um Ausgaben aufzuteilen.',
       overAllocated: 'Die zugewiesenen Anteile übersteigen die Gesamtsumme.',
-      save: 'Aufteilung speichern',
     },
     rates: {
       updated: 'Kurse aktualisiert',
@@ -607,7 +603,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       emptyCompanions:
         'Añade compañeros de viaje en los ajustes de este viaje para dividir gastos.',
       overAllocated: 'Las partes asignadas superan el total.',
-      save: 'Guardar división',
     },
     rates: {
       updated: 'Tasas actualizadas',
@@ -729,7 +724,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       autoHint: 'מכסה את השאר באופן אוטומטי',
       emptyCompanions: 'הוסיפו מלווים בהגדרות החופשה כדי לפצל הוצאות.',
       overAllocated: 'סכום החלקים שהוקצו גבוה מסך ההוצאה.',
-      save: 'שמירת הפיצול',
     },
     rates: {
       updated: 'שערים עודכנו',
