@@ -1,5 +1,6 @@
 import { currencyInfo } from '../types/currency';
 import { Expense } from '../types/expense';
+import { ME_COMPANION_ID } from '../types/companion';
 
 export interface CurrencyTotal {
   currencyCode: string;
@@ -54,6 +55,45 @@ export function convertedTotal(
   let sum = 0;
   for (const e of list) {
     const converted = convert(e.amount, e.currencyCode);
+    if (converted === null) return null;
+    sum += converted;
+  }
+  return sum;
+}
+
+/** A companion's cut of one expense. The "me" share is never stored — it's
+ * always the remainder after every assigned companion share, so it can't go
+ * stale if the expense amount is edited after the split was set. */
+export function companionShare(expense: Expense, companionId: string): number {
+  if (companionId === ME_COMPANION_ID) {
+    return expense.amount - expense.split.reduce((sum, s) => sum + s.amount, 0);
+  }
+  return expense.split.find((s) => s.companionId === companionId)?.amount ?? 0;
+}
+
+export function companionCurrencyTotals(list: Expense[], companionId: string): CurrencyTotal[] {
+  const order: string[] = [];
+  const sums = new Map<string, number>();
+  for (const e of list) {
+    const share = companionShare(e, companionId);
+    if (share === 0) continue;
+    if (!sums.has(e.currencyCode)) order.push(e.currencyCode);
+    sums.set(e.currencyCode, (sums.get(e.currencyCode) ?? 0) + share);
+  }
+  return order.map((currencyCode) => ({ currencyCode, amount: sums.get(currencyCode)! }));
+}
+
+/** Same as convertedTotal, but for one companion's shares only. */
+export function companionConvertedTotal(
+  list: Expense[],
+  companionId: string,
+  convert: (amount: number, fromCode: string) => number | null
+): number | null {
+  let sum = 0;
+  for (const e of list) {
+    const share = companionShare(e, companionId);
+    if (share === 0) continue;
+    const converted = convert(share, e.currencyCode);
     if (converted === null) return null;
     sum += converted;
   }

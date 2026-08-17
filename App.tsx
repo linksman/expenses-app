@@ -16,6 +16,7 @@ import AddExpenseScreen from './src/screens/AddExpenseScreen';
 import ManageExpensesScreen from './src/screens/ManageExpensesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import GroupFormScreen from './src/screens/GroupFormScreen';
+import ExpenseSplitScreen from './src/screens/ExpenseSplitScreen';
 
 const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
@@ -96,6 +97,11 @@ function AppNavigator() {
         <RootStack.Screen
           name="GroupForm"
           component={GroupFormScreen}
+          options={{ presentation: 'modal' }}
+        />
+        <RootStack.Screen
+          name="ExpenseSplit"
+          component={ExpenseSplitScreen}
           options={{ presentation: 'modal' }}
         />
       </RootStack.Navigator>

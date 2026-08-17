@@ -7,14 +7,17 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Category, Expense } from '../types/expense';
+import { Category, Expense, ExpenseSplitShare } from '../types/expense';
 
 const STORAGE_KEY = 'vacation-expenses:v1';
 
-// Expenses persisted before "note" was renamed to "description" lack the new field.
+// Expenses persisted before "note" was renamed to "description", or before
+// expense splitting existed, lack those fields.
 function normalizeExpense(raw: any): Expense {
-  if (raw.description !== undefined) return raw;
-  return { ...raw, description: raw.note ?? '' };
+  const description = raw.description !== undefined ? raw.description : raw.note ?? '';
+  const split = raw.split !== undefined ? raw.split : [];
+  if (raw.description !== undefined && raw.split !== undefined) return raw;
+  return { ...raw, description, split };
 }
 
 interface ExpensesContextValue {
@@ -27,7 +30,8 @@ interface ExpensesContextValue {
     currencyCode: string,
     paymentMethodId: string,
     groupId: string,
-    createdAt: string
+    createdAt: string,
+    split: ExpenseSplitShare[]
   ) => Promise<void>;
   updateExpense: (
     id: string,
@@ -36,7 +40,8 @@ interface ExpensesContextValue {
     description: string,
     currencyCode: string,
     paymentMethodId: string,
-    createdAt: string
+    createdAt: string,
+    split: ExpenseSplitShare[]
   ) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   deleteExpensesByGroup: (groupId: string) => Promise<void>;
@@ -76,7 +81,8 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
       currencyCode: string,
       paymentMethodId: string,
       groupId: string,
-      createdAt: string
+      createdAt: string,
+      split: ExpenseSplitShare[]
     ) => {
       const expense: Expense = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -87,6 +93,7 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
         currencyCode,
         paymentMethodId,
         groupId,
+        split,
       };
       await persist([expense, ...expenses]);
     },
@@ -101,7 +108,8 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
       description: string,
       currencyCode: string,
       paymentMethodId: string,
-      createdAt: string
+      createdAt: string,
+      split: ExpenseSplitShare[]
     ) => {
       await persist(
         expenses.map((e) =>
@@ -114,6 +122,7 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
                 currencyCode,
                 paymentMethodId,
                 createdAt,
+                split,
               }
             : e
         )

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAudioPlayer } from 'expo-audio';
 import { colors } from '../theme/colors';
@@ -19,11 +19,13 @@ import { usePaymentMethods } from '../storage/PaymentMethodsContext';
 import { useLanguage } from '../storage/LanguageContext';
 import { useGroups } from '../storage/GroupsContext';
 import { useExchangeRates } from '../storage/ExchangeRatesContext';
-import { CATEGORIES, Category } from '../types/expense';
+import { CATEGORIES, Category, ExpenseSplitShare } from '../types/expense';
 import { currencyInfo } from '../types/currency';
 import { DEFAULT_PAYMENT_METHOD_ICON } from '../types/paymentMethod';
 import { formatAmount } from '../utils/formatCurrency';
 import { paymentMethodName } from '../utils/paymentMethodName';
+import { companionName } from '../utils/companionName';
+import { takePendingSplit } from '../utils/pendingExpenseSplit';
 import { dayLabel } from '../utils/dateLabel';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
 import PaymentMethodPickerModal from '../components/PaymentMethodPickerModal';
@@ -39,6 +41,7 @@ const FIELD_ICON_STYLES = {
   description: { color: '#7C3AED', tint: '#F1EAFE' },
   payment: { color: '#159C87', tint: '#E7F6F1' },
   date: { color: '#EA8C3A', tint: '#FFF4E8' },
+  split: { color: '#3B82D6', tint: '#E9F1FF' },
 };
 
 export default function AddExpenseScreen() {
@@ -77,6 +80,7 @@ export default function AddExpenseScreen() {
   );
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
   const [methodModalVisible, setMethodModalVisible] = useState(false);
+  const [split, setSplit] = useState<ExpenseSplitShare[]>(() => existingExpense?.split ?? []);
   const descriptionInputRef = useRef<TextInput>(null);
   const saveButtonRef = useRef<React.ElementRef<typeof TouchableOpacity>>(null);
   const [showCoinBurst, setShowCoinBurst] = useState(false);
@@ -93,6 +97,17 @@ export default function AddExpenseScreen() {
       setPaymentMethodId(effectiveDefaultMethodId);
     }
   }, [effectiveDefaultMethodId, paymentMethodId]);
+
+  // ExpenseSplitScreen hands its result back through a module-level ref rather
+  // than route params: navigating back to this already-mounted route would
+  // replace (not merge) its params, wiping the in-progress amount/description
+  // the user hasn't saved yet. See utils/pendingExpenseSplit.ts.
+  useFocusEffect(
+    useCallback(() => {
+      const pending = takePendingSplit();
+      if (pending) setSplit(pending);
+    }, [])
+  );
 
   const convert = (amount: number, fromCode: string) =>
     rawConvert(amount, fromCode, leadCurrency);
@@ -128,7 +143,8 @@ export default function AddExpenseScreen() {
         description,
         currencyCode,
         paymentMethodId,
-        createdAt
+        createdAt,
+        split
       );
       setActiveGroupId(group.id);
       navigation.goBack();
@@ -140,7 +156,8 @@ export default function AddExpenseScreen() {
         currencyCode,
         paymentMethodId,
         group.id,
-        createdAt
+        createdAt,
+        split
       );
       setActiveGroupId(group.id);
       // Celebrate a brand-new expense with a coin burst + cha-ching, then leave —
@@ -157,17 +174,23 @@ export default function AddExpenseScreen() {
     return <SafeAreaView style={styles.safe} edges={['top']} />;
   }
 
+  const splitSummary =
+    split.length === 0
+      ? t.add.splitNotSplit
+      : `${t.add.splitWith} ${split
+          .map((s) => companionName(s.companionId, group.companions, t))
+          .join(', ')}`;
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
         <Text style={styles.headerTitle}>{isEditing ? t.add.editTitle : t.add.title}</Text>
         <TouchableOpacity
-          style={[styles.backButton, { flexDirection: rowDirection }]}
+          style={styles.backButton}
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
         >
           <Text style={styles.backText}>{t.common.back}</Text>
-          <Ionicons name={isRTL ? 'chevron-forward' : 'chevron-back'} size={14} color={colors.primary} />
         </TouchableOpacity>
       </View>
       <KeyboardAvoidingView
@@ -189,7 +212,7 @@ export default function AddExpenseScreen() {
             disabled={!canSave || showCoinBurst}
             activeOpacity={0.85}
           >
-            <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+            <Ionicons name="checkmark-circle-outline" size={19} color="#fff" />
             <Text style={styles.saveButtonText}>{isEditing ? t.common.save : t.add.save}</Text>
           </TouchableOpacity>
 
@@ -218,7 +241,7 @@ export default function AddExpenseScreen() {
                 activeOpacity={0.7}
               >
                 <Text style={styles.currencySign}>{currencyInfo(currencyCode).symbol}</Text>
-                <View style={styles.currencyCodeRow}>
+                <View style={[styles.currencyCodeRow, { flexDirection: rowDirection }]}>
                   <Text style={styles.currencyCode}>{currencyCode}</Text>
                   <Text style={styles.currencyChevron}>⌄</Text>
                 </View>
@@ -233,7 +256,13 @@ export default function AddExpenseScreen() {
               !description.trim() && styles.fieldCardInvalid,
             ]}
           >
-            <View style={[styles.fieldIconBadge, { backgroundColor: FIELD_ICON_STYLES.description.tint }]}>
+            <View
+              style={[
+                styles.fieldIconBadge,
+                isRTL ? styles.fieldIconBadgeRTL : styles.fieldIconBadgeLTR,
+                { backgroundColor: FIELD_ICON_STYLES.description.tint },
+              ]}
+            >
               <Ionicons name="pencil" size={18} color={FIELD_ICON_STYLES.description.color} />
             </View>
             <View style={styles.fieldTextBlock}>
@@ -256,7 +285,13 @@ export default function AddExpenseScreen() {
             onPress={() => setMethodModalVisible(true)}
             activeOpacity={0.8}
           >
-            <View style={[styles.fieldIconBadge, { backgroundColor: FIELD_ICON_STYLES.payment.tint }]}>
+            <View
+              style={[
+                styles.fieldIconBadge,
+                isRTL ? styles.fieldIconBadgeRTL : styles.fieldIconBadgeLTR,
+                { backgroundColor: FIELD_ICON_STYLES.payment.tint },
+              ]}
+            >
               <Ionicons
                 name={selectedMethod?.icon ?? DEFAULT_PAYMENT_METHOD_ICON}
                 size={18}
@@ -277,13 +312,50 @@ export default function AddExpenseScreen() {
             onPress={() => setDateModalVisible(true)}
             activeOpacity={0.8}
           >
-            <View style={[styles.fieldIconBadge, { backgroundColor: FIELD_ICON_STYLES.date.tint }]}>
+            <View
+              style={[
+                styles.fieldIconBadge,
+                isRTL ? styles.fieldIconBadgeRTL : styles.fieldIconBadgeLTR,
+                { backgroundColor: FIELD_ICON_STYLES.date.tint },
+              ]}
+            >
               <Ionicons name="calendar-outline" size={18} color={FIELD_ICON_STYLES.date.color} />
             </View>
             <View style={styles.fieldTextBlock}>
               <Text style={[styles.fieldLabel, { textAlign }]}>{t.add.date}</Text>
               <Text style={[styles.fieldValue, { textAlign }]} numberOfLines={1}>
                 {dayLabel(expenseDate.toISOString(), t, language.locale)}
+              </Text>
+            </View>
+            <Text style={styles.fieldChevron}>{isRTL ? '‹' : '›'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.fieldCard, { flexDirection: rowDirection }]}
+            onPress={() => {
+              if (Number.isNaN(parsedAmount) || parsedAmount <= 0) return;
+              (navigation as any).navigate('ExpenseSplit', {
+                groupId: group.id,
+                amount: parsedAmount,
+                currencyCode,
+                initialSplit: split,
+              });
+            }}
+            activeOpacity={0.8}
+          >
+            <View
+              style={[
+                styles.fieldIconBadge,
+                isRTL ? styles.fieldIconBadgeRTL : styles.fieldIconBadgeLTR,
+                { backgroundColor: FIELD_ICON_STYLES.split.tint },
+              ]}
+            >
+              <Ionicons name="people-outline" size={18} color={FIELD_ICON_STYLES.split.color} />
+            </View>
+            <View style={styles.fieldTextBlock}>
+              <Text style={[styles.fieldLabel, { textAlign }]}>{t.add.split}</Text>
+              <Text style={[styles.fieldValue, { textAlign }]} numberOfLines={1}>
+                {splitSummary}
               </Text>
             </View>
             <Text style={styles.fieldChevron}>{isRTL ? '‹' : '›'}</Text>
@@ -301,7 +373,7 @@ export default function AddExpenseScreen() {
                   activeOpacity={0.8}
                   accessibilityLabel={t.categories[c.key]}
                 >
-                  <Ionicons name={c.icon} size={22} color={selected ? colors.primary : c.color} />
+                  <Ionicons name={c.icon} size={21} color={selected ? colors.primary : c.color} />
                   <Text
                     style={[styles.categoryChipLabel, selected && styles.categoryChipLabelSelected]}
                     numberOfLines={1}
@@ -348,29 +420,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
   },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
+  headerTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
   backButton: { alignItems: 'center', gap: 6 },
   backText: { fontSize: 15, fontWeight: '600', color: colors.primary },
   convertedHint: {
     fontSize: 13,
     color: colors.textMuted,
-    marginTop: 2,
+    marginTop: 3,
   },
   amountBlock: {
     backgroundColor: colors.card,
     borderRadius: 24,
     borderWidth: 1,
     borderColor: 'transparent',
-    paddingHorizontal: 18,
-    paddingTop: 18,
+    padding: 18,
     paddingBottom: 14,
     marginBottom: 24,
-    boxShadow: '0 1px 2px rgba(24,20,45,0.05), 0 10px 26px -18px rgba(24,20,45,0.4)',
-    elevation: 3,
+    height: 132,
+    shadowColor: '#18142D',
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 2,
   },
   amountBlockInvalid: { borderColor: '#F1C7D2' },
-  amountRow: { alignItems: 'center', gap: 14 },
-  amountColumn: { flex: 1, minWidth: 0, alignItems: 'flex-start' },
+  amountRow: { flex: 1, alignItems: 'stretch', gap: 14 },
+  amountColumn: { flex: 1, minWidth: 0, justifyContent: 'center', alignItems: 'flex-start' },
   currencyButton: {
     flexShrink: 0,
     width: 74,
@@ -383,48 +458,44 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  currencySign: { fontSize: 20, fontWeight: '700', color: colors.primary },
-  currencyCodeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
+  currencySign: { fontSize: 20, fontWeight: '800', color: colors.primary, lineHeight: 22 },
+  currencyCodeRow: { alignItems: 'center', gap: 3 },
   currencyCode: {
     fontSize: 12,
     fontWeight: '600',
     color: colors.textMuted,
-    letterSpacing: 0.5,
   },
   currencyChevron: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: colors.textMuted,
-    marginLeft: 2,
   },
   amountInput: {
     width: '100%',
-    fontSize: 44,
-    fontWeight: '700',
+    fontSize: 48,
+    fontWeight: '800',
     color: colors.text,
   },
   sectionLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
     marginBottom: 10,
   },
   fieldCard: {
     alignItems: 'center',
     backgroundColor: colors.card,
-    borderRadius: 16,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: 'transparent',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 12,
-    boxShadow: '0 1px 2px rgba(24,20,45,0.05)',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 10,
+    shadowColor: '#18142D',
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
   fieldCardInvalid: { borderColor: '#F1C7D2' },
@@ -434,17 +505,18 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
     flexShrink: 0,
   },
+  fieldIconBadgeLTR: { marginRight: 12 },
+  fieldIconBadgeRTL: { marginLeft: 18 },
   fieldTextBlock: { flex: 1 },
-  fieldLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '600' },
-  fieldValue: { fontSize: 16, fontWeight: '700', color: colors.text, marginTop: 2 },
+  fieldLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '500' },
+  fieldValue: { fontSize: 16, fontWeight: '600', color: colors.text, marginTop: 1 },
   fieldValueInput: {
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '600',
     color: colors.text,
-    marginTop: 2,
+    marginTop: 1,
     padding: 0,
   },
   fieldChevron: { fontSize: 20, color: colors.textMuted, marginLeft: 8 },
@@ -465,7 +537,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     marginBottom: 12,
     paddingHorizontal: 4,
-    boxShadow: '0 1px 2px rgba(24,20,45,0.05)',
+    shadowColor: '#18142D',
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
   categoryChipLabel: {
@@ -477,8 +552,10 @@ const styles = StyleSheet.create({
   categoryChipSelected: {
     backgroundColor: '#F5F1FE',
     borderColor: '#DDD1FA',
-    boxShadow: '0 6px 16px -12px rgba(109,40,217,0.9)',
-    elevation: 3,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
   },
   categoryChipLabelSelected: { color: colors.primaryDark, fontWeight: '700' },
   saveButton: {
@@ -489,9 +566,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 9,
     marginBottom: 16,
-    boxShadow: '0 12px 26px -12px rgba(109,40,217,0.8)',
+    shadowColor: colors.primary,
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
     elevation: 3,
   },
-  saveButtonDisabled: { backgroundColor: colors.border, boxShadow: 'none', elevation: 0 },
-  saveButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
+  saveButtonDisabled: { backgroundColor: colors.border, shadowOpacity: 0, elevation: 0 },
+  saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

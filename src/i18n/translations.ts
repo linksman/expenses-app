@@ -15,6 +15,9 @@ export interface Translations {
     descriptionPlaceholder: string;
     save: string;
     saved: string;
+    split: string;
+    splitNotSplit: string;
+    splitWith: string;
   };
   manage: {
     title: string;
@@ -34,6 +37,26 @@ export interface Translations {
     exportCsv: string;
     exportPdf: string;
     generatedOn: string;
+    splitTotalsTitle: string;
+    splitBadge: string;
+  };
+  companions: {
+    me: string;
+    unknown: string;
+    title: string;
+    hint: string;
+    namePlaceholder: string;
+    addButton: string;
+    deleteConfirmTitle: string;
+    inUseHint: string;
+  };
+  splitScreen: {
+    title: string;
+    totalLabel: string;
+    autoHint: string;
+    emptyCompanions: string;
+    overAllocated: string;
+    save: string;
   };
   categories: {
     Food: string;
@@ -73,6 +96,7 @@ export interface Translations {
     createNew: string;
     createTitle: string;
     editTitle: string;
+    nameLabel: string;
     namePlaceholder: string;
     defaultCurrency: string;
     defaultCurrencyHint: string;
@@ -113,6 +137,9 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       descriptionPlaceholder: 'What did you spend on?',
       save: 'Add Expense',
       saved: 'Added ✓',
+      split: 'Split',
+      splitNotSplit: 'Not split',
+      splitWith: 'Split with:',
     },
     manage: {
       title: 'Your Expenses',
@@ -132,6 +159,8 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       exportCsv: 'Export as CSV',
       exportPdf: 'Export as PDF',
       generatedOn: 'Generated on',
+      splitTotalsTitle: 'Split totals',
+      splitBadge: 'Split',
     },
     categories: {
       Food: 'Food',
@@ -172,6 +201,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       createNew: '+ New Vacation',
       createTitle: 'New Vacation',
       editTitle: 'Edit Vacation',
+      nameLabel: 'Vacation name',
       namePlaceholder: 'e.g. Trip to Paris 2026',
       defaultCurrency: 'Default Currency',
       defaultCurrencyHint: 'Used when adding a new expense to this vacation',
@@ -186,6 +216,24 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       emptyTitle: 'Create your first vacation to get started',
       emptySubtitle: 'Vacations keep separate trips — like Paris 2026 or London 2027 — apart.',
       emptyButton: 'Create Vacation',
+    },
+    companions: {
+      me: 'Me',
+      unknown: 'Deleted companion',
+      title: 'Travel Companions',
+      hint: 'Add the people traveling with you to split expenses between you.',
+      namePlaceholder: 'Companion name',
+      addButton: 'Add',
+      deleteConfirmTitle: 'Remove this companion?',
+      inUseHint: 'Already used in a split — remove them from any splits first.',
+    },
+    splitScreen: {
+      title: 'Split Expense',
+      totalLabel: 'Total',
+      autoHint: 'Covers the rest automatically',
+      emptyCompanions: 'Add travel companions in this vacation’s settings to split expenses.',
+      overAllocated: 'Assigned shares add up to more than the total.',
+      save: 'Save Split',
     },
     rates: {
       updated: 'Rates updated',
@@ -210,6 +258,9 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       descriptionPlaceholder: 'Pour quoi avez-vous dépensé ?',
       save: 'Ajouter la dépense',
       saved: 'Ajouté ✓',
+      split: 'Partager',
+      splitNotSplit: 'Non partagée',
+      splitWith: 'Partagée avec :',
     },
     manage: {
       title: 'Vos dépenses',
@@ -229,6 +280,8 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       exportCsv: 'Exporter en CSV',
       exportPdf: 'Exporter en PDF',
       generatedOn: 'Généré le',
+      splitTotalsTitle: 'Totaux partagés',
+      splitBadge: 'Partagée',
     },
     categories: {
       Food: 'Nourriture',
@@ -269,6 +322,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       createNew: '+ Nouveau séjour',
       createTitle: 'Nouveau séjour',
       editTitle: 'Modifier le séjour',
+      nameLabel: 'Nom du séjour',
       namePlaceholder: 'ex. Voyage à Paris 2026',
       defaultCurrency: 'Devise par défaut',
       defaultCurrencyHint: "Utilisée lors de l'ajout d'une dépense à ce séjour",
@@ -285,6 +339,25 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       emptySubtitle:
         'Les séjours séparent vos voyages — comme Paris 2026 ou Londres 2027.',
       emptyButton: 'Créer un séjour',
+    },
+    companions: {
+      me: 'Moi',
+      unknown: 'Compagnon supprimé',
+      title: 'Compagnons de voyage',
+      hint: 'Ajoutez les personnes qui voyagent avec vous pour partager les dépenses.',
+      namePlaceholder: 'Nom du compagnon',
+      addButton: 'Ajouter',
+      deleteConfirmTitle: 'Retirer ce compagnon ?',
+      inUseHint: 'Déjà utilisé dans un partage — retirez-le des partages d’abord.',
+    },
+    splitScreen: {
+      title: 'Partager la dépense',
+      totalLabel: 'Total',
+      autoHint: 'Couvre automatiquement le reste',
+      emptyCompanions:
+        'Ajoutez des compagnons de voyage dans les réglages de ce séjour pour partager des dépenses.',
+      overAllocated: 'Les parts attribuées dépassent le total.',
+      save: 'Enregistrer le partage',
     },
     rates: {
       updated: 'Taux mis à jour',
@@ -309,6 +382,9 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       descriptionPlaceholder: 'Wofür hast du bezahlt?',
       save: 'Ausgabe hinzufügen',
       saved: 'Hinzugefügt ✓',
+      split: 'Aufteilen',
+      splitNotSplit: 'Nicht aufgeteilt',
+      splitWith: 'Aufgeteilt mit:',
     },
     manage: {
       title: 'Deine Ausgaben',
@@ -328,6 +404,8 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       exportCsv: 'Als CSV exportieren',
       exportPdf: 'Als PDF exportieren',
       generatedOn: 'Erstellt am',
+      splitTotalsTitle: 'Aufgeteilte Summen',
+      splitBadge: 'Aufgeteilt',
     },
     categories: {
       Food: 'Essen',
@@ -368,6 +446,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       createNew: '+ Neuer Urlaub',
       createTitle: 'Neuer Urlaub',
       editTitle: 'Urlaub bearbeiten',
+      nameLabel: 'Urlaubsname',
       namePlaceholder: 'z. B. Reise nach Paris 2026',
       defaultCurrency: 'Standardwährung',
       defaultCurrencyHint: 'Wird beim Hinzufügen einer Ausgabe zu diesem Urlaub verwendet',
@@ -383,6 +462,25 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       emptyTitle: 'Erstelle deinen ersten Urlaub, um loszulegen',
       emptySubtitle: 'Urlaube halten Reisen getrennt — z. B. Paris 2026 oder London 2027.',
       emptyButton: 'Urlaub erstellen',
+    },
+    companions: {
+      me: 'Ich',
+      unknown: 'Gelöschter Begleiter',
+      title: 'Reisebegleiter',
+      hint: 'Füge die Personen hinzu, die mit dir reisen, um Ausgaben aufzuteilen.',
+      namePlaceholder: 'Name des Begleiters',
+      addButton: 'Hinzufügen',
+      deleteConfirmTitle: 'Diesen Begleiter entfernen?',
+      inUseHint: 'Bereits in einer Aufteilung verwendet — zuerst dort entfernen.',
+    },
+    splitScreen: {
+      title: 'Ausgabe aufteilen',
+      totalLabel: 'Gesamt',
+      autoHint: 'Deckt den Rest automatisch ab',
+      emptyCompanions:
+        'Füge in den Einstellungen dieses Urlaubs Reisebegleiter hinzu, um Ausgaben aufzuteilen.',
+      overAllocated: 'Die zugewiesenen Anteile übersteigen die Gesamtsumme.',
+      save: 'Aufteilung speichern',
     },
     rates: {
       updated: 'Kurse aktualisiert',
@@ -407,6 +505,9 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       descriptionPlaceholder: '¿En qué gastaste?',
       save: 'Añadir gasto',
       saved: 'Añadido ✓',
+      split: 'Dividir',
+      splitNotSplit: 'Sin dividir',
+      splitWith: 'Dividido con:',
     },
     manage: {
       title: 'Tus gastos',
@@ -426,6 +527,8 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       exportCsv: 'Exportar como CSV',
       exportPdf: 'Exportar como PDF',
       generatedOn: 'Generado el',
+      splitTotalsTitle: 'Totales divididos',
+      splitBadge: 'Dividido',
     },
     categories: {
       Food: 'Comida',
@@ -466,6 +569,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       createNew: '+ Nuevo viaje',
       createTitle: 'Nuevo viaje',
       editTitle: 'Editar viaje',
+      nameLabel: 'Nombre del viaje',
       namePlaceholder: 'p. ej. Viaje a París 2026',
       defaultCurrency: 'Moneda predeterminada',
       defaultCurrencyHint: 'Se usa al añadir un gasto a este viaje',
@@ -480,6 +584,25 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       emptyTitle: 'Crea tu primer viaje para empezar',
       emptySubtitle: 'Los viajes mantienen tus gastos separados — como París 2026 o Londres 2027.',
       emptyButton: 'Crear viaje',
+    },
+    companions: {
+      me: 'Yo',
+      unknown: 'Acompañante eliminado',
+      title: 'Compañeros de viaje',
+      hint: 'Añade a las personas que viajan contigo para dividir los gastos.',
+      namePlaceholder: 'Nombre del compañero',
+      addButton: 'Añadir',
+      deleteConfirmTitle: '¿Quitar a este compañero?',
+      inUseHint: 'Ya está en una división — quítalo de las divisiones primero.',
+    },
+    splitScreen: {
+      title: 'Dividir gasto',
+      totalLabel: 'Total',
+      autoHint: 'Cubre el resto automáticamente',
+      emptyCompanions:
+        'Añade compañeros de viaje en los ajustes de este viaje para dividir gastos.',
+      overAllocated: 'Las partes asignadas superan el total.',
+      save: 'Guardar división',
     },
     rates: {
       updated: 'Tasas actualizadas',
@@ -504,6 +627,9 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       descriptionPlaceholder: 'על מה הוצאת?',
       save: 'הוספת הוצאה',
       saved: 'נוסף ✓',
+      split: 'פיצול',
+      splitNotSplit: 'לא מפוצלת',
+      splitWith: 'מפוצלת עם:',
     },
     manage: {
       title: 'ההוצאות שלך',
@@ -523,6 +649,8 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       exportCsv: 'ייצוא כ-CSV',
       exportPdf: 'ייצוא כ-PDF',
       generatedOn: 'הופק בתאריך',
+      splitTotalsTitle: 'סיכומי פיצול',
+      splitBadge: 'מפוצלת',
     },
     categories: {
       Food: 'אוכל',
@@ -563,6 +691,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       createNew: '+ חופשה חדשה',
       createTitle: 'חופשה חדשה',
       editTitle: 'עריכת חופשה',
+      nameLabel: 'שם החופשה',
       namePlaceholder: 'לדוגמה: טיול לפריז 2026',
       defaultCurrency: 'מטבע ברירת מחדל',
       defaultCurrencyHint: 'בשימוש בעת הוספת הוצאה לחופשה זו',
@@ -577,6 +706,24 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       emptyTitle: 'צרו חופשה ראשונה כדי להתחיל',
       emptySubtitle: 'חופשות מפרידות בין טיולים — כמו פריז 2026 או לונדון 2027.',
       emptyButton: 'יצירת חופשה',
+    },
+    companions: {
+      me: 'אני',
+      unknown: 'מלווה שנמחק',
+      title: 'מלווים בטיול',
+      hint: 'הוסיפו את האנשים שנוסעים איתכם כדי לפצל הוצאות ביניכם.',
+      namePlaceholder: 'שם המלווה',
+      addButton: 'הוספה',
+      deleteConfirmTitle: 'להסיר את המלווה הזה?',
+      inUseHint: 'כבר בשימוש בפיצול — יש להסיר אותו מהפיצולים תחילה.',
+    },
+    splitScreen: {
+      title: 'פיצול הוצאה',
+      totalLabel: 'סך הכול',
+      autoHint: 'מכסה את השאר באופן אוטומטי',
+      emptyCompanions: 'הוסיפו מלווים בהגדרות החופשה כדי לפצל הוצאות.',
+      overAllocated: 'סכום החלקים שהוקצו גבוה מסך ההוצאה.',
+      save: 'שמירת הפיצול',
     },
     rates: {
       updated: 'שערים עודכנו',

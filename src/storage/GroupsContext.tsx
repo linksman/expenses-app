@@ -8,9 +8,16 @@ import React, {
   useState,
 } from 'react';
 import { ExpenseGroup } from '../types/group';
+import { TravelCompanion } from '../types/companion';
 
 const GROUPS_KEY = 'vacation-expenses:groups:v1';
 const ACTIVE_GROUP_KEY = 'vacation-expenses:active-group:v1';
+
+// Groups persisted before travel companions existed lack the field entirely.
+function normalizeGroup(raw: any): ExpenseGroup {
+  if (raw.companions !== undefined) return raw;
+  return { ...raw, companions: [] };
+}
 
 interface GroupsContextValue {
   groups: ExpenseGroup[];
@@ -20,13 +27,15 @@ interface GroupsContextValue {
   addGroup: (
     name: string,
     defaultCurrency: string,
-    leadCurrency: string | null
+    leadCurrency: string | null,
+    companions: TravelCompanion[]
   ) => Promise<ExpenseGroup>;
   updateGroup: (
     id: string,
     name: string,
     defaultCurrency: string,
-    leadCurrency: string | null
+    leadCurrency: string | null,
+    companions: TravelCompanion[]
   ) => Promise<ExpenseGroup>;
   deleteGroup: (id: string) => Promise<void>;
   setActiveGroupId: (id: string) => void;
@@ -46,7 +55,9 @@ export function GroupsProvider({ children }: { children: React.ReactNode }) {
           AsyncStorage.getItem(GROUPS_KEY),
           AsyncStorage.getItem(ACTIVE_GROUP_KEY),
         ]);
-        const loadedGroups: ExpenseGroup[] = rawGroups ? JSON.parse(rawGroups) : [];
+        const loadedGroups: ExpenseGroup[] = rawGroups
+          ? JSON.parse(rawGroups).map(normalizeGroup)
+          : [];
         setGroups(loadedGroups);
         if (rawGroups) await AsyncStorage.setItem(GROUPS_KEY, JSON.stringify(loadedGroups));
         if (rawActive && loadedGroups.some((g) => g.id === rawActive)) {
@@ -66,12 +77,18 @@ export function GroupsProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const addGroup = useCallback(
-    async (name: string, defaultCurrency: string, leadCurrency: string | null) => {
+    async (
+      name: string,
+      defaultCurrency: string,
+      leadCurrency: string | null,
+      companions: TravelCompanion[]
+    ) => {
       const group: ExpenseGroup = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         name: name.trim(),
         defaultCurrency,
         leadCurrency,
+        companions,
         createdAt: new Date().toISOString(),
       };
       const next = [...groups, group];
@@ -84,11 +101,17 @@ export function GroupsProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateGroup = useCallback(
-    async (id: string, name: string, defaultCurrency: string, leadCurrency: string | null) => {
+    async (
+      id: string,
+      name: string,
+      defaultCurrency: string,
+      leadCurrency: string | null,
+      companions: TravelCompanion[]
+    ) => {
       let updated: ExpenseGroup | undefined;
       const next = groups.map((g) => {
         if (g.id !== id) return g;
-        updated = { ...g, name: name.trim(), defaultCurrency, leadCurrency };
+        updated = { ...g, name: name.trim(), defaultCurrency, leadCurrency, companions };
         return updated;
       });
       setGroups(next);

@@ -18,14 +18,18 @@ import { useGroups } from '../storage/GroupsContext';
 import { useExchangeRates } from '../storage/ExchangeRatesContext';
 import { categoryInfo, Expense } from '../types/expense';
 import { DEFAULT_PAYMENT_METHOD_ICON } from '../types/paymentMethod';
+import { ME_COMPANION_ID } from '../types/companion';
 import {
   CurrencyTotal,
   formatAmount,
   formatTotalsWithLead,
   convertedTotal,
   totalsByCurrencyFor,
+  companionCurrencyTotals,
+  companionConvertedTotal,
 } from '../utils/formatCurrency';
 import { paymentMethodName } from '../utils/paymentMethodName';
+import { companionName } from '../utils/companionName';
 import { dayLabel, timeLabel } from '../utils/dateLabel';
 import {
   buildExpensesCsv,
@@ -105,6 +109,15 @@ export default function ManageExpensesScreen() {
     [filteredExpenses]
   );
   const leadTotal = leadCurrency ? convertedTotal(filteredExpenses, convert) : null;
+  const hasAnySplit = useMemo(
+    () => filteredExpenses.some((e) => e.split.length > 0),
+    [filteredExpenses]
+  );
+  const splitParticipantIds = useMemo(
+    () =>
+      selectedGroup ? [ME_COMPANION_ID, ...selectedGroup.companions.map((c) => c.id)] : [],
+    [selectedGroup]
+  );
 
   const sections: Section[] = useMemo(() => {
     const byDay = new Map<string, Expense[]>();
@@ -240,18 +253,20 @@ export default function ManageExpensesScreen() {
           )}
         </View>
 
-        <View style={[styles.totalsCard, { flexDirection: rowDirection }]}>
-          <View>
-            <Text style={styles.totalsAmount}>{heroMainTotal}</Text>
-            {heroConvertedTotal ? (
-              <Text style={styles.totalsConverted}>{heroConvertedTotal}</Text>
-            ) : null}
-          </View>
-          <View style={[styles.countPill, { flexDirection: rowDirection }]}>
-            <View style={styles.countPillDot} />
-            <Text style={styles.countPillText}>
-              {filteredExpenses.length} {t.manage.expensesCount}
-            </Text>
+        <View style={styles.totalsCard}>
+          <View style={[styles.totalsRow, { flexDirection: rowDirection }]}>
+            <View style={styles.totalsMain}>
+              <Text style={[styles.totalsAmount, { textAlign }]}>{heroMainTotal}</Text>
+              {heroConvertedTotal ? (
+                <Text style={[styles.totalsConverted, { textAlign }]}>{heroConvertedTotal}</Text>
+              ) : null}
+            </View>
+            <View style={[styles.countPill, { flexDirection: rowDirection }]}>
+              <View style={styles.countPillDot} />
+              <Text style={styles.countPillText}>
+                {filteredExpenses.length} {t.manage.expensesCount}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -270,7 +285,7 @@ export default function ManageExpensesScreen() {
             disabled={!canAdd}
             activeOpacity={0.85}
           >
-            <Ionicons name="add" size={16} color="#fff" />
+            <Ionicons name="add" size={18} color="#fff" />
             <Text style={styles.addButtonText}>{t.add.save}</Text>
           </TouchableOpacity>
           <TouchableOpacity
@@ -287,6 +302,36 @@ export default function ManageExpensesScreen() {
             />
           </TouchableOpacity>
         </View>
+
+        {selectedGroup && selectedGroup.companions.length > 0 && hasAnySplit && (
+          <View style={styles.splitCard}>
+            <Text style={[styles.splitCardTitle, { textAlign }]}>
+              {t.manage.splitTotalsTitle}
+            </Text>
+            {splitParticipantIds.map((id) => {
+              const totals = companionCurrencyTotals(filteredExpenses, id);
+              if (totals.length === 0) return null;
+              const personLeadTotal = leadCurrency
+                ? companionConvertedTotal(filteredExpenses, id, convert)
+                : null;
+              return (
+                <View key={id} style={[styles.splitCardRow, { flexDirection: rowDirection }]}>
+                  <Text style={[styles.splitCardName, { textAlign }]} numberOfLines={1}>
+                    {companionName(id, selectedGroup.companions, t)}
+                  </Text>
+                  <Text style={[styles.splitCardAmount, { textAlign }]} numberOfLines={1}>
+                    {formatTotalsWithLead(
+                      totals,
+                      leadCurrency,
+                      personLeadTotal,
+                      selectedGroup.defaultCurrency
+                    )}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        )}
       </View>
 
       {filteredExpenses.length === 0 ? (
@@ -331,6 +376,13 @@ export default function ManageExpensesScreen() {
             const descriptionText = item.description
               ? item.description
               : timeLabel(item.createdAt, language.locale);
+            const itemGroup = groups.find((g) => g.id === item.groupId);
+            const splitLabel =
+              item.split.length > 0
+                ? `${t.manage.splitBadge}: ${[ME_COMPANION_ID, ...item.split.map((s) => s.companionId)]
+                    .map((id) => companionName(id, itemGroup?.companions ?? [], t))
+                    .join(', ')}`
+                : null;
             return (
               <TouchableOpacity
                 style={[styles.row, { flexDirection: rowDirection }]}
@@ -341,10 +393,10 @@ export default function ManageExpensesScreen() {
                   })
                 }
                 onLongPress={() => confirmDelete(item)}
-                activeOpacity={0.7}
+                activeOpacity={0.6}
               >
                 <View style={[styles.iconBadge, { backgroundColor: badgeTint }]}>
-                  <Ionicons name={info ? info.icon : methodIcon} size={20} color={iconColor} />
+                  <Ionicons name={info ? info.icon : methodIcon} size={19} color={iconColor} />
                 </View>
                 <View style={styles.rowMiddle}>
                   <Text style={[styles.rowDescription, { textAlign }]} numberOfLines={1}>
@@ -354,6 +406,11 @@ export default function ManageExpensesScreen() {
                     {method ?? ''}
                     {showGroupTag ? `  ·  ${groupName(item.groupId)}` : ''}
                   </Text>
+                  {splitLabel && (
+                    <Text style={[styles.rowSplit, { textAlign }]} numberOfLines={1}>
+                      {splitLabel}
+                    </Text>
+                  )}
                 </View>
                 <View style={styles.rowRight}>
                   <Text style={styles.rowAmount}>
@@ -490,11 +547,11 @@ const styles = StyleSheet.create({
     minHeight: 32,
     paddingHorizontal: 44,
   },
-  titleButton: { alignItems: 'center', gap: 6, maxWidth: '100%' },
+  titleButton: { alignItems: 'center', gap: 7, maxWidth: '100%' },
   titleName: {
     flexShrink: 1,
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 19,
+    fontWeight: '800',
     color: colors.primaryDark,
     letterSpacing: -0.2,
     textAlign: 'center',
@@ -511,17 +568,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   totalsCard: {
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
     backgroundColor: colors.card,
     borderRadius: 24,
-    paddingHorizontal: 22,
-    paddingVertical: 20,
-    boxShadow: '0 1px 2px rgba(24,20,45,0.05), 0 8px 24px -16px rgba(24,20,45,0.35)',
-    elevation: 4,
+    padding: 20,
+    shadowColor: '#18142D',
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
   },
-  totalsAmount: { fontSize: 34, fontWeight: '700', color: colors.text, letterSpacing: -0.4 },
-  totalsConverted: { fontSize: 14, color: colors.textMuted, marginTop: 4 },
+  totalsRow: { alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
+  totalsMain: { flex: 1, minWidth: 0 },
+  totalsAmount: {
+    fontSize: 30,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.4,
+    flexWrap: 'wrap',
+  },
+  totalsConverted: { fontSize: 14, color: colors.textMuted, marginTop: 5, flexWrap: 'wrap' },
   countPill: {
     alignItems: 'center',
     gap: 7,
@@ -529,60 +594,88 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 6,
+    flexShrink: 0,
   },
-  countPillDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary },
+  countPillDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primaryDark },
   countPillText: { fontSize: 12, fontWeight: '600', color: colors.primary },
   actionsRow: { gap: 10 },
   exportCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 18,
-    backgroundColor: colors.card,
+    width: 50,
+    height: 50,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-    boxShadow: '0 1px 2px rgba(24,20,45,0.05)',
+    shadowColor: '#18142D',
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
   addButton: {
     flex: 1,
-    height: 54,
+    height: 50,
     backgroundColor: colors.primary,
-    borderRadius: 18,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    boxShadow: '0 10px 22px -10px rgba(109,40,217,0.75)',
+    shadowColor: colors.primary,
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 3,
   },
-  addButtonDisabled: { backgroundColor: colors.border, boxShadow: 'none', elevation: 0 },
-  addButtonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
+  addButtonDisabled: { backgroundColor: colors.border },
+  addButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  splitCard: {
+    backgroundColor: colors.card,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 16,
+  },
+  splitCardTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textMuted,
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
+  splitCardRow: { alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
+  splitCardName: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
+  splitCardAmount: { fontSize: 14, fontWeight: '700', color: colors.text, marginLeft: 8 },
   listContent: { paddingHorizontal: 20, paddingBottom: 32 },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'baseline',
     marginTop: 18,
-    marginBottom: 8,
+    paddingHorizontal: 4,
+    paddingBottom: 10,
   },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    color: colors.text,
   },
-  sectionTotal: { fontSize: 13, fontWeight: '700', color: colors.textMuted },
+  sectionTotal: { fontSize: 13, fontWeight: '600', color: colors.textMuted },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 14,
     backgroundColor: colors.card,
     borderRadius: 20,
-    padding: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     marginBottom: 10,
-    boxShadow: '0 1px 2px rgba(24,20,45,0.05)',
+    shadowColor: '#18142D',
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
   iconBadge: {
@@ -591,13 +684,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
     backgroundColor: colors.background,
     flexShrink: 0,
   },
   rowMiddle: { flex: 1 },
   rowDescription: { fontSize: 16, fontWeight: '600', color: colors.text },
-  rowMethod: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
+  rowMethod: { fontSize: 13, color: colors.textMuted, marginTop: 1 },
+  rowSplit: { fontSize: 12, color: colors.primary, marginTop: 2, fontWeight: '600' },
   rowRight: { alignItems: 'flex-end' },
   rowAmount: { fontSize: 16, fontWeight: '700', color: colors.text },
   rowConverted: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
@@ -621,7 +714,7 @@ const styles = StyleSheet.create({
   emptyButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(27, 39, 51, 0.45)',
+    backgroundColor: 'rgba(24, 24, 27, 0.45)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,

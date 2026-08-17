@@ -21,6 +21,16 @@ import { PaymentMethod } from '../types/paymentMethod';
 import { paymentMethodName } from '../utils/paymentMethodName';
 import LanguagePickerModal from '../components/LanguagePickerModal';
 
+const METHOD_ICON_PALETTE = [
+  { color: '#159C87', tint: '#E7F6F1' },
+  { color: '#4C9E4C', tint: '#EAF4EA' },
+  { color: '#7C3AED', tint: '#F1EAFE' },
+  { color: '#3B82D6', tint: '#E9F1FF' },
+  { color: '#EA8C3A', tint: '#FFF4E8' },
+  { color: '#DB5C8C', tint: '#FDECF2' },
+  { color: '#D9A21B', tint: '#FBF0DA' },
+];
+
 const KOFI_ID = 'N7J8252YBS';
 const KOFI_URL = `https://ko-fi.com/${KOFI_ID}`;
 
@@ -104,6 +114,9 @@ export default function SettingsScreen() {
           onPress={() => setLanguageModalVisible(true)}
           activeOpacity={0.7}
         >
+          <View style={[styles.languageIconBadge]}>
+            <Ionicons name="globe-outline" size={19} color="#7C3AED" />
+          </View>
           <Text style={styles.rowLabel}>{currentLanguage?.nativeLabel}</Text>
           <Text style={styles.chevron}>{isRTL ? '‹' : '›'}</Text>
         </TouchableOpacity>
@@ -114,6 +127,7 @@ export default function SettingsScreen() {
           {methods.map((method, index) => {
             const isDefault = method.id === effectiveDefaultMethodId;
             const inUse = methodIdsInUse.has(method.id);
+            const palette = METHOD_ICON_PALETTE[index % METHOD_ICON_PALETTE.length];
             return (
               <View
                 key={method.id}
@@ -148,47 +162,65 @@ export default function SettingsScreen() {
                     </TouchableOpacity>
                   </View>
 
-                  <Ionicons
-                    name={method.icon}
-                    size={18}
-                    color={method.enabled ? colors.text : colors.textMuted}
-                    style={styles.methodRowIcon}
-                  />
-
-                  <Text
+                  <View
                     style={[
-                      styles.methodRowName,
-                      { textAlign },
-                      !method.enabled && styles.methodRowNameDisabled,
+                      styles.methodIconBadge,
+                      { backgroundColor: palette.tint },
+                      !method.enabled && styles.methodIconBadgeDisabled,
                     ]}
-                    numberOfLines={1}
                   >
-                    {paymentMethodName(method, t)}
-                  </Text>
+                    <Ionicons
+                      name={method.icon}
+                      size={18}
+                      color={method.enabled ? palette.color : colors.textMuted}
+                    />
+                  </View>
+
+                  <View style={styles.methodRowNameBlock}>
+                    <View style={[styles.methodRowNameLine, { flexDirection: rowDirection }]}>
+                      <Text
+                        style={[
+                          styles.methodRowName,
+                          { textAlign },
+                          !method.enabled && styles.methodRowNameDisabled,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {paymentMethodName(method, t)}
+                      </Text>
+                      {isDefault && (
+                        <View style={styles.defaultPill}>
+                          <Text style={styles.defaultPillText}>{t.settings.defaultBadge}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
                 </View>
 
                 <View style={[styles.methodRowActions, { flexDirection: rowDirection }]}>
-                  <TouchableOpacity
-                    onPress={() => setDefaultMethodId(method.id)}
-                    disabled={!method.enabled || isDefault}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Text
-                      style={[
-                        styles.actionText,
-                        (isDefault || !method.enabled) && styles.actionTextMuted,
-                      ]}
+                  {!isDefault && (
+                    <TouchableOpacity
+                      onPress={() => setDefaultMethodId(method.id)}
+                      disabled={!method.enabled}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      {isDefault ? t.settings.defaultBadge : t.settings.setAsDefault}
-                    </Text>
-                  </TouchableOpacity>
+                      <Text
+                        style={[
+                          styles.actionTextPrimary,
+                          !method.enabled && styles.actionTextMuted,
+                        ]}
+                      >
+                        {t.settings.setAsDefault}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
 
                   {inUse ? (
                     <TouchableOpacity
                       onPress={() => setMethodEnabled(method.id, !method.enabled)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
-                      <Text style={styles.actionText}>
+                      <Text style={styles.actionTextSecondary}>
                         {method.enabled ? t.settings.disable : t.settings.enable}
                       </Text>
                     </TouchableOpacity>
@@ -222,7 +254,14 @@ export default function SettingsScreen() {
             disabled={!newMethodName.trim()}
             activeOpacity={0.8}
           >
-            <Text style={styles.addButtonText}>{t.paymentMethods.addButton}</Text>
+            <Text
+              style={[
+                styles.addButtonText,
+                !newMethodName.trim() && styles.addButtonTextDisabled,
+              ]}
+            >
+              {t.paymentMethods.addButton}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -233,10 +272,11 @@ export default function SettingsScreen() {
           </View>
         ) : (
           <TouchableOpacity
-            style={[styles.card, styles.row, styles.kofiButton, { flexDirection: rowDirection }]}
+            style={[styles.kofiButton, { flexDirection: rowDirection }]}
             onPress={() => Linking.openURL(KOFI_URL)}
             activeOpacity={0.85}
           >
+            <Ionicons name="cafe-outline" size={18} color={colors.primaryDark} />
             <Text style={styles.kofiButtonText}>{t.settings.buyMeCoffee}</Text>
           </TouchableOpacity>
         )}
@@ -290,14 +330,14 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   scrollContent: { paddingBottom: 32 },
   header: { padding: 20, paddingBottom: 8 },
-  title: { fontSize: 30, fontWeight: '700', color: colors.text },
-  subtitle: { marginTop: 4, fontSize: 15, color: colors.textMuted },
+  title: { fontSize: 26, fontWeight: '700', color: colors.text, letterSpacing: -0.3 },
+  subtitle: { marginTop: 2, fontSize: 14, color: colors.textMuted },
   sectionLabel: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: colors.textMuted,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
     marginHorizontal: 20,
     marginTop: 16,
     marginBottom: 10,
@@ -310,71 +350,122 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.card,
-    borderRadius: 16,
+    borderRadius: 20,
     marginHorizontal: 20,
+    shadowColor: '#18142D',
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
   row: {
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 13,
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 14,
   },
-  rowLabel: { fontSize: 16, fontWeight: '600', color: colors.text },
+  languageIconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 13,
+    backgroundColor: '#F1EAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  rowLabel: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
   chevron: { fontSize: 20, color: colors.textMuted },
   methodRow: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  methodRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  methodRowTop: { alignItems: 'center' },
-  reorderCol: { marginHorizontal: 4 },
-  methodRowIcon: { marginHorizontal: 8 },
-  methodRowName: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
-  methodRowNameDisabled: { color: colors.textMuted },
-  methodRowActions: {
-    alignItems: 'center',
-    gap: 20,
-    marginTop: 8,
-    marginHorizontal: 4,
-  },
-  actionText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.text,
-  },
-  actionTextMuted: { color: colors.textMuted },
-  deleteActionText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.danger,
-  },
-  addRow: { gap: 10, marginHorizontal: 20, marginTop: 12 },
-  addInput: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
+  },
+  methodRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.divider },
+  methodRowTop: { alignItems: 'center', gap: 12 },
+  reorderCol: { gap: 2 },
+  methodIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  methodIconBadgeDisabled: { opacity: 0.5 },
+  methodRowNameBlock: { flex: 1, minWidth: 0 },
+  methodRowNameLine: { alignItems: 'center', gap: 8 },
+  methodRowName: { fontSize: 16, fontWeight: '600', color: colors.text },
+  methodRowNameDisabled: { color: colors.textMuted },
+  defaultPill: {
+    backgroundColor: '#F5F1FE',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  defaultPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    color: colors.primary,
+  },
+  methodRowActions: {
+    alignItems: 'center',
+    gap: 16,
+    marginTop: 8,
+  },
+  actionTextPrimary: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  actionTextSecondary: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  actionTextMuted: { color: colors.border },
+  deleteActionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.danger,
+  },
+  addRow: { gap: 9, marginHorizontal: 20, marginTop: 12 },
+  addInput: {
+    flex: 1,
+    height: 46,
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    paddingHorizontal: 14,
     fontSize: 15,
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.border,
   },
   addButton: {
-    backgroundColor: colors.buttonGrey,
-    borderRadius: 12,
-    paddingHorizontal: 20,
+    width: 78,
+    backgroundColor: colors.primary,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  addButtonDisabled: { backgroundColor: colors.border },
+  addButtonDisabled: { backgroundColor: colors.divider },
   addButtonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  kofiButton: { backgroundColor: '#8d21f3', justifyContent: 'center' },
-  kofiButtonText: { fontSize: 16, fontWeight: '700', color: '#fff' },
+  addButtonTextDisabled: { color: '#B4B4BE' },
+  kofiButton: {
+    height: 52,
+    marginHorizontal: 20,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#DDD1FA',
+    backgroundColor: '#F5F1FE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+  },
+  kofiButtonText: { fontSize: 16, fontWeight: '700', color: colors.primaryDark },
   kofiWebWrap: { marginHorizontal: 20 },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(27, 39, 51, 0.45)',
+    backgroundColor: 'rgba(24, 24, 27, 0.45)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 32,

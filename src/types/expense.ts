@@ -23,13 +23,22 @@ export const CATEGORIES: CategoryInfo[] = [
   { key: 'Lodging', icon: 'bed-outline', color: '#7C3AED', tint: '#F1EAFE' },
   { key: 'Activities', icon: 'ticket-outline', color: '#DB5C8C', tint: '#FDECF2' },
   { key: 'Shopping', icon: 'bag-handle-outline', color: '#159C87', tint: '#E7F6F1' },
-  { key: 'Groceries', icon: 'cart-outline', color: '#4C9E4C', tint: '#EAF6EA' },
-  { key: 'Entertainment', icon: 'film-outline', color: '#D9A21B', tint: '#FBF3DC' },
+  { key: 'Groceries', icon: 'cart-outline', color: '#4C9E4C', tint: '#EAF4EA' },
+  { key: 'Entertainment', icon: 'film-outline', color: '#D9A21B', tint: '#FBF0DA' },
   { key: 'Other', icon: 'ellipsis-horizontal-circle-outline', color: '#9A9AA5', tint: '#F1F1F5' },
 ];
 
 export function categoryInfo(key: Category): CategoryInfo {
   return CATEGORIES.find((c) => c.key === key) ?? CATEGORIES[CATEGORIES.length - 1];
+}
+
+// One companion's cut of an expense's amount. Entries only exist for
+// companions actually assigned a share — the "me" share is never stored
+// here, it's always derived as (amount - sum of these shares) so it can't
+// drift out of sync if the expense amount is edited later.
+export interface ExpenseSplitShare {
+  companionId: string;
+  amount: number;
 }
 
 export interface Expense {
@@ -41,4 +50,5 @@ export interface Expense {
   currencyCode: string;
   paymentMethodId: string;
   groupId: string;
+  split: ExpenseSplitShare[];
 }
