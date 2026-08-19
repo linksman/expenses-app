@@ -23,6 +23,19 @@ import { PaymentMethod } from '../types/paymentMethod';
 import { paymentMethodName } from '../utils/paymentMethodName';
 import LanguagePickerModal from '../components/LanguagePickerModal';
 import { scrollNodeIntoViewAboveKeyboard, scrollToFocusedInput } from '../utils/scrollToFocusedInput';
+import { EXPENSE_GROUPINGS, useExpenseGrouping } from '../storage/ExpenseGroupingContext';
+import { useExchangeRates } from '../storage/ExchangeRatesContext';
+import {
+  convertedTotal,
+  formatTotalsWithLead,
+  totalsByCurrencyFor,
+} from '../utils/formatCurrency';
+import {
+  buildExpensesCsv,
+  buildExpensesHtml,
+  exportCsvFile,
+  exportPdfFile,
+} from '../utils/exportExpenses';
 
 const METHOD_ICON_PALETTE = [
   { color: '#159C87', tint: '#E7F6F1' },
@@ -67,7 +80,7 @@ function KofiWebWidget() {
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
-  const { languageCode, t, isRTL } = useLanguage();
+  const { languageCode, language, t, isRTL } = useLanguage();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
   const [languageModalVisible, setLanguageModalVisible] = useState(false);
@@ -76,6 +89,8 @@ export default function SettingsScreen() {
   const currentLanguage = LANGUAGES.find((l) => l.code === languageCode);
 
   const { vacations, activeVacationId, setActiveVacationId } = useVacations();
+  const { groupBy, setGroupBy } = useExpenseGrouping();
+  const { ensureRates, convert: rawConvert } = useExchangeRates();
 
   const {
     methods,
@@ -91,6 +106,18 @@ export default function SettingsScreen() {
   const [pendingDeleteMethod, setPendingDeleteMethod] = useState<PaymentMethod | null>(null);
   const methodInputNodeRef = useRef<unknown>(null);
   const [methodInputFocused, setMethodInputFocused] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const selectedVacation = vacations.find((vacation) => vacation.id === activeVacationId) ?? null;
+  const currentExpenses = useMemo(
+    () => expenses.filter((expense) => expense.vacationId === activeVacationId),
+    [expenses, activeVacationId]
+  );
+  const leadCurrency = selectedVacation?.leadCurrency ?? null;
+
+  useEffect(() => {
+    if (leadCurrency) ensureRates(leadCurrency);
+  }, [leadCurrency, ensureRates]);
 
   // Adding a method inserts a row above this input while the keyboard stays
   // open and the field keeps focus, so the one-shot onFocus scroll isn't enough
@@ -121,6 +148,49 @@ export default function SettingsScreen() {
   const handleConfirmDeleteMethod = async () => {
     if (pendingDeleteMethod) await deletePaymentMethod(pendingDeleteMethod.id);
     setPendingDeleteMethod(null);
+  };
+
+  const exportTitle = selectedVacation?.name ?? '';
+  const exportTotalsLine = `${t.manage.tripTotal} ${formatTotalsWithLead(
+    totalsByCurrencyFor(currentExpenses),
+    leadCurrency,
+    leadCurrency
+      ? convertedTotal(currentExpenses, (amount, currencyCode) =>
+          rawConvert(amount, currencyCode, leadCurrency)
+        )
+      : null,
+    selectedVacation?.defaultCurrency
+  )}`;
+
+  const handleExportCsv = async () => {
+    if (!selectedVacation || currentExpenses.length === 0 || exporting) return;
+    setExporting(true);
+    try {
+      const csv = buildExpensesCsv(currentExpenses, vacations, methods, t, language.locale);
+      await exportCsvFile(csv, exportTitle);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!selectedVacation || currentExpenses.length === 0 || exporting) return;
+    setExporting(true);
+    try {
+      const html = buildExpensesHtml(
+        currentExpenses,
+        vacations,
+        methods,
+        t,
+        language.locale,
+        exportTitle,
+        exportTotalsLine,
+        isRTL
+      );
+      await exportPdfFile(html, exportTitle);
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -162,7 +232,6 @@ export default function SettingsScreen() {
                 ]}
                 onPress={() => {
                   if (!selected) setActiveVacationId(vacation.id);
-                  navigation.goBack();
                 }}
                 activeOpacity={0.7}
               >
@@ -185,6 +254,64 @@ export default function SettingsScreen() {
           <Ionicons name="add" size={16} color={colors.primary} />
           <Text style={styles.newVacationButtonText}>{t.vacations.createNew}</Text>
         </TouchableOpacity>
+
+        <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.groupBy}</Text>
+        <View style={styles.card}>
+          {EXPENSE_GROUPINGS.map((option, index) => (
+            <TouchableOpacity
+              key={option}
+              style={[
+                styles.groupingRow,
+                { flexDirection: rowDirection },
+                index < EXPENSE_GROUPINGS.length - 1 && styles.methodRowBorder,
+              ]}
+              onPress={() => setGroupBy(option)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.rowLabel, { textAlign }]}>
+                {t.settings.groupByOptions[option]}
+              </Text>
+              <Ionicons
+                name={groupBy === option ? 'radio-button-on' : 'radio-button-off'}
+                size={20}
+                color={groupBy === option ? colors.primary : colors.textMuted}
+              />
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <Text style={[styles.sectionLabel, { textAlign }]}>
+          {t.settings.exportCurrentView}
+        </Text>
+        <View style={styles.card}>
+          <TouchableOpacity
+            style={[
+              styles.exportRow,
+              styles.methodRowBorder,
+              { flexDirection: rowDirection },
+              (currentExpenses.length === 0 || exporting) && styles.exportRowDisabled,
+            ]}
+            onPress={handleExportPdf}
+            disabled={currentExpenses.length === 0 || exporting}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="document-outline" size={20} color={colors.primary} />
+            <Text style={[styles.rowLabel, { textAlign }]}>{t.settings.exportToPdf}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.exportRow,
+              { flexDirection: rowDirection },
+              (currentExpenses.length === 0 || exporting) && styles.exportRowDisabled,
+            ]}
+            onPress={handleExportCsv}
+            disabled={currentExpenses.length === 0 || exporting}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="document-text-outline" size={20} color={colors.primary} />
+            <Text style={[styles.rowLabel, { textAlign }]}>{t.settings.exportToCsv}</Text>
+          </TouchableOpacity>
+        </View>
 
         <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.language}</Text>
         <TouchableOpacity
@@ -470,6 +597,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
+  groupingRow: {
+    alignItems: 'center',
+    gap: 13,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  exportRow: {
+    alignItems: 'center',
+    gap: 13,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+  },
+  exportRowDisabled: { opacity: 0.4 },
   vacationIconBadge: {
     width: 38,
     height: 38,

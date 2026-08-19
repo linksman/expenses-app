@@ -27,19 +27,12 @@ import {
   formatTotalsWithLead,
   convertedTotal,
   totalsByCurrencyFor,
-  companionCurrencyTotals,
-  companionConvertedTotal,
 } from '../utils/formatCurrency';
 import { paymentMethodName } from '../utils/paymentMethodName';
 import { companionName } from '../utils/companionName';
 import { dayLabel, timeLabel } from '../utils/dateLabel';
-import {
-  buildExpensesCsv,
-  buildExpensesHtml,
-  exportCsvFile,
-  exportPdfFile,
-} from '../utils/exportExpenses';
 import { takePendingNewExpenseHighlight } from '../utils/pendingNewExpenseHighlight';
+import { useExpenseGrouping } from '../storage/ExpenseGroupingContext';
 
 const HIGHLIGHT_DURATION_MS = 1000;
 const HIGHLIGHT_FADE_MS = 1000;
@@ -47,7 +40,13 @@ const HIGHLIGHT_COLOR = '#DFF5E1';
 
 const TOTALS_CARD_GRADIENT = ['#702ADC', '#FFFFFF'] as const;
 
+function localDateKey(iso: string): string {
+  const date = new Date(iso);
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
 interface Section {
+  key: string;
   title: string;
   totals: CurrencyTotal[];
   data: Expense[];
@@ -61,10 +60,9 @@ export default function ManageExpensesScreen() {
   const rowDirection = isRTL ? 'row-reverse' : 'row';
   const { vacations, activeVacationId, loading: vacationsLoading } = useVacations();
   const { ensureRates, convert: rawConvert } = useExchangeRates();
+  const { groupBy } = useExpenseGrouping();
   const textAlign = isRTL ? 'right' : 'left';
   const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
-  const [exportModalVisible, setExportModalVisible] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [collapsedOverrides, setCollapsedOverrides] = useState<Record<string, boolean>>({});
   const [highlightedExpenseId, setHighlightedExpenseId] = useState<string | null>(null);
   const highlightAnim = useRef(new Animated.Value(0)).current;
@@ -77,9 +75,9 @@ export default function ManageExpensesScreen() {
       const id = takePendingNewExpenseHighlight();
       if (!id) return;
       const newExpense = expenses.find((e) => e.id === id);
-      if (newExpense) {
-        const label = dayLabel(newExpense.createdAt, t, language.locale);
-        setCollapsedOverrides((prev) => ({ ...prev, [label]: false }));
+      if (newExpense && groupBy === 'date') {
+        const key = localDateKey(newExpense.createdAt);
+        setCollapsedOverrides((prev) => ({ ...prev, [`date:${key}`]: false }));
       }
       setHighlightedExpenseId(id);
       highlightAnim.setValue(1);
@@ -94,7 +92,7 @@ export default function ManageExpensesScreen() {
         if (finished) setHighlightedExpenseId(null);
       });
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [expenses, t, language.locale])
+    }, [expenses, groupBy])
   );
 
   const selectedVacation = vacations.find((v) => v.id === activeVacationId) ?? null;
@@ -119,88 +117,74 @@ export default function ManageExpensesScreen() {
     [filteredExpenses]
   );
   const leadTotal = leadCurrency ? convertedTotal(filteredExpenses, convert) : null;
-  const hasAnySplit = useMemo(
-    () => filteredExpenses.some((e) => e.split.length > 0),
-    [filteredExpenses]
-  );
-  const splitParticipantIds = useMemo(
-    () =>
-      selectedVacation ? [ME_COMPANION_ID, ...selectedVacation.companions.map((c) => c.id)] : [],
-    [selectedVacation]
-  );
-
-  const sections: Section[] = useMemo(() => {
-    const byDay = new Map<string, Expense[]>();
-    for (const e of filteredExpenses) {
-      const label = dayLabel(e.createdAt, t, language.locale);
-      if (!byDay.has(label)) byDay.set(label, []);
-      byDay.get(label)!.push(e);
-    }
-    return Array.from(byDay.entries()).map(([title, data]) => ({
-      title,
-      data,
-      totals: totalsByCurrencyFor(data),
-    }));
-  }, [filteredExpenses, t, language.locale]);
-
-  // All day-groups start collapsed except today's, until the user toggles one.
-  const isSectionCollapsed = (title: string) =>
-    collapsedOverrides[title] !== undefined ? collapsedOverrides[title] : title !== t.manage.today;
-  const toggleSection = (title: string) =>
-    setCollapsedOverrides((prev) => ({ ...prev, [title]: !isSectionCollapsed(title) }));
-  const displaySections = sections.map((s) =>
-    isSectionCollapsed(s.title) ? { ...s, data: [] } : s
-  );
-
   const methodName = (id: string): string | null => {
     const method = methods.find((m) => m.id === id);
     return method ? paymentMethodName(method, t) : null;
   };
+
+  const sections: Section[] = useMemo(() => {
+    const grouped = new Map<string, { title: string; data: Expense[] }>();
+    const addToGroup = (key: string, title: string, expense: Expense) => {
+      if (!grouped.has(key)) grouped.set(key, { title, data: [] });
+      grouped.get(key)!.data.push(expense);
+    };
+
+    for (const e of filteredExpenses) {
+      if (groupBy === 'date') {
+        const dateKey = localDateKey(e.createdAt);
+        addToGroup(dateKey, dayLabel(e.createdAt, t, language.locale), e);
+      } else if (groupBy === 'paymentMethod') {
+        addToGroup(e.paymentMethodId, methodName(e.paymentMethodId) ?? e.paymentMethodId, e);
+      } else if (groupBy === 'category') {
+        const category = e.category ?? 'Other';
+        addToGroup(category, t.categories[category], e);
+      } else if (groupBy === 'currency') {
+        addToGroup(e.currencyCode, e.currencyCode, e);
+      } else {
+        const participantIds = [ME_COMPANION_ID, ...e.split.map((share) => share.companionId)];
+        for (const participantId of participantIds) {
+          addToGroup(
+            participantId,
+            companionName(participantId, selectedVacation?.companions ?? [], t),
+            e
+          );
+        }
+      }
+    }
+
+    return Array.from(grouped.entries()).map(([key, { title, data }]) => {
+      const sortedByDate = [...data].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      return {
+        key,
+        title,
+        data: sortedByDate,
+        totals: totalsByCurrencyFor(sortedByDate),
+      };
+    });
+  }, [filteredExpenses, groupBy, methods, selectedVacation, t, language.locale]);
+
+  // All day-groups start collapsed except today's, until the user toggles one.
+  // Other grouping modes start expanded so changing the setting reveals the result immediately.
+  const isSectionCollapsed = (key: string, title: string) =>
+    collapsedOverrides[`${groupBy}:${key}`] !== undefined
+      ? collapsedOverrides[`${groupBy}:${key}`]
+      : groupBy === 'date' && title !== t.manage.today;
+  const toggleSection = (key: string, title: string) =>
+    setCollapsedOverrides((prev) => ({
+      ...prev,
+      [`${groupBy}:${key}`]: !isSectionCollapsed(key, title),
+    }));
+  const displaySections = sections.map((s) =>
+    isSectionCollapsed(s.key, s.title) ? { ...s, data: [] } : s
+  );
 
   const confirmDelete = (expense: Expense) => setPendingDelete(expense);
 
   const handleConfirmDelete = () => {
     if (pendingDelete) deleteExpense(pendingDelete.id);
     setPendingDelete(null);
-  };
-
-  const exportTitle = selectedVacation?.name ?? '';
-  const exportTotalsLine = `${t.manage.tripTotal} ${formatTotalsWithLead(
-    totalsByCurrency,
-    leadCurrency,
-    leadTotal,
-    selectedVacation?.defaultCurrency
-  )}`;
-
-  const handleExportCsv = async () => {
-    setExportModalVisible(false);
-    setExporting(true);
-    try {
-      const csv = buildExpensesCsv(filteredExpenses, vacations, methods, t, language.locale);
-      await exportCsvFile(csv, exportTitle);
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const handleExportPdf = async () => {
-    setExportModalVisible(false);
-    setExporting(true);
-    try {
-      const html = buildExpensesHtml(
-        filteredExpenses,
-        vacations,
-        methods,
-        t,
-        language.locale,
-        exportTitle,
-        exportTotalsLine,
-        isRTL
-      );
-      await exportPdfFile(html, exportTitle);
-    } finally {
-      setExporting(false);
-    }
   };
 
   const canAdd = !!selectedVacation;
@@ -335,51 +319,8 @@ export default function ManageExpensesScreen() {
             <Ionicons name="add" size={18} color="#fff" />
             <Text style={styles.addButtonText}>{t.add.save}</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.exportCircle}
-            onPress={() => setExportModalVisible(true)}
-            disabled={filteredExpenses.length === 0 || exporting}
-            activeOpacity={0.7}
-            accessibilityLabel={t.manage.export}
-          >
-            <Ionicons
-              name="share-outline"
-              size={18}
-              color={filteredExpenses.length === 0 || exporting ? colors.border : colors.textMuted}
-              style={styles.exportIcon}
-            />
-          </TouchableOpacity>
         </View>
 
-        {selectedVacation && selectedVacation.companions.length > 0 && hasAnySplit && (
-          <View style={styles.splitCard}>
-            <Text style={[styles.splitCardTitle, { textAlign }]}>
-              {t.manage.splitTotalsTitle}
-            </Text>
-            {splitParticipantIds.map((id) => {
-              const totals = companionCurrencyTotals(filteredExpenses, id);
-              if (totals.length === 0) return null;
-              const personLeadTotal = leadCurrency
-                ? companionConvertedTotal(filteredExpenses, id, convert)
-                : null;
-              return (
-                <View key={id} style={[styles.splitCardRow, { flexDirection: rowDirection }]}>
-                  <Text style={[styles.splitCardName, { textAlign }]} numberOfLines={1}>
-                    {companionName(id, selectedVacation.companions, t)}
-                  </Text>
-                  <Text style={[styles.splitCardAmount, { textAlign }]} numberOfLines={1}>
-                    {formatTotalsWithLead(
-                      totals,
-                      leadCurrency,
-                      personLeadTotal,
-                      selectedVacation.defaultCurrency
-                    )}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        )}
       </View>
 
       {filteredExpenses.length === 0 ? (
@@ -398,15 +339,15 @@ export default function ManageExpensesScreen() {
           renderSectionHeader={({ section }) => {
             // section.data may have been emptied for display while collapsed;
             // look totals up from the full (un-collapsed) section for the header.
-            const fullSection = sections.find((s) => s.title === section.title) ?? section;
-            const collapsed = isSectionCollapsed(section.title);
+            const fullSection = sections.find((s) => s.key === section.key) ?? section;
+            const collapsed = isSectionCollapsed(section.key, section.title);
             const sectionLeadTotal = leadCurrency
               ? convertedTotal(fullSection.data, convert)
               : null;
             return (
               <TouchableOpacity
                 style={[styles.sectionHeader, { flexDirection: rowDirection }]}
-                onPress={() => toggleSection(section.title)}
+                onPress={() => toggleSection(section.key, section.title)}
                 activeOpacity={0.7}
               >
                 <View style={[styles.sectionTitleRow, { flexDirection: rowDirection }]}>
@@ -554,41 +495,6 @@ export default function ManageExpensesScreen() {
         </View>
       </Modal>
 
-      <Modal
-        visible={exportModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setExportModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={[styles.modalTitle, { textAlign }]}>{t.manage.exportTitle}</Text>
-            <TouchableOpacity
-              style={[styles.exportOption, { flexDirection: rowDirection }]}
-              onPress={handleExportCsv}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="document-text-outline" size={20} color={colors.text} />
-              <Text style={[styles.exportOptionText, { textAlign }]}>{t.manage.exportCsv}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.exportOption, { flexDirection: rowDirection }]}
-              onPress={handleExportPdf}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="document-outline" size={20} color={colors.text} />
-              <Text style={[styles.exportOptionText, { textAlign }]}>{t.manage.exportPdf}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.exportBackLink}
-              onPress={() => setExportModalVisible(false)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.exportBackLinkText}>{t.common.back}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -677,22 +583,6 @@ const styles = StyleSheet.create({
   countPillDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primaryDark },
   countPillText: { fontSize: 12, fontWeight: '600', color: colors.primary },
   actionsRow: { gap: 10 },
-  exportCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    shadowColor: '#18142D',
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
-  },
   addButton: {
     flex: 1,
     height: 54,
@@ -709,23 +599,6 @@ const styles = StyleSheet.create({
   },
   addButtonDisabled: { backgroundColor: colors.border },
   addButtonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
-  splitCard: {
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-  },
-  splitCardTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textMuted,
-    letterSpacing: 1,
-    marginBottom: 10,
-  },
-  splitCardRow: { alignItems: 'center', justifyContent: 'space-between', paddingVertical: 6 },
-  splitCardName: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
-  splitCardAmount: { fontSize: 14, fontWeight: '700', color: colors.text, marginLeft: 8 },
   listContent: { paddingHorizontal: 20, paddingBottom: 32 },
   sectionHeader: {
     justifyContent: 'space-between',
@@ -882,15 +755,4 @@ const styles = StyleSheet.create({
   modalCancelText: { color: colors.text, fontWeight: '600', fontSize: 15 },
   modalDeleteButton: { backgroundColor: colors.danger },
   modalDeleteText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-  exportOption: {
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  exportOptionText: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
-  exportIcon: { transform: [{ rotate: '180deg' }] },
-  exportBackLink: { alignSelf: 'center', marginTop: 16, padding: 8 },
-  exportBackLinkText: { color: colors.primary, fontWeight: '600', fontSize: 15 },
 });

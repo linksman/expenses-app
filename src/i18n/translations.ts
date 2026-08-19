@@ -93,6 +93,17 @@ export interface Translations {
     support: string;
     buyMeCoffee: string;
     vacations: string;
+    groupBy: string;
+    groupByOptions: {
+      date: string;
+      paymentMethod: string;
+      collaborators: string;
+      category: string;
+      currency: string;
+    };
+    exportCurrentView: string;
+    exportToPdf: string;
+    exportToCsv: string;
   };
   vacations: {
     pickerTitle: string;
@@ -200,6 +211,11 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       support: 'Support',
       buyMeCoffee: 'Buy me a Coffee',
       vacations: 'Vacations',
+      groupBy: 'Group by',
+      groupByOptions: { date: 'Date', paymentMethod: 'Payment method', collaborators: 'Collaborators', category: 'Category', currency: 'Currency' },
+      exportCurrentView: 'Export current view',
+      exportToPdf: 'To PDF',
+      exportToCsv: 'To CSV',
     },
     vacations: {
       pickerTitle: 'Select Vacation',
@@ -324,6 +340,11 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       support: 'Soutien',
       buyMeCoffee: 'Offrez-moi un café',
       vacations: 'Séjours',
+      groupBy: 'Grouper par',
+      groupByOptions: { date: 'Date', paymentMethod: 'Moyen de paiement', collaborators: 'Compagnons', category: 'Catégorie', currency: 'Devise' },
+      exportCurrentView: 'Exporter la vue actuelle',
+      exportToPdf: 'Vers PDF',
+      exportToCsv: 'Vers CSV',
     },
     vacations: {
       pickerTitle: 'Choisir un séjour',
@@ -450,6 +471,11 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       support: 'Unterstützung',
       buyMeCoffee: 'Spendier mir einen Kaffee',
       vacations: 'Urlaube',
+      groupBy: 'Gruppieren nach',
+      groupByOptions: { date: 'Datum', paymentMethod: 'Zahlungsmethode', collaborators: 'Reisebegleiter', category: 'Kategorie', currency: 'Währung' },
+      exportCurrentView: 'Aktuelle Ansicht exportieren',
+      exportToPdf: 'Als PDF',
+      exportToCsv: 'Als CSV',
     },
     vacations: {
       pickerTitle: 'Urlaub auswählen',
@@ -576,6 +602,11 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       support: 'Apoyo',
       buyMeCoffee: 'Invítame a un café',
       vacations: 'Viajes',
+      groupBy: 'Agrupar por',
+      groupByOptions: { date: 'Fecha', paymentMethod: 'Método de pago', collaborators: 'Compañeros', category: 'Categoría', currency: 'Moneda' },
+      exportCurrentView: 'Exportar vista actual',
+      exportToPdf: 'A PDF',
+      exportToCsv: 'A CSV',
     },
     vacations: {
       pickerTitle: 'Seleccionar viaje',
@@ -700,6 +731,11 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       support: 'תמיכה',
       buyMeCoffee: 'קנו לי קפה',
       vacations: 'חופשות',
+      groupBy: 'קיבוץ לפי',
+      groupByOptions: { date: 'תאריך', paymentMethod: 'אמצעי תשלום', collaborators: 'מלווים', category: 'קטגוריה', currency: 'מטבע' },
+      exportCurrentView: 'ייצוא התצוגה הנוכחית',
+      exportToPdf: 'ל-PDF',
+      exportToCsv: 'ל-CSV',
     },
     vacations: {
       pickerTitle: 'בחירת חופשה',

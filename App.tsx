@@ -8,11 +8,11 @@ import { PaymentMethodsProvider } from './src/storage/PaymentMethodsContext';
 import { LanguageProvider, useLanguage } from './src/storage/LanguageContext';
 import { VacationsProvider } from './src/storage/VacationsContext';
 import { ExchangeRatesProvider } from './src/storage/ExchangeRatesContext';
+import { ExpenseGroupingProvider } from './src/storage/ExpenseGroupingContext';
 import AddExpenseScreen from './src/screens/AddExpenseScreen';
 import ManageExpensesScreen from './src/screens/ManageExpensesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import VacationFormScreen from './src/screens/VacationFormScreen';
-import ExpenseSplitScreen from './src/screens/ExpenseSplitScreen';
 import SplashScreen from './src/screens/SplashScreen';
 
 const RootStack = createNativeStackNavigator();
@@ -51,16 +51,15 @@ function AppNavigator() {
         <RootStack.Screen
           name="AddExpense"
           component={AddExpenseScreen}
-          options={{ presentation: 'modal' }}
+          options={{
+            presentation: 'transparentModal',
+            animation: 'none',
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
         />
         <RootStack.Screen
           name="VacationForm"
           component={VacationFormScreen}
-          options={{ presentation: 'modal' }}
-        />
-        <RootStack.Screen
-          name="ExpenseSplit"
-          component={ExpenseSplitScreen}
           options={{ presentation: 'modal' }}
         />
       </RootStack.Navigator>
@@ -76,7 +75,9 @@ export default function App() {
           <ExchangeRatesProvider>
             <PaymentMethodsProvider>
               <ExpensesProvider>
-                <AppGate />
+                <ExpenseGroupingProvider>
+                  <AppGate />
+                </ExpenseGroupingProvider>
               </ExpensesProvider>
             </PaymentMethodsProvider>
           </ExchangeRatesProvider>
