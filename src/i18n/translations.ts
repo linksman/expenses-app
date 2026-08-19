@@ -198,7 +198,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       disable: 'Disable',
       deleteMethodConfirmTitle: 'Delete this payment method?',
       support: 'Support',
-      buyMeCoffee: 'Buy me a Coffee ☕',
+      buyMeCoffee: 'Buy me a Coffee',
     },
     vacations: {
       pickerTitle: 'Select Vacation',
@@ -322,7 +322,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       disable: 'Désactiver',
       deleteMethodConfirmTitle: 'Supprimer ce moyen de paiement ?',
       support: 'Soutien',
-      buyMeCoffee: 'Offrez-moi un café ☕',
+      buyMeCoffee: 'Offrez-moi un café',
     },
     vacations: {
       pickerTitle: 'Choisir un séjour',
@@ -448,7 +448,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       disable: 'Deaktivieren',
       deleteMethodConfirmTitle: 'Diese Zahlungsmethode löschen?',
       support: 'Unterstützung',
-      buyMeCoffee: 'Spendier mir einen Kaffee ☕',
+      buyMeCoffee: 'Spendier mir einen Kaffee',
     },
     vacations: {
       pickerTitle: 'Urlaub auswählen',
@@ -574,7 +574,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       disable: 'Desactivar',
       deleteMethodConfirmTitle: '¿Eliminar este método de pago?',
       support: 'Apoyo',
-      buyMeCoffee: 'Invítame a un café ☕',
+      buyMeCoffee: 'Invítame a un café',
     },
     vacations: {
       pickerTitle: 'Seleccionar viaje',
@@ -698,7 +698,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       disable: 'השבתה',
       deleteMethodConfirmTitle: 'למחוק את אמצעי התשלום הזה?',
       support: 'תמיכה',
-      buyMeCoffee: 'קנו לי קפה ☕',
+      buyMeCoffee: 'קנו לי קפה',
     },
     vacations: {
       pickerTitle: 'בחירת חופשה',

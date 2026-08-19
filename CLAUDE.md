@@ -26,8 +26,9 @@ The `expo` package is pinned to SDK 54 in `package.json` deliberately. **Expo Go
 
 ### Navigation shape (`App.tsx`)
 
-A single `RootStack` (native-stack) holds:
-- `Tabs` — a bottom-tab navigator (`MainTabs`) with exactly two tabs: **Expenses** (`ManageExpensesScreen`, the list/manage view and app entry point) and **Settings** (`SettingsScreen`, language only).
+A single `RootStack` (native-stack, no bottom tab bar) holds:
+- `Expenses` — `ManageExpensesScreen`, the list/manage view and app entry point.
+- `Settings` — `SettingsScreen` (language, payment methods, support), reached by tapping the gear-icon button in `ManageExpensesScreen`'s header (present both in the normal and "no vacations yet" states) and left via its own back button. There is no tab bar; Settings is a regular pushed screen.
 - `AddExpense` — full-screen modal-presented route, shared by both "add" and "edit" flows for a single expense. Mode is determined by route params: `{ vacationId }` = add, `{ vacationId, expenseId }` = edit. The vacation is fixed for the lifetime of this screen — there is no vacation picker here; the vacation comes from wherever the user navigated from.
 - `VacationForm` — full-screen modal-presented route, shared by "create" and "edit" for a vacation. `{}` = create, `{ vacationId }` = edit (adds a destructive "Delete Vacation" flow that cascades to delete the vacation's expenses).
 

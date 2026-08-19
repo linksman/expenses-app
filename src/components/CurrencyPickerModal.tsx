@@ -1,8 +1,10 @@
 import React from 'react';
-import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { CURRENCIES } from '../types/currency';
 import { useLanguage } from '../storage/LanguageContext';
+import { useDragToDismiss } from '../utils/useDragToDismiss';
 
 interface Props {
   visible: boolean;
@@ -25,13 +27,27 @@ export default function CurrencyPickerModal({
 }: Props) {
   const { t, isRTL } = useLanguage();
   const textAlign = isRTL ? 'right' : 'left';
+  const rowDirection = isRTL ? 'row-reverse' : 'row';
+  const { grabberHandlers, translateY } = useDragToDismiss(onClose, visible);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
-        <View style={styles.sheet}>
-          <Text style={[styles.title, { textAlign }]}>{t.currency.pickerTitle}</Text>
+        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+          <View style={styles.grabberArea} {...grabberHandlers}>
+            <View style={styles.grabber} />
+          </View>
+          <View style={[styles.header, { flexDirection: rowDirection }]}>
+            <Text style={[styles.title, { textAlign }]}>{t.currency.pickerTitle}</Text>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close" size={14} color="#71717A" />
+            </TouchableOpacity>
+          </View>
           <FlatList
             data={CURRENCIES}
             keyExtractor={(item) => item.code}
@@ -42,7 +58,7 @@ export default function CurrencyPickerModal({
                   style={[
                     styles.row,
                     selectedCode === NONE_CODE && styles.rowSelected,
-                    { flexDirection: isRTL ? 'row-reverse' : 'row' },
+                    { flexDirection: rowDirection },
                   ]}
                   onPress={() => {
                     onSelect(NONE_CODE);
@@ -50,11 +66,15 @@ export default function CurrencyPickerModal({
                   }}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.symbol}>—</Text>
+                  <View style={styles.iconBadge}>
+                    <Text style={styles.symbol}>—</Text>
+                  </View>
                   <View style={styles.rowMiddle}>
                     <Text style={[styles.code, { textAlign }]}>{noneLabel}</Text>
                   </View>
-                  {selectedCode === NONE_CODE && <Text style={styles.check}>✓</Text>}
+                  {selectedCode === NONE_CODE && (
+                    <Ionicons name="checkmark" size={16} color={colors.primary} />
+                  )}
                 </TouchableOpacity>
               ) : null
             }
@@ -62,28 +82,30 @@ export default function CurrencyPickerModal({
               const selected = item.code === selectedCode;
               return (
                 <TouchableOpacity
-                  style={[
-                    styles.row,
-                    selected && styles.rowSelected,
-                    { flexDirection: isRTL ? 'row-reverse' : 'row' },
-                  ]}
+                  style={[styles.row, selected && styles.rowSelected, { flexDirection: rowDirection }]}
                   onPress={() => {
                     onSelect(item.code);
                     onClose();
                   }}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.symbol}>{item.symbol}</Text>
+                  <View style={[styles.iconBadge, selected && styles.iconBadgeSelected]}>
+                    <Text style={[styles.symbol, selected && styles.symbolSelected]}>
+                      {item.symbol}
+                    </Text>
+                  </View>
                   <View style={styles.rowMiddle}>
-                    <Text style={[styles.code, { textAlign }]}>{item.code}</Text>
+                    <Text style={[styles.code, { textAlign }, selected && styles.codeSelected]}>
+                      {item.code}
+                    </Text>
                     <Text style={[styles.name, { textAlign }]}>{item.name}</Text>
                   </View>
-                  {selected && <Text style={styles.check}>✓</Text>}
+                  {selected && <Ionicons name="checkmark" size={16} color={colors.primary} />}
                 </TouchableOpacity>
               );
             }}
           />
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -91,34 +113,67 @@ export default function CurrencyPickerModal({
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(27, 39, 51, 0.45)' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(24, 20, 45, 0.42)' },
   sheet: {
     backgroundColor: colors.card,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingTop: 18,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 14,
     paddingHorizontal: 20,
-    maxHeight: '70%',
+    paddingBottom: 20,
+    maxHeight: '75%',
+    shadowColor: '#18142D',
+    shadowOpacity: 0.25,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: -10 },
+    elevation: 8,
   },
-  title: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 8 },
-  list: { marginBottom: 12 },
+  grabberArea: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginBottom: 4,
+    marginTop: -10,
+  },
+  grabber: {
+    width: 44,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#E4E4EA',
+  },
+  header: { alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  title: { fontSize: 18, fontWeight: '700', color: colors.text },
+  closeButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 11,
+    backgroundColor: '#F5F5F8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  list: { marginBottom: 4 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
   },
-  rowSelected: { backgroundColor: colors.background },
-  symbol: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.primaryDark,
-    width: 44,
-    textAlign: 'center',
+  rowSelected: { backgroundColor: '#F9F6FE', borderRadius: 14 },
+  iconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: '#F5F5F8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
-  rowMiddle: { flex: 1, marginHorizontal: 8 },
+  iconBadgeSelected: { backgroundColor: '#F1EAFE' },
+  symbol: { fontSize: 15, fontWeight: '700', color: '#8B8B96' },
+  symbolSelected: { color: '#7C3AED' },
+  rowMiddle: { flex: 1, minWidth: 0 },
   code: { fontSize: 15, fontWeight: '600', color: colors.text },
-  name: { fontSize: 13, color: colors.textMuted, marginTop: 1 },
-  check: { fontSize: 16, fontWeight: '700', color: colors.primary, marginRight: 8 },
+  codeSelected: { fontWeight: '700' },
+  name: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
 });

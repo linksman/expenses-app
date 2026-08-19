@@ -211,6 +211,16 @@ export default function ManageExpensesScreen() {
   if (vacations.length === 0) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={[styles.noVacationsHeaderRow, { justifyContent: isRTL ? 'flex-start' : 'flex-end' }]}>
+          <TouchableOpacity
+            style={styles.settingsButtonBox}
+            onPress={() => (navigation as any).navigate('Settings')}
+            activeOpacity={0.7}
+            accessibilityLabel={t.settings.title}
+          >
+            <Ionicons name="settings-outline" size={17} color="#52525B" />
+          </TouchableOpacity>
+        </View>
         <View style={styles.empty}>
           <View style={styles.noVacationsIconTile}>
             <Ionicons name="briefcase-outline" size={48} color="#7C3AED" />
@@ -243,27 +253,36 @@ export default function ManageExpensesScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.container}>
-        <View style={styles.topRow}>
+        <View style={[styles.topRow, { flexDirection: rowDirection }]}>
           <TouchableOpacity
             style={[styles.titleButton, { flexDirection: rowDirection }]}
             onPress={() => setVacationModalVisible(true)}
             activeOpacity={0.7}
           >
-            <Text style={styles.titleName}>
+            <Text style={styles.titleName} numberOfLines={1}>
               {selectedVacation ? selectedVacation.name : t.vacations.allVacations}
             </Text>
-            <Ionicons name="chevron-down" size={14} color={colors.primary} />
+            <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
           </TouchableOpacity>
           {selectedVacation && (
             <TouchableOpacity
-              style={[styles.editNameButton, isRTL ? { right: 0 } : { left: 0 }]}
+              style={styles.editNameButton}
               onPress={() => openVacationForm(selectedVacation.id)}
               activeOpacity={0.7}
               accessibilityLabel={t.vacations.editTitle}
             >
-              <Ionicons name="pencil" size={14} color={colors.primary} />
+              <Ionicons name="pencil" size={13} color={colors.primary} />
             </TouchableOpacity>
           )}
+          <View style={styles.topRowSpacer} />
+          <TouchableOpacity
+            style={styles.settingsButtonBox}
+            onPress={() => (navigation as any).navigate('Settings')}
+            activeOpacity={0.7}
+            accessibilityLabel={t.settings.title}
+          >
+            <Ionicons name="settings-outline" size={17} color="#52525B" />
+          </TouchableOpacity>
         </View>
 
         <View style={styles.totalsCard}>
@@ -351,7 +370,7 @@ export default function ManageExpensesScreen() {
       {filteredExpenses.length === 0 ? (
         <View style={styles.empty}>
           <View style={styles.emptyIconTile}>
-            <Ionicons name="briefcase-outline" size={48} color="#7C3AED" />
+            <Ionicons name="receipt-outline" size={48} color="#7C3AED" />
           </View>
           <Text style={styles.emptyText}>{t.manage.emptyTitle}</Text>
           <Text style={styles.emptySubtext}>{t.manage.emptySubtitle}</Text>
@@ -572,30 +591,42 @@ const styles = StyleSheet.create({
   container: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16, gap: 18 },
   topRow: {
     alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
+    gap: 8,
     minHeight: 32,
-    paddingHorizontal: 44,
   },
-  titleButton: { alignItems: 'center', gap: 7, maxWidth: '100%' },
+  titleButton: { alignItems: 'center', gap: 7, flexShrink: 1, minWidth: 0 },
   titleName: {
     flexShrink: 1,
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.primaryDark,
-    letterSpacing: -0.2,
-    textAlign: 'center',
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.text,
+    letterSpacing: -0.3,
   },
   editNameButton: {
-    position: 'absolute',
-    top: '50%',
-    marginTop: -16,
-    width: 32,
-    height: 32,
-    borderRadius: 11,
+    width: 30,
+    height: 30,
+    borderRadius: 10,
     backgroundColor: '#F5F1FE',
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
+  },
+  topRowSpacer: { flex: 1 },
+  settingsButtonBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  noVacationsHeaderRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
   totalsCard: {
     backgroundColor: colors.card,

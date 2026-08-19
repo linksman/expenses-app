@@ -1,5 +1,5 @@
 import React from 'react';
-import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Animated, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../storage/LanguageContext';
@@ -7,6 +7,7 @@ import { useVacations } from '../storage/VacationsContext';
 import { useExpenses } from '../storage/ExpensesContext';
 import { Vacation } from '../types/vacation';
 import { formatTotals, totalsByCurrencyFor } from '../utils/formatCurrency';
+import { useDragToDismiss } from '../utils/useDragToDismiss';
 
 export const ALL_VACATIONS = 'all';
 
@@ -34,6 +35,7 @@ export default function VacationPickerModal({
   const { expenses } = useExpenses();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
+  const { grabberHandlers, translateY } = useDragToDismiss(onClose, visible);
 
   const data: (Vacation | typeof ALL_VACATIONS)[] = allowAll
     ? [ALL_VACATIONS, ...vacations]
@@ -43,8 +45,10 @@ export default function VacationPickerModal({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
-        <View style={styles.sheet}>
-          <View style={styles.grabber} />
+        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+          <View style={styles.grabberArea} {...grabberHandlers}>
+            <View style={styles.grabber} />
+          </View>
           <View style={[styles.header, { flexDirection: rowDirection }]}>
             <Text style={[styles.title, { textAlign }]}>{t.vacations.pickerTitle}</Text>
             <TouchableOpacity
@@ -136,7 +140,7 @@ export default function VacationPickerModal({
               ) : null
             }
           />
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -149,8 +153,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    borderBottomLeftRadius: 38,
-    borderBottomRightRadius: 38,
     paddingTop: 14,
     paddingHorizontal: 20,
     paddingBottom: 26,
@@ -161,13 +163,18 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -10 },
     elevation: 8,
   },
+  grabberArea: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginBottom: 4,
+    marginTop: -10,
+  },
   grabber: {
     width: 44,
     height: 5,
     borderRadius: 999,
     backgroundColor: '#E4E4EA',
-    alignSelf: 'center',
-    marginBottom: 14,
   },
   header: { alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   title: { fontSize: 18, fontWeight: '700', color: colors.text },

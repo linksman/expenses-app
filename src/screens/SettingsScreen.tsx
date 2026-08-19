@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../storage/LanguageContext';
@@ -64,6 +65,7 @@ function KofiWebWidget() {
 }
 
 export default function SettingsScreen() {
+  const navigation = useNavigation();
   const { languageCode, t, isRTL } = useLanguage();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
@@ -120,16 +122,29 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name={isRTL ? 'chevron-forward' : 'chevron-back'} size={20} color={colors.primary} />
+        </TouchableOpacity>
+        <View style={styles.headerTextBlock}>
+          <Text style={[styles.title, { textAlign }]} numberOfLines={1}>
+            {t.settings.title}
+          </Text>
+          <Text style={[styles.subtitle, { textAlign }]} numberOfLines={1}>
+            {t.settings.subtitle}
+          </Text>
+        </View>
+      </View>
       <ScrollView
         ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
-          <Text style={[styles.title, { textAlign }]}>{t.settings.title}</Text>
-          <Text style={[styles.subtitle, { textAlign }]}>{t.settings.subtitle}</Text>
-        </View>
-
         <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.language}</Text>
         <TouchableOpacity
           style={[styles.card, styles.row, { flexDirection: rowDirection }]}
@@ -357,9 +372,25 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   scrollContent: { paddingBottom: 32 },
-  header: { padding: 20, paddingBottom: 8 },
-  title: { fontSize: 26, fontWeight: '700', color: colors.text, letterSpacing: -0.3 },
-  subtitle: { marginTop: 2, fontSize: 14, color: colors.textMuted },
+  headerRow: {
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  backButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F1FE',
+    flexShrink: 0,
+  },
+  headerTextBlock: { flex: 1, minWidth: 0, gap: 1 },
+  title: { fontSize: 20, fontWeight: '700', color: colors.text, letterSpacing: -0.2 },
+  subtitle: { fontSize: 13, color: colors.textMuted },
   sectionLabel: {
     fontSize: 12,
     fontWeight: '700',
