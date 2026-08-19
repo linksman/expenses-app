@@ -18,6 +18,7 @@ import { useLanguage } from '../storage/LanguageContext';
 import { LANGUAGES } from '../i18n/languages';
 import { usePaymentMethods } from '../storage/PaymentMethodsContext';
 import { useExpenses } from '../storage/ExpensesContext';
+import { useVacations } from '../storage/VacationsContext';
 import { PaymentMethod } from '../types/paymentMethod';
 import { paymentMethodName } from '../utils/paymentMethodName';
 import LanguagePickerModal from '../components/LanguagePickerModal';
@@ -73,6 +74,8 @@ export default function SettingsScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
 
   const currentLanguage = LANGUAGES.find((l) => l.code === languageCode);
+
+  const { vacations, activeVacationId, setActiveVacationId } = useVacations();
 
   const {
     methods,
@@ -145,6 +148,44 @@ export default function SettingsScreen() {
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
+        <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.vacations}</Text>
+        <View style={styles.card}>
+          {vacations.map((vacation, index) => {
+            const selected = vacation.id === activeVacationId;
+            return (
+              <TouchableOpacity
+                key={vacation.id}
+                style={[
+                  styles.vacationRow,
+                  { flexDirection: rowDirection },
+                  index < vacations.length - 1 && styles.methodRowBorder,
+                ]}
+                onPress={() => {
+                  if (!selected) setActiveVacationId(vacation.id);
+                  navigation.goBack();
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.vacationIconBadge}>
+                  <Ionicons name="location-outline" size={18} color="#7C3AED" />
+                </View>
+                <Text style={[styles.rowLabel, { textAlign }]} numberOfLines={1}>
+                  {vacation.name}
+                </Text>
+                {selected && <Ionicons name="checkmark" size={19} color={colors.primary} />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <TouchableOpacity
+          style={[styles.newVacationButton, { flexDirection: rowDirection }]}
+          onPress={() => (navigation as any).navigate('VacationForm')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="add" size={16} color={colors.primary} />
+          <Text style={styles.newVacationButtonText}>{t.vacations.createNew}</Text>
+        </TouchableOpacity>
+
         <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.language}</Text>
         <TouchableOpacity
           style={[styles.card, styles.row, { flexDirection: rowDirection }]}
@@ -423,6 +464,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
+  vacationRow: {
+    alignItems: 'center',
+    gap: 13,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  vacationIconBadge: {
+    width: 38,
+    height: 38,
+    borderRadius: 13,
+    backgroundColor: '#F1EAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  newVacationButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 48,
+    marginHorizontal: 20,
+    marginTop: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#DDD1FA',
+    borderStyle: 'dashed',
+    backgroundColor: '#FBF9FF',
+  },
+  newVacationButtonText: { fontSize: 15, fontWeight: '700', color: colors.primary },
   languageIconBadge: {
     width: 38,
     height: 38,

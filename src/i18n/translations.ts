@@ -92,6 +92,7 @@ export interface Translations {
     deleteMethodConfirmTitle: string;
     support: string;
     buyMeCoffee: string;
+    vacations: string;
   };
   vacations: {
     pickerTitle: string;
@@ -109,7 +110,6 @@ export interface Translations {
     deleteConfirmTitle: string;
     deleteConfirmMessage: string;
     createButton: string;
-    allVacations: string;
     emptyTitle: string;
     emptySubtitle: string;
     emptyButton: string;
@@ -199,6 +199,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       deleteMethodConfirmTitle: 'Delete this payment method?',
       support: 'Support',
       buyMeCoffee: 'Buy me a Coffee',
+      vacations: 'Vacations',
     },
     vacations: {
       pickerTitle: 'Select Vacation',
@@ -216,7 +217,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       deleteConfirmTitle: 'Delete Vacation?',
       deleteConfirmMessage: 'This will also permanently delete all expenses in this vacation.',
       createButton: 'Create Vacation',
-      allVacations: 'All Vacations',
       emptyTitle: 'Create your first vacation to get started',
       emptySubtitle: 'and start keeping track of all your expenses in one place.',
       emptyButton: 'Create Vacation',
@@ -323,6 +323,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       deleteMethodConfirmTitle: 'Supprimer ce moyen de paiement ?',
       support: 'Soutien',
       buyMeCoffee: 'Offrez-moi un café',
+      vacations: 'Séjours',
     },
     vacations: {
       pickerTitle: 'Choisir un séjour',
@@ -341,7 +342,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       deleteConfirmMessage:
         'Cela supprimera également définitivement toutes les dépenses de ce séjour.',
       createButton: 'Créer le séjour',
-      allVacations: 'Tous les séjours',
       emptyTitle: 'Créez votre premier séjour pour commencer',
       emptySubtitle: 'et commencez à suivre toutes vos dépenses au même endroit.',
       emptyButton: 'Créer un séjour',
@@ -449,6 +449,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       deleteMethodConfirmTitle: 'Diese Zahlungsmethode löschen?',
       support: 'Unterstützung',
       buyMeCoffee: 'Spendier mir einen Kaffee',
+      vacations: 'Urlaube',
     },
     vacations: {
       pickerTitle: 'Urlaub auswählen',
@@ -467,7 +468,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       deleteConfirmMessage:
         'Dadurch werden auch alle Ausgaben dieses Urlaubs endgültig gelöscht.',
       createButton: 'Urlaub erstellen',
-      allVacations: 'Alle Urlaube',
       emptyTitle: 'Erstelle deinen ersten Urlaub, um loszulegen',
       emptySubtitle: 'und alle deine Ausgaben an einem Ort im Blick zu behalten.',
       emptyButton: 'Urlaub erstellen',
@@ -575,6 +575,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       deleteMethodConfirmTitle: '¿Eliminar este método de pago?',
       support: 'Apoyo',
       buyMeCoffee: 'Invítame a un café',
+      vacations: 'Viajes',
     },
     vacations: {
       pickerTitle: 'Seleccionar viaje',
@@ -592,7 +593,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       deleteConfirmTitle: '¿Eliminar viaje?',
       deleteConfirmMessage: 'Esto también eliminará permanentemente todos los gastos de este viaje.',
       createButton: 'Crear viaje',
-      allVacations: 'Todos los viajes',
       emptyTitle: 'Crea tu primer viaje para empezar',
       emptySubtitle: 'y empieza a llevar el control de todos tus gastos en un solo lugar.',
       emptyButton: 'Crear viaje',
@@ -699,6 +699,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       deleteMethodConfirmTitle: 'למחוק את אמצעי התשלום הזה?',
       support: 'תמיכה',
       buyMeCoffee: 'קנו לי קפה',
+      vacations: 'חופשות',
     },
     vacations: {
       pickerTitle: 'בחירת חופשה',
@@ -716,7 +717,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       deleteConfirmTitle: 'למחוק את החופשה?',
       deleteConfirmMessage: 'פעולה זו תמחק לצמיתות גם את כל ההוצאות בחופשה זו.',
       createButton: 'יצירת חופשה',
-      allVacations: 'כל החופשות',
       emptyTitle: 'צרו חופשה ראשונה כדי להתחיל',
       emptySubtitle: 'והתחילו לעקוב אחרי כל ההוצאות שלכם במקום אחד.',
       emptyButton: 'יצירת חופשה',

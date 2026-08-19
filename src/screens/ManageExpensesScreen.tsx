@@ -39,7 +39,6 @@ import {
   exportCsvFile,
   exportPdfFile,
 } from '../utils/exportExpenses';
-import VacationPickerModal, { ALL_VACATIONS } from '../components/VacationPickerModal';
 import { takePendingNewExpenseHighlight } from '../utils/pendingNewExpenseHighlight';
 
 const HIGHLIGHT_DURATION_MS = 1000;
@@ -64,39 +63,11 @@ export default function ManageExpensesScreen() {
   const { ensureRates, convert: rawConvert } = useExchangeRates();
   const textAlign = isRTL ? 'right' : 'left';
   const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
-  const [vacationModalVisible, setVacationModalVisible] = useState(false);
   const [exportModalVisible, setExportModalVisible] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [viewVacationId, setViewVacationId] = useState<string>(ALL_VACATIONS);
   const [collapsedOverrides, setCollapsedOverrides] = useState<Record<string, boolean>>({});
-  // True once the initial filter has been resolved to the real active vacation (or,
-  // failing that, confirmed to legitimately be "all vacations"). Prevents an initial
-  // paint of the ALL_VACATIONS state — with its vacation-colored row dots — before the
-  // effect below has a chance to switch to the actual active vacation.
-  const [filterReady, setFilterReady] = useState(false);
-  const userTouchedFilter = useRef(false);
-  const pendingVacationSync = useRef(false);
   const [highlightedExpenseId, setHighlightedExpenseId] = useState<string | null>(null);
   const highlightAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (!vacationsLoading && !userTouchedFilter.current) {
-      if (activeVacationId) setViewVacationId(activeVacationId);
-      setFilterReady(true);
-    }
-  }, [vacationsLoading, activeVacationId]);
-
-  // After creating, editing, or deleting a vacation on the VacationForm screen, follow
-  // whatever VacationsContext now considers the active vacation once we regain focus.
-  useFocusEffect(
-    useCallback(() => {
-      if (pendingVacationSync.current) {
-        pendingVacationSync.current = false;
-        userTouchedFilter.current = true;
-        setViewVacationId(activeVacationId ?? ALL_VACATIONS);
-      }
-    }, [activeVacationId])
-  );
 
   // After creating a new expense, briefly highlight its row so the user can
   // spot it in the list. Also force-expand its day section in case it isn't
@@ -126,7 +97,7 @@ export default function ManageExpensesScreen() {
     }, [expenses, t, language.locale])
   );
 
-  const selectedVacation = vacations.find((v) => v.id === viewVacationId) ?? null;
+  const selectedVacation = vacations.find((v) => v.id === activeVacationId) ?? null;
   const leadCurrency = selectedVacation?.leadCurrency ?? null;
 
   useEffect(() => {
@@ -137,12 +108,11 @@ export default function ManageExpensesScreen() {
     rawConvert(amount, fromCode, leadCurrency);
 
   const filteredExpenses = useMemo(() => {
-    const list =
-      viewVacationId === ALL_VACATIONS ? expenses : expenses.filter((e) => e.vacationId === viewVacationId);
+    const list = expenses.filter((e) => e.vacationId === activeVacationId);
     return [...list].sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
-  }, [expenses, viewVacationId]);
+  }, [expenses, activeVacationId]);
 
   const totalsByCurrency = useMemo(
     () => totalsByCurrencyFor(filteredExpenses),
@@ -187,9 +157,6 @@ export default function ManageExpensesScreen() {
     return method ? paymentMethodName(method, t) : null;
   };
 
-  const vacationName = (id: string): string =>
-    vacations.find((g) => g.id === id)?.name ?? '';
-
   const confirmDelete = (expense: Expense) => setPendingDelete(expense);
 
   const handleConfirmDelete = () => {
@@ -197,7 +164,7 @@ export default function ManageExpensesScreen() {
     setPendingDelete(null);
   };
 
-  const exportTitle = selectedVacation ? selectedVacation.name : t.vacations.allVacations;
+  const exportTitle = selectedVacation?.name ?? '';
   const exportTotalsLine = `${t.manage.tripTotal} ${formatTotalsWithLead(
     totalsByCurrency,
     leadCurrency,
@@ -236,14 +203,13 @@ export default function ManageExpensesScreen() {
     }
   };
 
-  const canAdd = viewVacationId !== ALL_VACATIONS && !!selectedVacation;
+  const canAdd = !!selectedVacation;
 
   const openVacationForm = (vacationId?: string) => {
-    pendingVacationSync.current = true;
     (navigation as any).navigate('VacationForm', vacationId ? { vacationId } : undefined);
   };
 
-  if (vacationsLoading || !filterReady) {
+  if (vacationsLoading) {
     return <SafeAreaView style={styles.safe} edges={['top']} />;
   }
 
@@ -279,41 +245,28 @@ export default function ManageExpensesScreen() {
     );
   }
 
-  const totalsText = formatTotalsWithLead(
-    totalsByCurrency,
-    leadCurrency,
-    leadTotal,
-    selectedVacation?.defaultCurrency
-  );
-  const parenIndex = totalsText.indexOf(' (');
-  const heroMainTotal = parenIndex >= 0 ? totalsText.slice(0, parenIndex) : totalsText;
-  const heroConvertedTotal = parenIndex >= 0 ? totalsText.slice(parenIndex) : '';
+  const heroMainCurrency =
+    totalsByCurrency.find((t) => t.currencyCode === selectedVacation?.defaultCurrency) ??
+    totalsByCurrency[0] ??
+    null;
+  const heroMainTotal = heroMainCurrency
+    ? formatAmount(heroMainCurrency.amount, heroMainCurrency.currencyCode)
+    : formatAmount(0, selectedVacation?.defaultCurrency ?? 'USD');
+  const heroOtherText = totalsByCurrency
+    .filter((t) => t !== heroMainCurrency)
+    .map((t) => formatAmount(t.amount, t.currencyCode))
+    .join('  ·  ');
+  const heroLeadIsRedundant =
+    totalsByCurrency.length === 1 && totalsByCurrency[0].currencyCode === leadCurrency;
+  const heroLeadText =
+    leadCurrency && leadTotal !== null && !heroLeadIsRedundant
+      ? `(${formatAmount(leadTotal, leadCurrency)})`
+      : '';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.container}>
-        <View style={[styles.topRow, { flexDirection: rowDirection }]}>
-          <TouchableOpacity
-            style={[styles.titleButton, { flexDirection: rowDirection }]}
-            onPress={() => setVacationModalVisible(true)}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.titleName} numberOfLines={1}>
-              {selectedVacation ? selectedVacation.name : t.vacations.allVacations}
-            </Text>
-            <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
-          </TouchableOpacity>
-          {selectedVacation && (
-            <TouchableOpacity
-              style={styles.editNameButton}
-              onPress={() => openVacationForm(selectedVacation.id)}
-              activeOpacity={0.7}
-              accessibilityLabel={t.vacations.editTitle}
-            >
-              <Ionicons name="pencil" size={13} color={colors.primary} />
-            </TouchableOpacity>
-          )}
-          <View style={styles.topRowSpacer} />
+        <View style={[styles.topRow, { justifyContent: isRTL ? 'flex-start' : 'flex-end' }]}>
           <TouchableOpacity
             style={styles.settingsButtonBox}
             onPress={() => (navigation as any).navigate('Settings')}
@@ -330,11 +283,29 @@ export default function ManageExpensesScreen() {
           end={{ x: isRTL ? 1 : 0, y: 0 }}
           style={styles.totalsCard}
         >
+          <View style={[styles.cardTitleRow, { flexDirection: rowDirection }]}>
+            <Text style={[styles.cardTitleName, { textAlign }]} numberOfLines={1}>
+              {selectedVacation?.name ?? ''}
+            </Text>
+            {selectedVacation && (
+              <TouchableOpacity
+                style={styles.editNameButton}
+                onPress={() => openVacationForm(selectedVacation.id)}
+                activeOpacity={0.7}
+                accessibilityLabel={t.vacations.editTitle}
+              >
+                <Ionicons name="pencil" size={13} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+          </View>
           <View style={[styles.totalsRow, { flexDirection: rowDirection }]}>
             <View style={styles.totalsMain}>
               <Text style={[styles.totalsAmount, { textAlign }]}>{heroMainTotal}</Text>
-              {heroConvertedTotal ? (
-                <Text style={[styles.totalsConverted, { textAlign }]}>{heroConvertedTotal}</Text>
+              {heroOtherText ? (
+                <Text style={[styles.totalsSecondaryAmount, { textAlign }]}>{heroOtherText}</Text>
+              ) : null}
+              {heroLeadText ? (
+                <Text style={[styles.totalsConverted, { textAlign }]}>{heroLeadText}</Text>
               ) : null}
             </View>
             <View style={[styles.countPill, { flexDirection: rowDirection }]}>
@@ -464,7 +435,6 @@ export default function ManageExpensesScreen() {
             const methodIcon =
               methods.find((m) => m.id === item.paymentMethodId)?.icon ??
               DEFAULT_PAYMENT_METHOD_ICON;
-            const showVacationTag = viewVacationId === ALL_VACATIONS;
             const badgeTint = info ? info.tint : colors.background;
             const iconColor = info ? info.color : colors.textMuted;
             const descriptionText = item.description
@@ -505,7 +475,6 @@ export default function ManageExpensesScreen() {
                   </Text>
                   <Text style={[styles.rowMethod, { textAlign }]} numberOfLines={1}>
                     {method ?? ''}
-                    {showVacationTag ? `  ·  ${vacationName(item.vacationId)}` : ''}
                   </Text>
                   {splitLabel && (
                     <Text style={[styles.rowSplit, { textAlign }]} numberOfLines={1}>
@@ -620,19 +589,6 @@ export default function ManageExpensesScreen() {
           </View>
         </View>
       </Modal>
-
-      <VacationPickerModal
-        visible={vacationModalVisible}
-        selectedId={viewVacationId}
-        onSelect={(id) => {
-          userTouchedFilter.current = true;
-          setViewVacationId(id);
-        }}
-        onClose={() => setVacationModalVisible(false)}
-        allowAll
-        allowCreate
-        onCreateNew={() => openVacationForm()}
-      />
     </SafeAreaView>
   );
 }
@@ -641,28 +597,30 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   container: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16, gap: 18 },
   topRow: {
-    alignItems: 'center',
-    gap: 8,
+    flexDirection: 'row',
     minHeight: 32,
   },
-  titleButton: { alignItems: 'center', gap: 7, flexShrink: 1, minWidth: 0 },
-  titleName: {
+  cardTitleRow: {
+    alignItems: 'center',
+    gap: 7,
+    marginBottom: 14,
+  },
+  cardTitleName: {
     flexShrink: 1,
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '800',
     color: colors.text,
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   editNameButton: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
+    width: 26,
+    height: 26,
+    borderRadius: 9,
     backgroundColor: '#F5F1FE',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  topRowSpacer: { flex: 1 },
   settingsButtonBox: {
     width: 34,
     height: 34,
@@ -696,6 +654,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
     letterSpacing: -0.7,
+    flexWrap: 'wrap',
+  },
+  totalsSecondaryAmount: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: -0.4,
+    marginTop: 4,
     flexWrap: 'wrap',
   },
   totalsConverted: { fontSize: 14, color: colors.textMuted, marginTop: 5, flexWrap: 'wrap' },
