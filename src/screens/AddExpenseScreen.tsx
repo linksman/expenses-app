@@ -25,12 +25,12 @@ import { formatAmount } from '../utils/formatCurrency';
 import { paymentMethodName } from '../utils/paymentMethodName';
 import { companionName } from '../utils/companionName';
 import { takePendingSplit } from '../utils/pendingExpenseSplit';
+import { setPendingNewExpenseHighlight } from '../utils/pendingNewExpenseHighlight';
 import { dayLabel } from '../utils/dateLabel';
 import { scrollToFocusedInput } from '../utils/scrollToFocusedInput';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
 import PaymentMethodPickerModal from '../components/PaymentMethodPickerModal';
 import DatePickerModal from '../components/DatePickerModal';
-import CoinBurst from '../components/CoinBurst';
 
 interface RouteParams {
   vacationId: string;
@@ -86,7 +86,6 @@ export default function AddExpenseScreen() {
   const descriptionInputRef = useRef<TextInput>(null);
   const saveButtonRef = useRef<React.ElementRef<typeof TouchableOpacity>>(null);
   const scrollViewRef = useRef<ScrollView>(null);
-  const [showCoinBurst, setShowCoinBurst] = useState(false);
 
   const leadCurrency = vacation?.leadCurrency ?? null;
 
@@ -163,7 +162,7 @@ export default function AddExpenseScreen() {
   const handleSubmit = async () => {
     if (!canSave || !vacation) return;
     const createdAt = expenseDate.toISOString();
-    await addExpense(
+    const newExpenseId = await addExpense(
       parsedAmount,
       category,
       description,
@@ -174,8 +173,8 @@ export default function AddExpenseScreen() {
       split
     );
     setActiveVacationId(vacation.id);
-    // Celebrate a brand-new expense with a coin burst, then leave.
-    setShowCoinBurst(true);
+    setPendingNewExpenseHighlight(newExpenseId);
+    navigation.goBack();
   };
 
   const selectedMethod = methods.find((m) => m.id === paymentMethodId);
@@ -224,10 +223,10 @@ export default function AddExpenseScreen() {
               style={[
                 styles.saveButton,
                 { flexDirection: rowDirection },
-                (!canSave || showCoinBurst) && styles.saveButtonDisabled,
+                !canSave && styles.saveButtonDisabled,
               ]}
               onPress={handleSubmit}
-              disabled={!canSave || showCoinBurst}
+              disabled={!canSave}
               activeOpacity={0.85}
             >
               <Ionicons name="checkmark-circle-outline" size={19} color="#fff" />
@@ -449,8 +448,6 @@ export default function AddExpenseScreen() {
         onSelect={handleDateSelect}
         onClose={() => setDateModalVisible(false)}
       />
-
-      {showCoinBurst && <CoinBurst onComplete={() => navigation.goBack()} />}
     </SafeAreaView>
   );
 }

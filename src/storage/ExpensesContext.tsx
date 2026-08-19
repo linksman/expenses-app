@@ -40,7 +40,7 @@ interface ExpensesContextValue {
     vacationId: string,
     createdAt: string,
     split: ExpenseSplitShare[]
-  ) => Promise<void>;
+  ) => Promise<string>;
   updateExpense: (
     id: string,
     amount: number,
@@ -104,6 +104,7 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
         split,
       };
       await persist([expense, ...expenses]);
+      return expense.id;
     },
     [expenses, persist]
   );

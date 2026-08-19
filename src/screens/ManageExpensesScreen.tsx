@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   Modal,
   SectionList,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import { useExpenses } from '../storage/ExpensesContext';
 import { usePaymentMethods } from '../storage/PaymentMethodsContext';
@@ -38,6 +40,13 @@ import {
   exportPdfFile,
 } from '../utils/exportExpenses';
 import VacationPickerModal, { ALL_VACATIONS } from '../components/VacationPickerModal';
+import { takePendingNewExpenseHighlight } from '../utils/pendingNewExpenseHighlight';
+
+const HIGHLIGHT_DURATION_MS = 1000;
+const HIGHLIGHT_FADE_MS = 1000;
+const HIGHLIGHT_COLOR = '#DFF5E1';
+
+const TOTALS_CARD_GRADIENT = ['#702ADC', '#FFFFFF'] as const;
 
 interface Section {
   title: string;
@@ -67,6 +76,8 @@ export default function ManageExpensesScreen() {
   const [filterReady, setFilterReady] = useState(false);
   const userTouchedFilter = useRef(false);
   const pendingVacationSync = useRef(false);
+  const [highlightedExpenseId, setHighlightedExpenseId] = useState<string | null>(null);
+  const highlightAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (!vacationsLoading && !userTouchedFilter.current) {
@@ -85,6 +96,34 @@ export default function ManageExpensesScreen() {
         setViewVacationId(activeVacationId ?? ALL_VACATIONS);
       }
     }, [activeVacationId])
+  );
+
+  // After creating a new expense, briefly highlight its row so the user can
+  // spot it in the list. Also force-expand its day section in case it isn't
+  // today (and would otherwise be collapsed and invisible).
+  useFocusEffect(
+    useCallback(() => {
+      const id = takePendingNewExpenseHighlight();
+      if (!id) return;
+      const newExpense = expenses.find((e) => e.id === id);
+      if (newExpense) {
+        const label = dayLabel(newExpense.createdAt, t, language.locale);
+        setCollapsedOverrides((prev) => ({ ...prev, [label]: false }));
+      }
+      setHighlightedExpenseId(id);
+      highlightAnim.setValue(1);
+      Animated.sequence([
+        Animated.delay(HIGHLIGHT_DURATION_MS),
+        Animated.timing(highlightAnim, {
+          toValue: 0,
+          duration: HIGHLIGHT_FADE_MS,
+          useNativeDriver: false,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) setHighlightedExpenseId(null);
+      });
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [expenses, t, language.locale])
   );
 
   const selectedVacation = vacations.find((v) => v.id === viewVacationId) ?? null;
@@ -285,7 +324,12 @@ export default function ManageExpensesScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.totalsCard}>
+        <LinearGradient
+          colors={TOTALS_CARD_GRADIENT}
+          start={{ x: isRTL ? 0 : 1, y: 0 }}
+          end={{ x: isRTL ? 1 : 0, y: 0 }}
+          style={styles.totalsCard}
+        >
           <View style={[styles.totalsRow, { flexDirection: rowDirection }]}>
             <View style={styles.totalsMain}>
               <Text style={[styles.totalsAmount, { textAlign }]}>{heroMainTotal}</Text>
@@ -300,7 +344,7 @@ export default function ManageExpensesScreen() {
               </Text>
             </View>
           </View>
-        </View>
+        </LinearGradient>
 
         <View style={[styles.actionsRow, { flexDirection: rowDirection }]}>
           <TouchableOpacity
@@ -433,6 +477,7 @@ export default function ManageExpensesScreen() {
                     .map((id) => companionName(id, itemVacation?.companions ?? [], t))
                     .join(', ')}`
                 : null;
+            const isHighlighted = item.id === highlightedExpenseId;
             return (
               <TouchableOpacity
                 style={[styles.row, { flexDirection: rowDirection }]}
@@ -445,6 +490,12 @@ export default function ManageExpensesScreen() {
                 onLongPress={() => confirmDelete(item)}
                 activeOpacity={0.6}
               >
+                {isHighlighted && (
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[styles.highlightOverlay, { opacity: highlightAnim }]}
+                  />
+                )}
                 <View style={[styles.iconBadge, { backgroundColor: badgeTint }]}>
                   <Ionicons name={info ? info.icon : methodIcon} size={19} color={iconColor} />
                 </View>
@@ -629,7 +680,6 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   totalsCard: {
-    backgroundColor: colors.card,
     borderRadius: 24,
     paddingVertical: 20,
     paddingHorizontal: 22,
@@ -742,6 +792,11 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
+  },
+  highlightOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 20,
+    backgroundColor: HIGHLIGHT_COLOR,
   },
   iconBadge: {
     width: 42,
