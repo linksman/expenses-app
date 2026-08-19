@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  InteractionManager,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -54,7 +55,7 @@ export default function AddExpenseScreen() {
   const { vacationId, expenseId } = (route.params ?? {}) as RouteParams;
   const isEditing = !!expenseId;
 
-  const { addExpense, updateExpense, expenses } = useExpenses();
+  const { addExpense, updateExpense, deleteExpense, expenses } = useExpenses();
   const { methods, effectiveDefaultMethodId } = usePaymentMethods();
   const { t, isRTL, language } = useLanguage();
   const { vacations, setActiveVacationId } = useVacations();
@@ -92,6 +93,7 @@ export default function AddExpenseScreen() {
     )
   );
   const [showSplitLockedHint, setShowSplitLockedHint] = useState(false);
+  const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const amountInputRef = useRef<TextInput>(null);
   const descriptionInputRef = useRef<TextInput>(null);
   const saveButtonRef = useRef<React.ElementRef<typeof TouchableOpacity>>(null);
@@ -108,6 +110,14 @@ export default function AddExpenseScreen() {
       setPaymentMethodId(effectiveDefaultMethodId);
     }
   }, [effectiveDefaultMethodId, paymentMethodId]);
+
+  useEffect(() => {
+    if (isEditing) return;
+    const focusTask = InteractionManager.runAfterInteractions(() => {
+      amountInputRef.current?.focus();
+    });
+    return () => focusTask.cancel();
+  }, [isEditing]);
 
   const convert = (amount: number, fromCode: string) =>
     rawConvert(amount, fromCode, leadCurrency);
@@ -131,7 +141,6 @@ export default function AddExpenseScreen() {
     parsedAmount > 0 &&
     !!paymentMethodId &&
     !!vacation &&
-    description.trim().length > 0 &&
     !overAllocated;
   const convertedAmount =
     leadCurrency && !Number.isNaN(parsedAmount) && parsedAmount > 0
@@ -196,6 +205,14 @@ export default function AddExpenseScreen() {
     if (isEditing && vacation) setActiveVacationId(vacation.id);
     navigation.goBack();
   };
+
+  const handleDelete = async () => {
+    if (!expenseId) return;
+    await deleteExpense(expenseId);
+    setDeleteConfirmVisible(false);
+    if (vacation) setActiveVacationId(vacation.id);
+    navigation.goBack();
+  };
   const { grabberHandlers, contentHandlers, onContentScroll, translateY } = useDragToDismiss(
     handleClose,
     true
@@ -213,7 +230,12 @@ export default function AddExpenseScreen() {
           .join(', ')}`;
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={handleClose}>
+    <Modal
+      visible
+      transparent
+      animationType="slide"
+      onRequestClose={handleClose}
+    >
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={handleClose} />
         <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
@@ -239,30 +261,16 @@ export default function AddExpenseScreen() {
           >
             <ScrollView
               ref={scrollViewRef}
-              contentContainerStyle={styles.container}
+              contentContainerStyle={[
+                styles.container,
+                !isEditing && styles.containerWithFloatingSave,
+              ]}
               keyboardShouldPersistTaps="handled"
               onScroll={(e) => onContentScroll(e.nativeEvent.contentOffset.y)}
               scrollEventThrottle={16}
             >
-              {!isEditing && (
-                <TouchableOpacity
-                  ref={saveButtonRef}
-                  style={[
-                    styles.saveButton,
-                    { flexDirection: rowDirection },
-                    !canSave && styles.saveButtonDisabled,
-                  ]}
-                  onPress={handleSubmit}
-                  disabled={!canSave}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons name="checkmark-circle-outline" size={19} color="#fff" />
-                  <Text style={styles.saveButtonText}>{t.common.save}</Text>
-                </TouchableOpacity>
-              )}
-
               <TouchableOpacity
-                style={[styles.amountBlock, !amount.trim() && styles.amountBlockInvalid]}
+                style={styles.amountBlock}
                 onPress={() => {
                   if (hasSplit) setShowSplitLockedHint(true);
                   else amountInputRef.current?.focus();
@@ -284,8 +292,8 @@ export default function AddExpenseScreen() {
                       onChangeText={setAmount}
                       placeholder="0"
                       placeholderTextColor={colors.textMuted}
-                      autoFocus={!isEditing}
                       keyboardType="decimal-pad"
+                      showSoftInputOnFocus
                       returnKeyType="next"
                       onSubmitEditing={() => descriptionInputRef.current?.focus()}
                       blurOnSubmit={false}
@@ -327,7 +335,6 @@ export default function AddExpenseScreen() {
                 style={[
                   styles.fieldCard,
                   { flexDirection: rowDirection },
-                  !description.trim() && styles.fieldCardInvalid,
                 ]}
                 onPress={() => descriptionInputRef.current?.focus()}
                 activeOpacity={0.8}
@@ -439,84 +446,95 @@ export default function AddExpenseScreen() {
 
               {splitExpanded && (
                 <View style={styles.splitEditor}>
-                  <View style={[styles.splitTotalsRow, { flexDirection: rowDirection }]}>
-                    <Text style={[styles.splitTotalText, { textAlign }]}>
-                      {t.splitScreen.totalLabel} {formatAmount(parsedAmount, currencyCode)}
-                    </Text>
-                    <Text style={[styles.splitAssignedText, { textAlign }]}>
-                      {t.splitScreen.assigned} {formatAmount(assignedTotal, currencyCode)}
-                    </Text>
-                  </View>
-
-                  <View style={[styles.participantRow, { flexDirection: rowDirection }]}>
-                    <View style={[styles.avatar, { backgroundColor: ME_AVATAR.tint }]}>
-                      <Text style={[styles.avatarText, { color: ME_AVATAR.color }]}>
-                        {t.companions.me.slice(0, 1).toUpperCase()}
-                      </Text>
-                    </View>
-                    <View style={styles.participantTextBlock}>
-                      <Text style={[styles.participantName, { textAlign }]}>{t.companions.me}</Text>
-                      <Text style={[styles.autoHint, { textAlign }]}>{t.splitScreen.autoHint}</Text>
-                    </View>
-                    <Text style={[styles.meAmount, overAllocated && styles.meAmountNegative]}>
-                      {formatAmount(meAmount, currencyCode)}
-                    </Text>
-                  </View>
-
                   {vacation.companions.length === 0 ? (
                     <Text style={[styles.emptySplitText, { textAlign }]}>
                       {t.splitScreen.emptyCompanions}
                     </Text>
                   ) : (
-                    vacation.companions.map((companion, index) => {
-                      const palette = companionAvatarColor(index);
-                      return (
-                        <View
-                          key={companion.id}
-                          style={[styles.participantRow, { flexDirection: rowDirection }]}
-                        >
-                          <View style={[styles.avatar, { backgroundColor: palette.tint }]}>
-                            <Text style={[styles.avatarText, { color: palette.color }]}>
-                              {companion.name.slice(0, 1).toUpperCase()}
-                            </Text>
-                          </View>
-                          <Text
-                            style={[styles.participantName, { textAlign, flex: 1 }]}
-                            numberOfLines={1}
-                          >
-                            {companion.name}
-                          </Text>
-                          <View style={[styles.splitAmountInputWrap, { flexDirection: rowDirection }]}>
-                            <Text style={styles.splitCurrencyPrefix}>
-                              {currencyInfo(currencyCode).symbol}
-                            </Text>
-                            <TextInput
-                              style={[styles.splitAmountInput, { textAlign }]}
-                              value={splitInputs[companion.id] ?? ''}
-                              onChangeText={(text) =>
-                                setSplitInputs((previous) => ({
-                                  ...previous,
-                                  [companion.id]: text,
-                                }))
-                              }
-                              placeholder="0"
-                              placeholderTextColor={colors.textMuted}
-                              keyboardType="decimal-pad"
-                              onFocus={(e) => scrollToFocusedInput(scrollViewRef, e)}
-                            />
-                          </View>
-                        </View>
-                      );
-                    })
-                  )}
+                    <>
+                      <View style={[styles.splitTotalsRow, { flexDirection: rowDirection }]}>
+                        <Text style={[styles.splitTotalText, { textAlign }]}>
+                          {t.splitScreen.totalLabel} {formatAmount(parsedAmount, currencyCode)}
+                        </Text>
+                        <Text style={[styles.splitAssignedText, { textAlign }]}>
+                          {t.splitScreen.assigned} {formatAmount(assignedTotal, currencyCode)}
+                        </Text>
+                      </View>
 
-                  {overAllocated && (
-                    <View style={[styles.overAllocatedBanner, { flexDirection: rowDirection }]}>
-                      <Ionicons name="alert-circle-outline" size={17} color="#B03A52" />
-                      <Text style={[styles.overAllocatedText, { textAlign }]}>
-                        {t.splitScreen.overAllocated}
-                      </Text>
-                    </View>
+                      <View style={[styles.participantRow, { flexDirection: rowDirection }]}>
+                        <View style={[styles.avatar, { backgroundColor: ME_AVATAR.tint }]}>
+                          <Text style={[styles.avatarText, { color: ME_AVATAR.color }]}>
+                            {t.companions.me.slice(0, 1).toUpperCase()}
+                          </Text>
+                        </View>
+                        <View style={styles.participantTextBlock}>
+                          <Text style={[styles.participantName, { textAlign }]}>
+                            {t.companions.me}
+                          </Text>
+                          <Text style={[styles.autoHint, { textAlign }]}>
+                            {t.splitScreen.autoHint}
+                          </Text>
+                        </View>
+                        <Text style={[styles.meAmount, overAllocated && styles.meAmountNegative]}>
+                          {formatAmount(meAmount, currencyCode)}
+                        </Text>
+                      </View>
+
+                      {vacation.companions.map((companion, index) => {
+                        const palette = companionAvatarColor(index);
+                        return (
+                          <View
+                            key={companion.id}
+                            style={[styles.participantRow, { flexDirection: rowDirection }]}
+                          >
+                            <View style={[styles.avatar, { backgroundColor: palette.tint }]}>
+                              <Text style={[styles.avatarText, { color: palette.color }]}>
+                                {companion.name.slice(0, 1).toUpperCase()}
+                              </Text>
+                            </View>
+                            <Text
+                              style={[styles.participantName, { textAlign, flex: 1 }]}
+                              numberOfLines={1}
+                            >
+                              {companion.name}
+                            </Text>
+                            <View
+                              style={[
+                                styles.splitAmountInputWrap,
+                                { flexDirection: rowDirection },
+                              ]}
+                            >
+                              <Text style={styles.splitCurrencyPrefix}>
+                                {currencyInfo(currencyCode).symbol}
+                              </Text>
+                              <TextInput
+                                style={[styles.splitAmountInput, { textAlign }]}
+                                value={splitInputs[companion.id] ?? ''}
+                                onChangeText={(text) =>
+                                  setSplitInputs((previous) => ({
+                                    ...previous,
+                                    [companion.id]: text,
+                                  }))
+                                }
+                                placeholder="0"
+                                placeholderTextColor={colors.textMuted}
+                                keyboardType="decimal-pad"
+                                onFocus={(e) => scrollToFocusedInput(scrollViewRef, e)}
+                              />
+                            </View>
+                          </View>
+                        );
+                      })}
+
+                      {overAllocated && (
+                        <View style={[styles.overAllocatedBanner, { flexDirection: rowDirection }]}>
+                          <Ionicons name="alert-circle-outline" size={17} color="#B03A52" />
+                          <Text style={[styles.overAllocatedText, { textAlign }]}>
+                            {t.splitScreen.overAllocated}
+                          </Text>
+                        </View>
+                      )}
+                    </>
                   )}
                 </View>
               )}
@@ -547,7 +565,36 @@ export default function AddExpenseScreen() {
                   );
                 })}
               </View>
+              {isEditing && (
+                <TouchableOpacity
+                  style={[
+                    styles.deleteExpenseButton,
+                    { alignSelf: isRTL ? 'flex-end' : 'flex-start' },
+                  ]}
+                  onPress={() => setDeleteConfirmVisible(true)}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.deleteExpenseText}>{t.add.deleteExpense}</Text>
+                </TouchableOpacity>
+              )}
             </ScrollView>
+            {!isEditing && (
+              <TouchableOpacity
+                ref={saveButtonRef}
+                style={[
+                  styles.floatingSaveButton,
+                  { flexDirection: rowDirection },
+                  !canSave && styles.saveButtonDisabled,
+                ]}
+                onPress={handleSubmit}
+                disabled={!canSave}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="checkmark-circle-outline" size={19} color="#fff" />
+                <Text style={styles.saveButtonText}>{t.common.save}</Text>
+              </TouchableOpacity>
+            )}
           </KeyboardAvoidingView>
           </View>
         </Animated.View>
@@ -571,6 +618,42 @@ export default function AddExpenseScreen() {
         onSelect={handleDateSelect}
         onClose={() => setDateModalVisible(false)}
       />
+      <Modal
+        visible={deleteConfirmVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteConfirmVisible(false)}
+      >
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <Text style={[styles.confirmTitle, { textAlign }]}>
+              {t.manage.deleteConfirmTitle}
+            </Text>
+            {existingExpense && (
+              <Text style={[styles.confirmMessage, { textAlign }]}>
+                {formatAmount(existingExpense.amount, existingExpense.currencyCode)}
+                {existingExpense.description ? ` — ${existingExpense.description}` : ''}
+              </Text>
+            )}
+            <View style={styles.confirmActions}>
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.confirmCancelButton]}
+                onPress={() => setDeleteConfirmVisible(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.confirmCancelText}>{t.manage.cancel}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.confirmButton, styles.confirmDeleteButton]}
+                onPress={handleDelete}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.confirmDeleteText}>{t.manage.delete}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
@@ -626,6 +709,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   container: { padding: 20, paddingBottom: 20 },
+  containerWithFloatingSave: { paddingBottom: 104 },
   convertedHint: {
     fontSize: 13,
     color: colors.textMuted,
@@ -654,7 +738,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 5 },
     elevation: 2,
   },
-  amountBlockInvalid: { borderColor: '#F1C7D2' },
   amountRow: { flex: 1, alignItems: 'stretch', gap: 14 },
   amountColumn: { flex: 1, minWidth: 0, justifyContent: 'center', alignItems: 'flex-start' },
   currencyButton: {
@@ -712,7 +795,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
-  fieldCardInvalid: { borderColor: '#F1C7D2' },
   fieldIconBadge: {
     width: 40,
     height: 40,
@@ -832,19 +914,41 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
   },
   categoryChipLabelSelected: { color: colors.primaryDark, fontWeight: '700' },
-  saveButton: {
+  deleteExpenseButton: { paddingVertical: 8, marginBottom: 12 },
+  deleteExpenseText: { fontSize: 13, fontWeight: '600', color: colors.danger },
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(24, 24, 27, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+  },
+  confirmCard: { width: '100%', backgroundColor: colors.card, borderRadius: 20, padding: 22 },
+  confirmTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
+  confirmMessage: { fontSize: 15, color: colors.textMuted, marginTop: 8 },
+  confirmActions: { flexDirection: 'row', marginTop: 22, gap: 10 },
+  confirmButton: { flex: 1, borderRadius: 12, paddingVertical: 13, alignItems: 'center' },
+  confirmCancelButton: { backgroundColor: colors.background },
+  confirmCancelText: { color: colors.text, fontWeight: '600', fontSize: 15 },
+  confirmDeleteButton: { backgroundColor: colors.danger },
+  confirmDeleteText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  floatingSaveButton: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: 20,
     backgroundColor: colors.primary,
     borderRadius: 18,
     height: 54,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 9,
-    marginBottom: 16,
     shadowColor: colors.primary,
     shadowOpacity: 0.4,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
+    elevation: 8,
+    zIndex: 10,
   },
   saveButtonDisabled: { backgroundColor: colors.border, shadowOpacity: 0, elevation: 0 },
   saveButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },

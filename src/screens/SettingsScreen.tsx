@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Linking,
   Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,7 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -21,7 +20,6 @@ import { useExpenses } from '../storage/ExpensesContext';
 import { useVacations } from '../storage/VacationsContext';
 import { PaymentMethod } from '../types/paymentMethod';
 import { paymentMethodName } from '../utils/paymentMethodName';
-import LanguagePickerModal from '../components/LanguagePickerModal';
 import { scrollNodeIntoViewAboveKeyboard, scrollToFocusedInput } from '../utils/scrollToFocusedInput';
 import { EXPENSE_GROUPINGS, useExpenseGrouping } from '../storage/ExpenseGroupingContext';
 import { useExchangeRates } from '../storage/ExchangeRatesContext';
@@ -50,43 +48,13 @@ const METHOD_ICON_PALETTE = [
 const KOFI_ID = 'N7J8252YBS';
 const KOFI_URL = `https://ko-fi.com/${KOFI_ID}`;
 
-// Rendered inside an iframe (not injected into the app's own document) because the
-// Ko-fi widget script calls document.write(), which — if run against a document that
-// has already finished loading, as ours has — wipes out the entire page.
-const KOFI_IFRAME_SRC_DOC = `
-<!DOCTYPE html>
-<html>
-  <head>
-    <style>html, body { margin: 0; padding: 0; overflow: hidden; background: transparent; }</style>
-  </head>
-  <body>
-    <script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script>
-    <script type='text/javascript'>
-      kofiwidget2.init('Buy me a Coffee', '#9d5efb', '${KOFI_ID}');
-      kofiwidget2.draw();
-    </script>
-  </body>
-</html>
-`;
-
-function KofiWebWidget() {
-  return React.createElement('iframe', {
-    srcDoc: KOFI_IFRAME_SRC_DOC,
-    title: 'Ko-fi',
-    scrolling: 'no',
-    style: { border: 'none', width: 230, height: 62 },
-  });
-}
-
 export default function SettingsScreen() {
   const navigation = useNavigation();
-  const { languageCode, language, t, isRTL } = useLanguage();
+  const insets = useSafeAreaInsets();
+  const { languageCode, language, t, isRTL, setLanguage } = useLanguage();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
-  const [languageModalVisible, setLanguageModalVisible] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
-
-  const currentLanguage = LANGUAGES.find((l) => l.code === languageCode);
 
   const { vacations, activeVacationId, setActiveVacationId } = useVacations();
   const { groupBy, setGroupBy } = useExpenseGrouping();
@@ -314,17 +282,27 @@ export default function SettingsScreen() {
         </View>
 
         <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.language}</Text>
-        <TouchableOpacity
-          style={[styles.card, styles.row, { flexDirection: rowDirection }]}
-          onPress={() => setLanguageModalVisible(true)}
-          activeOpacity={0.7}
-        >
-          <View style={[styles.languageIconBadge]}>
-            <Ionicons name="globe-outline" size={19} color="#7C3AED" />
-          </View>
-          <Text style={[styles.rowLabel, { textAlign }]}>{currentLanguage?.nativeLabel}</Text>
-          <Text style={styles.chevron}>{isRTL ? '‹' : '›'}</Text>
-        </TouchableOpacity>
+        <View style={styles.card}>
+          {LANGUAGES.map((option, index) => (
+            <TouchableOpacity
+              key={option.code}
+              style={[
+                styles.languageRow,
+                { flexDirection: rowDirection },
+                index < LANGUAGES.length - 1 && styles.methodRowBorder,
+              ]}
+              onPress={() => setLanguage(option.code)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.rowLabel, { textAlign }]}>{option.nativeLabel}</Text>
+              <Ionicons
+                name={languageCode === option.code ? 'radio-button-on' : 'radio-button-off'}
+                size={20}
+                color={languageCode === option.code ? colors.primary : colors.textMuted}
+              />
+            </TouchableOpacity>
+          ))}
+        </View>
 
         <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.paymentMethods}</Text>
         <Text style={[styles.sectionHint, { textAlign }]}>{t.settings.paymentMethodsHint}</Text>
@@ -476,27 +454,19 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.support}</Text>
-        {Platform.OS === 'web' ? (
-          <View style={styles.kofiWebWrap}>
-            <KofiWebWidget />
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={[styles.kofiButton, { flexDirection: rowDirection }]}
-            onPress={() => Linking.openURL(KOFI_URL)}
-            activeOpacity={0.85}
-          >
-            <Ionicons name="cafe-outline" size={18} color={colors.primaryDark} />
-            <Text style={styles.kofiButtonText}>{t.settings.buyMeCoffee}</Text>
-          </TouchableOpacity>
-        )}
       </ScrollView>
 
-      <LanguagePickerModal
-        visible={languageModalVisible}
-        onClose={() => setLanguageModalVisible(false)}
-      />
+      <TouchableOpacity
+        style={[
+          styles.kofiButton,
+          { flexDirection: rowDirection, bottom: Math.max(insets.bottom, 12) + 12 },
+        ]}
+        onPress={() => Linking.openURL(KOFI_URL)}
+        activeOpacity={0.85}
+      >
+        <Ionicons name="cafe-outline" size={19} color="#fff" />
+        <Text style={styles.kofiButtonText}>{t.settings.buyMeCoffee}</Text>
+      </TouchableOpacity>
 
       <Modal
         visible={pendingDeleteMethod !== null}
@@ -539,7 +509,7 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  scrollContent: { paddingBottom: 32 },
+  scrollContent: { paddingBottom: 110 },
   headerRow: {
     alignItems: 'center',
     gap: 12,
@@ -585,12 +555,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
-  row: {
-    alignItems: 'center',
-    gap: 13,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
   vacationRow: {
     alignItems: 'center',
     gap: 13,
@@ -633,17 +597,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#FBF9FF',
   },
   newVacationButtonText: { fontSize: 15, fontWeight: '700', color: colors.primary },
-  languageIconBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    backgroundColor: '#F1EAFE',
+  languageRow: {
     alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    gap: 13,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
   rowLabel: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
-  chevron: { fontSize: 20, color: colors.textMuted },
   methodRow: {
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -720,18 +680,23 @@ const styles = StyleSheet.create({
   addButtonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   addButtonTextDisabled: { color: '#B4B4BE' },
   kofiButton: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
     height: 52,
-    marginHorizontal: 20,
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#DDD1FA',
-    backgroundColor: '#F5F1FE',
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 9,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 8,
+    zIndex: 10,
   },
-  kofiButtonText: { fontSize: 16, fontWeight: '700', color: colors.primaryDark },
-  kofiWebWrap: { marginHorizontal: 20 },
+  kofiButtonText: { fontSize: 16, fontWeight: '700', color: '#fff' },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(24, 24, 27, 0.45)',

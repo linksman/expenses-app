@@ -20,6 +20,7 @@ export interface Translations {
     splitNotSplit: string;
     splitWith: string;
     splitLockedHint: string;
+    deleteExpense: string;
   };
   manage: {
     title: string;
@@ -155,6 +156,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       splitNotSplit: '-',
       splitWith: 'Split with:',
       splitLockedHint: "Split expense total can't be changed here — edit the split instead.",
+      deleteExpense: 'Delete Expense',
     },
     manage: {
       title: 'Your Expenses',
@@ -284,6 +286,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       splitWith: 'Partagée avec :',
       splitLockedHint:
         "Le total d'une dépense partagée ne peut pas être modifié ici — modifiez le partage à la place.",
+      deleteExpense: 'Supprimer la dépense',
     },
     manage: {
       title: 'Vos dépenses',
@@ -415,6 +418,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       splitWith: 'Aufgeteilt mit:',
       splitLockedHint:
         'Der Gesamtbetrag einer aufgeteilten Ausgabe kann hier nicht geändert werden — bearbeite stattdessen die Aufteilung.',
+      deleteExpense: 'Ausgabe löschen',
     },
     manage: {
       title: 'Deine Ausgaben',
@@ -546,6 +550,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       splitWith: 'Dividido con:',
       splitLockedHint:
         'El total de un gasto dividido no se puede cambiar aquí — edita la división en su lugar.',
+      deleteExpense: 'Eliminar gasto',
     },
     manage: {
       title: 'Tus gastos',
@@ -675,6 +680,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       splitNotSplit: '-',
       splitWith: 'מפוצלת עם:',
       splitLockedHint: 'לא ניתן לשנות כאן את סכום ההוצאה המפוצלת — יש לערוך את הפיצול במקום זאת.',
+      deleteExpense: 'מחיקת הוצאה',
     },
     manage: {
       title: 'ההוצאות שלך',

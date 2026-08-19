@@ -1,14 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  Modal,
   SectionList,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -54,7 +53,8 @@ interface Section {
 
 export default function ManageExpensesScreen() {
   const navigation = useNavigation();
-  const { expenses, deleteExpense } = useExpenses();
+  const insets = useSafeAreaInsets();
+  const { expenses } = useExpenses();
   const { methods } = usePaymentMethods();
   const { t, language, isRTL } = useLanguage();
   const rowDirection = isRTL ? 'row-reverse' : 'row';
@@ -62,7 +62,6 @@ export default function ManageExpensesScreen() {
   const { ensureRates, convert: rawConvert } = useExchangeRates();
   const { groupBy } = useExpenseGrouping();
   const textAlign = isRTL ? 'right' : 'left';
-  const [pendingDelete, setPendingDelete] = useState<Expense | null>(null);
   const [collapsedOverrides, setCollapsedOverrides] = useState<Record<string, boolean>>({});
   const [highlightedExpenseId, setHighlightedExpenseId] = useState<string | null>(null);
   const highlightAnim = useRef(new Animated.Value(0)).current;
@@ -180,13 +179,6 @@ export default function ManageExpensesScreen() {
     isSectionCollapsed(s.key, s.title) ? { ...s, data: [] } : s
   );
 
-  const confirmDelete = (expense: Expense) => setPendingDelete(expense);
-
-  const handleConfirmDelete = () => {
-    if (pendingDelete) deleteExpense(pendingDelete.id);
-    setPendingDelete(null);
-  };
-
   const canAdd = !!selectedVacation;
 
   const openVacationForm = (vacationId?: string) => {
@@ -261,65 +253,50 @@ export default function ManageExpensesScreen() {
           </TouchableOpacity>
         </View>
 
-        <LinearGradient
-          colors={TOTALS_CARD_GRADIENT}
-          start={{ x: isRTL ? 0 : 1, y: 0 }}
-          end={{ x: isRTL ? 1 : 0, y: 0 }}
-          style={styles.totalsCard}
+        <TouchableOpacity
+          style={styles.summaryCardButton}
+          onPress={() => selectedVacation && openVacationForm(selectedVacation.id)}
+          activeOpacity={0.82}
+          accessibilityRole="button"
+          accessibilityLabel={t.vacations.editTitle}
         >
-          <View style={[styles.cardTitleRow, { flexDirection: rowDirection }]}>
-            <Text style={[styles.cardTitleName, { textAlign }]} numberOfLines={1}>
-              {selectedVacation?.name ?? ''}
-            </Text>
-            {selectedVacation && (
-              <TouchableOpacity
-                style={styles.editNameButton}
-                onPress={() => openVacationForm(selectedVacation.id)}
-                activeOpacity={0.7}
-                accessibilityLabel={t.vacations.editTitle}
-              >
-                <Ionicons name="pencil" size={13} color={colors.primary} />
-              </TouchableOpacity>
-            )}
-          </View>
-          <View style={[styles.totalsRow, { flexDirection: rowDirection }]}>
-            <View style={styles.totalsMain}>
-              <Text style={[styles.totalsAmount, { textAlign }]}>{heroMainTotal}</Text>
-              {heroOtherText ? (
-                <Text style={[styles.totalsSecondaryAmount, { textAlign }]}>{heroOtherText}</Text>
-              ) : null}
-              {heroLeadText ? (
-                <Text style={[styles.totalsConverted, { textAlign }]}>{heroLeadText}</Text>
-              ) : null}
-            </View>
-            <View style={[styles.countPill, { flexDirection: rowDirection }]}>
-              <View style={styles.countPillDot} />
-              <Text style={styles.countPillText}>
-                {filteredExpenses.length} {t.manage.expensesCount}
-              </Text>
-            </View>
-          </View>
-        </LinearGradient>
-
-        <View style={[styles.actionsRow, { flexDirection: rowDirection }]}>
-          <TouchableOpacity
-            style={[
-              styles.addButton,
-              { flexDirection: rowDirection },
-              !canAdd && styles.addButtonDisabled,
-            ]}
-            onPress={() => {
-              if (canAdd && selectedVacation) {
-                (navigation as any).navigate('AddExpense', { vacationId: selectedVacation.id });
-              }
-            }}
-            disabled={!canAdd}
-            activeOpacity={0.85}
+          <LinearGradient
+            colors={TOTALS_CARD_GRADIENT}
+            start={{ x: isRTL ? 0 : 1, y: 0 }}
+            end={{ x: isRTL ? 1 : 0, y: 0 }}
+            style={styles.totalsCard}
           >
-            <Ionicons name="add" size={18} color="#fff" />
-            <Text style={styles.addButtonText}>{t.add.save}</Text>
-          </TouchableOpacity>
-        </View>
+            <View style={[styles.cardTitleRow, { flexDirection: rowDirection }]}>
+              <Text style={[styles.cardTitleName, { textAlign }]} numberOfLines={1}>
+                {selectedVacation?.name ?? ''}
+              </Text>
+              <View style={styles.summaryChevron}>
+                <Ionicons
+                  name={isRTL ? 'chevron-back' : 'chevron-forward'}
+                  size={15}
+                  color={colors.primary}
+                />
+              </View>
+            </View>
+            <View style={[styles.totalsRow, { flexDirection: rowDirection }]}>
+              <View style={styles.totalsMain}>
+                <Text style={[styles.totalsAmount, { textAlign }]}>{heroMainTotal}</Text>
+                {heroOtherText ? (
+                  <Text style={[styles.totalsSecondaryAmount, { textAlign }]}>{heroOtherText}</Text>
+                ) : null}
+                {heroLeadText ? (
+                  <Text style={[styles.totalsConverted, { textAlign }]}>{heroLeadText}</Text>
+                ) : null}
+              </View>
+              <View style={[styles.countPill, { flexDirection: rowDirection }]}>
+                <View style={styles.countPillDot} />
+                <Text style={styles.countPillText}>
+                  {filteredExpenses.length} {t.manage.expensesCount}
+                </Text>
+              </View>
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
 
       </View>
 
@@ -398,7 +375,6 @@ export default function ManageExpensesScreen() {
                     expenseId: item.id,
                   })
                 }
-                onLongPress={() => confirmDelete(item)}
                 activeOpacity={0.6}
               >
                 {isHighlighted && (
@@ -435,12 +411,6 @@ export default function ManageExpensesScreen() {
                       </Text>
                     ) : null;
                   })()}
-                  <TouchableOpacity
-                    onPress={() => confirmDelete(item)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Text style={styles.deleteText}>{t.manage.delete}</Text>
-                  </TouchableOpacity>
                 </View>
               </TouchableOpacity>
             );
@@ -448,52 +418,23 @@ export default function ManageExpensesScreen() {
         />
       )}
 
-      <Modal
-        visible={pendingDelete !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setPendingDelete(null)}
+      <TouchableOpacity
+        style={[
+          styles.floatingAddButton,
+          { flexDirection: rowDirection, bottom: Math.max(insets.bottom, 12) + 12 },
+          !canAdd && styles.addButtonDisabled,
+        ]}
+        onPress={() => {
+          if (canAdd && selectedVacation) {
+            (navigation as any).navigate('AddExpense', { vacationId: selectedVacation.id });
+          }
+        }}
+        disabled={!canAdd}
+        activeOpacity={0.85}
       >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={[styles.modalTitle, { textAlign }]}>
-              {t.manage.deleteConfirmTitle}
-            </Text>
-            {pendingDelete && (
-              <View style={[styles.modalDetailRow, { flexDirection: rowDirection }]}>
-                {pendingDelete.category && (
-                  <Ionicons
-                    name={categoryInfo(pendingDelete.category).icon}
-                    size={16}
-                    color={categoryInfo(pendingDelete.category).color}
-                    style={styles.modalDetailIcon}
-                  />
-                )}
-                <Text style={[styles.modalDetail, { textAlign }]}>
-                  {formatAmount(pendingDelete.amount, pendingDelete.currencyCode)}
-                  {pendingDelete.description ? ` — ${pendingDelete.description}` : ''}
-                </Text>
-              </View>
-            )}
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalCancelButton]}
-                onPress={() => setPendingDelete(null)}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.modalCancelText}>{t.manage.cancel}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.modalDeleteButton]}
-                onPress={handleConfirmDelete}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.modalDeleteText}>{t.manage.delete}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        <Ionicons name="add" size={20} color="#fff" />
+        <Text style={styles.addButtonText}>{t.add.save}</Text>
+      </TouchableOpacity>
 
     </SafeAreaView>
   );
@@ -508,24 +449,31 @@ const styles = StyleSheet.create({
   },
   cardTitleRow: {
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 7,
     marginBottom: 14,
   },
   cardTitleName: {
+    flex: 1,
     flexShrink: 1,
     fontSize: 18,
     fontWeight: '800',
     color: colors.text,
     letterSpacing: -0.2,
   },
-  editNameButton: {
+  summaryChevron: {
     width: 26,
     height: 26,
     borderRadius: 9,
-    backgroundColor: '#F5F1FE',
+    backgroundColor: 'rgba(245, 241, 254, 0.9)',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+  },
+  summaryCardButton: {
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#DDD1FA',
   },
   settingsButtonBox: {
     width: 34,
@@ -582,9 +530,10 @@ const styles = StyleSheet.create({
   },
   countPillDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primaryDark },
   countPillText: { fontSize: 12, fontWeight: '600', color: colors.primary },
-  actionsRow: { gap: 10 },
-  addButton: {
-    flex: 1,
+  floatingAddButton: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
     height: 54,
     backgroundColor: colors.primary,
     borderRadius: 18,
@@ -595,11 +544,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
-    elevation: 3,
+    elevation: 8,
+    zIndex: 10,
   },
   addButtonDisabled: { backgroundColor: colors.border },
   addButtonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
-  listContent: { paddingHorizontal: 20, paddingBottom: 32 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 110 },
   sectionHeader: {
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -653,7 +603,6 @@ const styles = StyleSheet.create({
   rowRight: { alignItems: 'flex-end' },
   rowAmount: { fontSize: 16, fontWeight: '700', color: colors.text },
   rowConverted: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
-  deleteText: { fontSize: 12, color: colors.danger, marginTop: 4, fontWeight: '600' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 34 },
   emptyIconTile: {
     width: 104,
@@ -727,32 +676,4 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   noVacationsButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(24, 24, 27, 0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-  },
-  modalCard: {
-    width: '100%',
-    backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 22,
-  },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
-  modalDetailRow: { alignItems: 'center', marginTop: 8 },
-  modalDetailIcon: { marginHorizontal: 4 },
-  modalDetail: { fontSize: 15, color: colors.textMuted },
-  modalActions: { flexDirection: 'row', marginTop: 22, gap: 10 },
-  modalButton: {
-    flex: 1,
-    borderRadius: 12,
-    paddingVertical: 13,
-    alignItems: 'center',
-  },
-  modalCancelButton: { backgroundColor: colors.background },
-  modalCancelText: { color: colors.text, fontWeight: '600', fontSize: 15 },
-  modalDeleteButton: { backgroundColor: colors.danger },
-  modalDeleteText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
