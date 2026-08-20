@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import { Vacation } from '../types/vacation';
 import { TravelCompanion } from '../types/companion';
+import { type DestinationImageResult, findDestinationImage } from '../utils/destinationImage';
 
 const VACATIONS_KEY = 'vacation-expenses:vacations:v1';
 const ACTIVE_VACATION_KEY = 'vacation-expenses:active-vacation:v1';
@@ -19,8 +20,20 @@ const LEGACY_ACTIVE_VACATION_KEY = 'vacation-expenses:active-group:v1';
 
 // Vacations persisted before travel companions existed lack the field entirely.
 function normalizeVacation(raw: any): Vacation {
-  if (raw.companions !== undefined) return raw;
-  return { ...raw, companions: [] };
+  const hasUnsplashImage = !!raw.summaryImageUrl && !!raw.summaryImagePhotographerName;
+  return {
+    ...raw,
+    companions: raw.companions ?? [],
+    summaryImageLocalUri: undefined,
+    ...(!hasUnsplashImage
+      ? {
+          summaryImageUrl: undefined,
+          summaryImagePhotographerName: undefined,
+          summaryImagePhotographerUrl: undefined,
+          summaryImageUnsplashUrl: undefined,
+        }
+      : {}),
+  };
 }
 
 interface VacationsContextValue {
@@ -42,6 +55,7 @@ interface VacationsContextValue {
     companions: TravelCompanion[]
   ) => Promise<Vacation>;
   deleteVacation: (id: string) => Promise<void>;
+  setVacationSummaryImage: (id: string, image: DestinationImageResult | null) => void;
   setActiveVacationId: (id: string) => void;
 }
 
@@ -51,6 +65,24 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
   const [vacations, setVacations] = useState<Vacation[]>([]);
   const [activeVacationId, setActiveVacationIdState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const setVacationSummaryImage = useCallback((id: string, image: DestinationImageResult | null) => {
+    setVacations((current) => {
+      const next = current.map((vacation) =>
+        vacation.id === id
+          ? {
+              ...vacation,
+              summaryImageUrl: image?.url ?? '',
+              summaryImagePhotographerName: image?.photographerName,
+              summaryImagePhotographerUrl: image?.photographerUrl,
+              summaryImageUnsplashUrl: image?.unsplashUrl,
+            }
+          : vacation
+      );
+      void AsyncStorage.setItem(VACATIONS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -84,6 +116,20 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  // Older vacations predate destination photos. Resolve them once after storage
+  // loads so users don't have to rename an existing vacation to trigger a lookup.
+  useEffect(() => {
+    if (loading) return;
+    for (const vacation of vacations) {
+      if (vacation.summaryImageUrl && vacation.summaryImagePhotographerName) continue;
+      void findDestinationImage(vacation.name).then((image) => {
+        setVacationSummaryImage(vacation.id, image);
+      });
+    }
+    // This is intentionally a one-time migration pass when loading flips false.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
   const setActiveVacationId = useCallback((id: string) => {
     setActiveVacationIdState(id);
     AsyncStorage.setItem(ACTIVE_VACATION_KEY, id);
@@ -104,6 +150,11 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
         companions,
         createdAt: new Date().toISOString(),
       };
+      const image = await findDestinationImage(vacation.name);
+      vacation.summaryImageUrl = image?.url ?? '';
+      vacation.summaryImagePhotographerName = image?.photographerName;
+      vacation.summaryImagePhotographerUrl = image?.photographerUrl;
+      vacation.summaryImageUnsplashUrl = image?.unsplashUrl;
       const next = [...vacations, vacation];
       setVacations(next);
       await AsyncStorage.setItem(VACATIONS_KEY, JSON.stringify(next));
@@ -164,6 +215,7 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
       addVacation,
       updateVacation,
       deleteVacation,
+      setVacationSummaryImage,
       setActiveVacationId,
     }),
     [
@@ -174,6 +226,7 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
       addVacation,
       updateVacation,
       deleteVacation,
+      setVacationSummaryImage,
       setActiveVacationId,
     ]
   );

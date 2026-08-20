@@ -60,7 +60,11 @@ function AppNavigator() {
         <RootStack.Screen
           name="VacationForm"
           component={VacationFormScreen}
-          options={{ presentation: 'modal' }}
+          options={{
+            presentation: 'transparentModal',
+            animation: 'none',
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
         />
       </RootStack.Navigator>
     </NavigationContainer>

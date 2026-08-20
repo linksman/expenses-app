@@ -200,6 +200,7 @@ export default function SettingsScreen() {
                 ]}
                 onPress={() => {
                   if (!selected) setActiveVacationId(vacation.id);
+                  navigation.goBack();
                 }}
                 activeOpacity={0.7}
               >

@@ -6,5 +6,9 @@ export interface Vacation {
   defaultCurrency: string;
   leadCurrency: string | null;
   companions: TravelCompanion[];
+  summaryImageUrl?: string;
+  summaryImagePhotographerName?: string;
+  summaryImagePhotographerUrl?: string;
+  summaryImageUnsplashUrl?: string;
   createdAt: string;
 }

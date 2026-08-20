@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Linking,
+  PanResponder,
   SectionList,
   StyleSheet,
   Text,
@@ -11,6 +13,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { colors } from '../theme/colors';
 import { useExpenses } from '../storage/ExpensesContext';
 import { usePaymentMethods } from '../storage/PaymentMethodsContext';
@@ -37,7 +40,14 @@ const HIGHLIGHT_DURATION_MS = 1000;
 const HIGHLIGHT_FADE_MS = 1000;
 const HIGHLIGHT_COLOR = '#DFF5E1';
 
-const TOTALS_CARD_GRADIENT = ['#702ADC', '#FFFFFF'] as const;
+const PAGE_ACCENT = '#27272A';
+const PAGE_ACCENT_DARK = '#18181B';
+const PAGE_ACCENT_SOFT = '#F4F4F5';
+const TOTALS_CARD_GRADIENT = [PAGE_ACCENT, '#FFFFFF'] as const;
+const LOADING_SUMMARY_GRADIENT = ['#D4D4D8', '#F4F4F5'] as const;
+const WORLD_CAPITALS_COLLAGE = require('../../assets/world-capitals-collage.png');
+const SUMMARY_PULL_DISTANCE = 56;
+const SUMMARY_PULL_VELOCITY = 0.45;
 
 function localDateKey(iso: string): string {
   const date = new Date(iso);
@@ -65,6 +75,7 @@ export default function ManageExpensesScreen() {
   const [collapsedOverrides, setCollapsedOverrides] = useState<Record<string, boolean>>({});
   const [highlightedExpenseId, setHighlightedExpenseId] = useState<string | null>(null);
   const highlightAnim = useRef(new Animated.Value(0)).current;
+  const summaryPullY = useRef(new Animated.Value(0)).current;
 
   // After creating a new expense, briefly highlight its row so the user can
   // spot it in the list. Also force-expand its day section in case it isn't
@@ -181,9 +192,38 @@ export default function ManageExpensesScreen() {
 
   const canAdd = !!selectedVacation;
 
-  const openVacationForm = (vacationId?: string) => {
+  const openVacationForm = useCallback((vacationId?: string) => {
     (navigation as any).navigate('VacationForm', vacationId ? { vacationId } : undefined);
-  };
+  }, [navigation]);
+
+  const summaryPullHandlers = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          gesture.dy > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.5,
+        onPanResponderMove: (_, gesture) => {
+          if (gesture.dy > 0) summaryPullY.setValue(Math.min(gesture.dy, 90));
+        },
+        onPanResponderRelease: (_, gesture) => {
+          const shouldOpen =
+            gesture.dy > SUMMARY_PULL_DISTANCE || gesture.vy > SUMMARY_PULL_VELOCITY;
+          Animated.spring(summaryPullY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 5,
+          }).start();
+          if (shouldOpen && activeVacationId) openVacationForm(activeVacationId);
+        },
+        onPanResponderTerminate: () => {
+          Animated.spring(summaryPullY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 5,
+          }).start();
+        },
+      }).panHandlers,
+    [activeVacationId, openVacationForm, summaryPullY]
+  );
 
   if (vacationsLoading) {
     return <SafeAreaView style={styles.safe} edges={['top']} />;
@@ -192,6 +232,12 @@ export default function ManageExpensesScreen() {
   if (vacations.length === 0) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <Image
+          source={WORLD_CAPITALS_COLLAGE}
+          style={styles.noVacationsBackgroundImage}
+          contentFit="cover"
+        />
+        <View pointerEvents="none" style={styles.noVacationsBackgroundWash} />
         <View style={[styles.noVacationsHeaderRow, { justifyContent: isRTL ? 'flex-start' : 'flex-end' }]}>
           <TouchableOpacity
             style={styles.settingsButtonBox}
@@ -202,10 +248,12 @@ export default function ManageExpensesScreen() {
             <Ionicons name="settings-outline" size={17} color="#52525B" />
           </TouchableOpacity>
         </View>
-        <View style={styles.empty}>
+        <View style={styles.noVacationsIconAnchor}>
           <View style={styles.noVacationsIconTile}>
-            <Ionicons name="briefcase-outline" size={48} color="#7C3AED" />
+            <Ionicons name="briefcase-outline" size={48} color={PAGE_ACCENT} />
           </View>
+        </View>
+        <View style={styles.empty}>
           <Text style={styles.noVacationsTitle}>{t.vacations.emptyTitle}</Text>
           <Text style={styles.noVacationsSubtitle}>{t.vacations.emptySubtitle}</Text>
           <TouchableOpacity
@@ -238,78 +286,217 @@ export default function ManageExpensesScreen() {
     leadCurrency && leadTotal !== null && !heroLeadIsRedundant
       ? `(${formatAmount(leadTotal, leadCurrency)})`
       : '';
+  const summaryImageUri =
+    selectedVacation?.summaryImageUrl && selectedVacation.summaryImagePhotographerName
+      ? selectedVacation.summaryImageUrl
+      : '';
+  const summaryImagePending = selectedVacation?.summaryImageUrl === undefined;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      {summaryImageUri ? (
+        <>
+          <Image
+            source={{ uri: summaryImageUri }}
+            style={styles.appBackgroundImage}
+            contentFit="cover"
+            cachePolicy="disk"
+          />
+          <View pointerEvents="none" style={styles.appBackgroundWash} />
+        </>
+      ) : null}
       <View style={styles.container}>
-        <View style={[styles.topRow, { justifyContent: isRTL ? 'flex-start' : 'flex-end' }]}>
-          <TouchableOpacity
-            style={styles.settingsButtonBox}
-            onPress={() => (navigation as any).navigate('Settings')}
-            activeOpacity={0.7}
-            accessibilityLabel={t.settings.title}
-          >
-            <Ionicons name="settings-outline" size={17} color="#52525B" />
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity
-          style={styles.summaryCardButton}
-          onPress={() => selectedVacation && openVacationForm(selectedVacation.id)}
-          activeOpacity={0.82}
-          accessibilityRole="button"
+        <Animated.View
+          style={[styles.summaryCard, { transform: [{ translateY: summaryPullY }] }]}
+          {...summaryPullHandlers}
           accessibilityLabel={t.vacations.editTitle}
         >
+          <View style={styles.totalsCard}>
+          {summaryImageUri ? (
+            <Image
+              key={summaryImageUri}
+              source={{ uri: summaryImageUri }}
+              style={styles.summaryBackgroundImage}
+              contentFit="cover"
+              cachePolicy="disk"
+              transition={200}
+            />
+          ) : null}
           <LinearGradient
-            colors={TOTALS_CARD_GRADIENT}
+            colors={
+              summaryImageUri
+                ? ['rgba(20, 12, 40, 0.30)', 'rgba(20, 12, 40, 0.78)']
+                : summaryImagePending
+                  ? LOADING_SUMMARY_GRADIENT
+                : TOTALS_CARD_GRADIENT
+            }
             start={{ x: isRTL ? 0 : 1, y: 0 }}
             end={{ x: isRTL ? 1 : 0, y: 0 }}
-            style={styles.totalsCard}
+            style={styles.summaryOverlay}
           >
-            <View style={[styles.cardTitleRow, { flexDirection: rowDirection }]}>
-              <Text style={[styles.cardTitleName, { textAlign }]} numberOfLines={1}>
+            <View
+              style={[
+                styles.cardTitleRow,
+                {
+                  flexDirection: rowDirection,
+                  paddingLeft: isRTL ? 42 : 0,
+                  paddingRight: isRTL ? 0 : 42,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.cardTitleName,
+                  summaryImageUri && styles.summaryTextOnImage,
+                  { textAlign },
+                ]}
+                numberOfLines={1}
+              >
                 {selectedVacation?.name ?? ''}
               </Text>
-              <View style={styles.summaryChevron}>
-                <Ionicons
-                  name={isRTL ? 'chevron-back' : 'chevron-forward'}
-                  size={15}
-                  color={colors.primary}
-                />
-              </View>
             </View>
             <View style={[styles.totalsRow, { flexDirection: rowDirection }]}>
               <View style={styles.totalsMain}>
-                <Text style={[styles.totalsAmount, { textAlign }]}>{heroMainTotal}</Text>
+                <Text
+                  style={[
+                    styles.totalsAmount,
+                    summaryImageUri && styles.summaryTextOnImage,
+                    { textAlign },
+                  ]}
+                >
+                  {heroMainTotal}
+                </Text>
                 {heroOtherText ? (
-                  <Text style={[styles.totalsSecondaryAmount, { textAlign }]}>{heroOtherText}</Text>
+                  <Text
+                    style={[
+                      styles.totalsSecondaryAmount,
+                      summaryImageUri && styles.summaryTextOnImage,
+                      { textAlign },
+                    ]}
+                  >
+                    {heroOtherText}
+                  </Text>
                 ) : null}
                 {heroLeadText ? (
-                  <Text style={[styles.totalsConverted, { textAlign }]}>{heroLeadText}</Text>
+                  <Text
+                    style={[
+                      styles.totalsConverted,
+                      summaryImageUri && styles.summaryMutedTextOnImage,
+                      { textAlign },
+                    ]}
+                  >
+                    {heroLeadText}
+                  </Text>
                 ) : null}
               </View>
-              <View style={[styles.countPill, { flexDirection: rowDirection }]}>
-                <View style={styles.countPillDot} />
-                <Text style={styles.countPillText}>
+              <View
+                style={[
+                  styles.countPill,
+                  summaryImageUri && styles.countPillOnImage,
+                  { flexDirection: rowDirection },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.countPillDot,
+                    summaryImageUri && styles.countPillDotOnImage,
+                  ]}
+                />
+                <Text
+                  style={[
+                    styles.countPillText,
+                    summaryImageUri && styles.summaryTextOnImage,
+                  ]}
+                >
                   {filteredExpenses.length} {t.manage.expensesCount}
                 </Text>
               </View>
             </View>
+            {summaryImageUri && selectedVacation?.summaryImagePhotographerName ? (
+              <View style={[styles.photoAttribution, { flexDirection: rowDirection }]}>
+                <Text style={styles.photoAttributionText}>Photo by </Text>
+                <TouchableOpacity
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    if (selectedVacation.summaryImagePhotographerUrl) {
+                      Linking.openURL(selectedVacation.summaryImagePhotographerUrl);
+                    }
+                  }}
+                >
+                  <Text style={styles.photoAttributionLink}>
+                    {selectedVacation.summaryImagePhotographerName}
+                  </Text>
+                </TouchableOpacity>
+                <Text style={styles.photoAttributionText}> on </Text>
+                <TouchableOpacity
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    if (selectedVacation.summaryImageUnsplashUrl) {
+                      Linking.openURL(selectedVacation.summaryImageUnsplashUrl);
+                    }
+                  }}
+                >
+                  <Text style={styles.photoAttributionLink}>Unsplash</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+            <TouchableOpacity
+              style={[
+                styles.summaryPullHandle,
+                summaryImageUri && styles.summaryPullHandleOnImage,
+              ]}
+              onPress={() => {
+                if (selectedVacation) openVacationForm(selectedVacation.id);
+              }}
+              activeOpacity={0.75}
+              accessibilityRole="button"
+              accessibilityLabel={t.vacations.editTitle}
+            >
+              <Ionicons
+                name="chevron-down"
+                size={18}
+                color={summaryImageUri ? '#fff' : PAGE_ACCENT}
+              />
+            </TouchableOpacity>
           </LinearGradient>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.summarySettingsButton,
+              summaryImageUri && styles.summarySettingsButtonOnImage,
+              { left: isRTL ? 14 : undefined, right: isRTL ? undefined : 14 },
+            ]}
+            onPress={() => (navigation as any).navigate('Settings')}
+            activeOpacity={0.7}
+            accessibilityLabel={t.settings.title}
+          >
+            <Ionicons
+              name="settings-outline"
+              size={17}
+              color={summaryImageUri ? '#fff' : '#52525B'}
+            />
+          </TouchableOpacity>
+          </View>
+        </Animated.View>
 
       </View>
 
+      <View style={styles.expensesArea}>
       {filteredExpenses.length === 0 ? (
-        <View style={styles.empty}>
+        <View
+          style={[
+            styles.empty,
+            { paddingBottom: Math.max(insets.bottom, 12) + 66 },
+          ]}
+        >
           <View style={styles.emptyIconTile}>
-            <Ionicons name="receipt-outline" size={48} color="#7C3AED" />
+            <Ionicons name="receipt-outline" size={48} color={PAGE_ACCENT} />
           </View>
           <Text style={styles.emptyText}>{t.manage.emptyTitle}</Text>
           <Text style={styles.emptySubtext}>{t.manage.emptySubtitle}</Text>
         </View>
       ) : (
         <SectionList
+          style={styles.expensesList}
           sections={displaySections}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
@@ -417,6 +604,7 @@ export default function ManageExpensesScreen() {
           }}
         />
       )}
+      </View>
 
       <TouchableOpacity
         style={[
@@ -442,11 +630,12 @@ export default function ManageExpensesScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  container: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16, gap: 18 },
-  topRow: {
-    flexDirection: 'row',
-    minHeight: 32,
+  appBackgroundImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  appBackgroundWash: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.88)',
   },
+  container: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16, gap: 18 },
   cardTitleRow: {
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -461,19 +650,15 @@ const styles = StyleSheet.create({
     color: colors.text,
     letterSpacing: -0.2,
   },
-  summaryChevron: {
-    width: 26,
-    height: 26,
-    borderRadius: 9,
-    backgroundColor: 'rgba(245, 241, 254, 0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  summaryCardButton: {
+  summaryCard: {
     borderRadius: 24,
     borderWidth: 1,
-    borderColor: '#DDD1FA',
+    borderColor: '#D4D4D8',
+    shadowColor: '#18142D',
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
   },
   settingsButtonBox: {
     width: 34,
@@ -491,15 +676,78 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
   },
+  noVacationsBackgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  noVacationsBackgroundWash: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.78)',
+  },
+  noVacationsIconAnchor: {
+    position: 'absolute',
+    top: '22%',
+    left: 0,
+    right: 0,
+    height: 104,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   totalsCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
+  },
+  summaryBackgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  summaryOverlay: {
     borderRadius: 24,
     paddingVertical: 20,
     paddingHorizontal: 22,
-    shadowColor: '#18142D',
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
+  },
+  summaryPullHandle: {
+    marginHorizontal: -22,
+    marginBottom: -20,
+    marginTop: 14,
+    minHeight: 42,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(39, 39, 42, 0.20)',
+    backgroundColor: 'rgba(255, 255, 255, 0.28)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  summaryPullHandleOnImage: {
+    borderTopColor: 'rgba(255, 255, 255, 0.25)',
+    backgroundColor: 'rgba(10, 5, 24, 0.18)',
+  },
+  summarySettingsButton: {
+    position: 'absolute',
+    top: 14,
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(39, 39, 42, 0.16)',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  summarySettingsButtonOnImage: {
+    borderColor: 'rgba(255, 255, 255, 0.28)',
+    backgroundColor: '#241A38',
+  },
+  summaryTextOnImage: { color: '#fff' },
+  summaryMutedTextOnImage: { color: 'rgba(255, 255, 255, 0.82)' },
+  photoAttribution: { alignItems: 'center', justifyContent: 'flex-end', marginTop: 10 },
+  photoAttributionText: { color: 'rgba(255, 255, 255, 0.75)', fontSize: 10 },
+  photoAttributionLink: {
+    color: '#fff',
+    fontSize: 10,
+    textDecorationLine: 'underline',
   },
   totalsRow: { alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
   totalsMain: { flex: 1, minWidth: 0 },
@@ -522,25 +770,27 @@ const styles = StyleSheet.create({
   countPill: {
     alignItems: 'center',
     gap: 7,
-    backgroundColor: '#F5F1FE',
+    backgroundColor: PAGE_ACCENT_SOFT,
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 6,
     flexShrink: 0,
   },
-  countPillDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primaryDark },
-  countPillText: { fontSize: 12, fontWeight: '600', color: colors.primary },
+  countPillDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: PAGE_ACCENT_DARK },
+  countPillText: { fontSize: 12, fontWeight: '600', color: PAGE_ACCENT },
+  countPillOnImage: { backgroundColor: 'rgba(255, 255, 255, 0.20)' },
+  countPillDotOnImage: { backgroundColor: '#fff' },
   floatingAddButton: {
     position: 'absolute',
     left: 20,
     right: 20,
     height: 54,
-    backgroundColor: colors.primary,
+    backgroundColor: PAGE_ACCENT,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: colors.primary,
+    shadowColor: PAGE_ACCENT,
     shadowOpacity: 0.4,
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
@@ -549,6 +799,8 @@ const styles = StyleSheet.create({
   },
   addButtonDisabled: { backgroundColor: colors.border },
   addButtonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
+  expensesArea: { flex: 1, overflow: 'hidden' },
+  expensesList: { flex: 1, backgroundColor: 'transparent' },
   listContent: { paddingHorizontal: 20, paddingBottom: 110 },
   sectionHeader: {
     justifyContent: 'space-between',
@@ -599,7 +851,7 @@ const styles = StyleSheet.create({
   rowMiddle: { flex: 1 },
   rowDescription: { fontSize: 16, fontWeight: '600', color: colors.text },
   rowMethod: { fontSize: 13, color: colors.textMuted, marginTop: 1 },
-  rowSplit: { fontSize: 12, color: colors.primary, marginTop: 2, fontWeight: '600' },
+  rowSplit: { fontSize: 12, color: PAGE_ACCENT, marginTop: 2, fontWeight: '600' },
   rowRight: { alignItems: 'flex-end' },
   rowAmount: { fontSize: 16, fontWeight: '700', color: colors.text },
   rowConverted: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
@@ -608,7 +860,7 @@ const styles = StyleSheet.create({
     width: 104,
     height: 104,
     borderRadius: 34,
-    backgroundColor: '#F5F1FE',
+    backgroundColor: PAGE_ACCENT_SOFT,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
@@ -629,7 +881,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   emptyButton: {
-    backgroundColor: colors.primary,
+    backgroundColor: PAGE_ACCENT,
     borderRadius: 16,
     paddingVertical: 16,
     paddingHorizontal: 28,
@@ -640,10 +892,9 @@ const styles = StyleSheet.create({
     width: 104,
     height: 104,
     borderRadius: 34,
-    backgroundColor: '#F5F1FE',
+    backgroundColor: PAGE_ACCENT_SOFT,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
   },
   noVacationsTitle: {
     fontSize: 22,
@@ -664,12 +915,12 @@ const styles = StyleSheet.create({
     minWidth: 210,
     height: 54,
     borderRadius: 18,
-    backgroundColor: colors.primary,
+    backgroundColor: PAGE_ACCENT,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 9,
     marginTop: 24,
-    shadowColor: colors.primary,
+    shadowColor: PAGE_ACCENT,
     shadowOpacity: 0.4,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },

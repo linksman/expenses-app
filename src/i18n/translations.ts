@@ -235,8 +235,8 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       deleteConfirmTitle: 'Delete Vacation?',
       deleteConfirmMessage: 'This will also permanently delete all expenses in this vacation.',
       createButton: 'Create Vacation',
-      emptyTitle: 'Create your first vacation to get started',
-      emptySubtitle: 'and start keeping track of all your expenses in one place.',
+      emptyTitle: 'Create your first vacation\nto get started',
+      emptySubtitle: 'and start keeping track of\nall your expenses in one place.',
       emptyButton: 'Create Vacation',
     },
     companions: {

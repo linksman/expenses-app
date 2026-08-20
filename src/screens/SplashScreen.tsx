@@ -1,7 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '../storage/LanguageContext';
+
+const WORLD_CAPITALS_COLLAGE = require('../../assets/world-capitals-collage.png');
 
 function LoadingDot({ delay }: { delay: number }) {
   const opacity = useRef(new Animated.Value(0.25)).current;
@@ -73,11 +77,17 @@ export default function SplashScreen() {
   const riseTranslateY = rise.interpolate({ inputRange: [0, 1], outputRange: [10, 0] });
 
   return (
-    <View style={styles.safe}>
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <Image
+        source={WORLD_CAPITALS_COLLAGE}
+        style={styles.backgroundImage}
+        contentFit="cover"
+      />
+      <View style={styles.backgroundWash} />
       <View style={[styles.glow, styles.glowTop]} />
       <View style={[styles.glow, styles.glowBottom]} />
 
-      <View style={styles.center}>
+      <View style={styles.iconAnchor}>
         <View style={styles.markWrap}>
           <Animated.View
             style={[
@@ -87,10 +97,12 @@ export default function SplashScreen() {
           />
           <View style={styles.ring} />
           <View style={styles.markTile}>
-            <Ionicons name="briefcase-outline" size={52} color="#6D28D9" />
+            <Ionicons name="briefcase-outline" size={48} color="#27272A" />
           </View>
         </View>
+      </View>
 
+      <View style={styles.center}>
         <Animated.View
           style={[
             styles.textBlock,
@@ -107,7 +119,7 @@ export default function SplashScreen() {
         <LoadingDot delay={200} />
         <LoadingDot delay={400} />
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -118,6 +130,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  backgroundImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
+  backgroundWash: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(24, 20, 35, 0.55)',
   },
   glow: { position: 'absolute', borderRadius: 999 },
   glowTop: {
@@ -134,8 +151,17 @@ const styles = StyleSheet.create({
     right: -200,
     backgroundColor: 'rgba(109,40,217,0.2)',
   },
-  center: { alignItems: 'center', gap: 30 },
-  markWrap: { width: 190, height: 190, alignItems: 'center', justifyContent: 'center' },
+  iconAnchor: {
+    position: 'absolute',
+    top: '22%',
+    left: 0,
+    right: 0,
+    height: 104,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  center: { alignItems: 'center' },
+  markWrap: { width: 104, height: 104, alignItems: 'center', justifyContent: 'center' },
   halo: {
     position: 'absolute',
     width: 190,
@@ -152,10 +178,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.16)',
   },
   markTile: {
-    width: 112,
-    height: 112,
-    borderRadius: 32,
-    backgroundColor: '#FFFFFF',
+    width: 104,
+    height: 104,
+    borderRadius: 34,
+    backgroundColor: '#F4F4F5',
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#0C0420',

@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  InteractionManager,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -98,6 +98,30 @@ export default function AddExpenseScreen() {
   const descriptionInputRef = useRef<TextInput>(null);
   const saveButtonRef = useRef<React.ElementRef<typeof TouchableOpacity>>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+  const amountFocusTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const scheduleAmountFocus = useCallback(() => {
+    if (isEditing) return;
+    amountFocusTimersRef.current.forEach(clearTimeout);
+    amountFocusTimersRef.current = [100, 550].map((delay) =>
+      setTimeout(() => {
+        const input = amountInputRef.current;
+        if (!input) return;
+        if (input.isFocused() && (Platform.OS === 'web' || Keyboard.isVisible())) return;
+
+        // A TextInput can report itself focused even when focus happened before
+        // the Modal was ready and no keyboard was presented. Reset that stale
+        // focus before retrying so native platforms show the numeric keyboard.
+        if (input.isFocused()) input.blur();
+        requestAnimationFrame(() => input.focus());
+      }, delay)
+    );
+  }, [isEditing]);
+
+  useEffect(() => {
+    scheduleAmountFocus();
+    return () => amountFocusTimersRef.current.forEach(clearTimeout);
+  }, [scheduleAmountFocus]);
 
   const leadCurrency = vacation?.leadCurrency ?? null;
 
@@ -110,14 +134,6 @@ export default function AddExpenseScreen() {
       setPaymentMethodId(effectiveDefaultMethodId);
     }
   }, [effectiveDefaultMethodId, paymentMethodId]);
-
-  useEffect(() => {
-    if (isEditing) return;
-    const focusTask = InteractionManager.runAfterInteractions(() => {
-      amountInputRef.current?.focus();
-    });
-    return () => focusTask.cancel();
-  }, [isEditing]);
 
   const convert = (amount: number, fromCode: string) =>
     rawConvert(amount, fromCode, leadCurrency);
@@ -215,6 +231,7 @@ export default function AddExpenseScreen() {
   };
   const { grabberHandlers, contentHandlers, onContentScroll, translateY } = useDragToDismiss(
     handleClose,
+    true,
     true
   );
 
@@ -235,6 +252,7 @@ export default function AddExpenseScreen() {
       transparent
       animationType="slide"
       onRequestClose={handleClose}
+      onShow={scheduleAmountFocus}
     >
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={handleClose} />
@@ -243,7 +261,12 @@ export default function AddExpenseScreen() {
             <View style={styles.grabber} />
           </View>
           <View style={[styles.header, { flexDirection: rowDirection }]}>
-            <Text style={[styles.headerTitle, { textAlign }]} numberOfLines={1}>
+            <Text
+              style={[styles.headerTitle, { textAlign }]}
+              numberOfLines={1}
+              onPress={handleClose}
+              accessibilityRole="button"
+            >
               {isEditing ? t.add.editTitle : t.add.title}
             </Text>
             <TouchableOpacity

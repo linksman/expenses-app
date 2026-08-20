@@ -18,7 +18,11 @@ const DISMISS_VELOCITY = 0.5;
 // straight into the Modal's slide-out. `visible` is only used to reset the
 // offset the next time the sheet opens, since the underlying Animated.Value
 // persists across the sheet being hidden and shown again.
-export function useDragToDismiss(onClose: () => void, visible: boolean) {
+export function useDragToDismiss(
+  onClose: () => void,
+  visible: boolean,
+  closeOnGrabberTap = false
+) {
   const translateY = useRef(new Animated.Value(0)).current;
   const contentScrollY = useRef(0);
 
@@ -46,10 +50,16 @@ export function useDragToDismiss(onClose: () => void, visible: boolean) {
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dy) > 4,
         onPanResponderMove: (_, gesture) => handleMove(gesture),
-        onPanResponderRelease: (_, gesture) => handleRelease(gesture),
+        onPanResponderRelease: (_, gesture) => {
+          if (closeOnGrabberTap && Math.abs(gesture.dx) < 6 && Math.abs(gesture.dy) < 6) {
+            onClose();
+            return;
+          }
+          handleRelease(gesture);
+        },
         onPanResponderTerminate: handleTerminate,
       }),
-    [onClose, translateY]
+    [closeOnGrabberTap, onClose, translateY]
   );
 
   // Lets a long scrollable body (e.g. a form) dismiss the sheet too: once the

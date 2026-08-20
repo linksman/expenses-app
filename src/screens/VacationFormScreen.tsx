@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
+  Animated,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -13,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../storage/LanguageContext';
 import { useVacations } from '../storage/VacationsContext';
@@ -22,6 +25,8 @@ import { TravelCompanion } from '../types/companion';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
 import { companionAvatarColor } from '../utils/companionAvatar';
 import { scrollNodeIntoViewAboveKeyboard, scrollToFocusedInput } from '../utils/scrollToFocusedInput';
+import { findDestinationImage } from '../utils/destinationImage';
+import { useDragToDismiss } from '../utils/useDragToDismiss';
 
 interface RouteParams {
   vacationId?: string;
@@ -33,7 +38,13 @@ export default function VacationFormScreen() {
   const { vacationId } = (route.params ?? {}) as RouteParams;
 
   const { t, isRTL } = useLanguage();
-  const { vacations, addVacation, updateVacation, deleteVacation } = useVacations();
+  const {
+    vacations,
+    addVacation,
+    updateVacation,
+    deleteVacation,
+    setVacationSummaryImage,
+  } = useVacations();
   const { expenses, deleteExpensesByVacation } = useExpenses();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
@@ -49,6 +60,7 @@ export default function VacationFormScreen() {
   const [defaultCurrencyModalVisible, setDefaultCurrencyModalVisible] = useState(false);
   const [leadCurrencyModalVisible, setLeadCurrencyModalVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [pendingDeleteCompanion, setPendingDeleteCompanion] = useState<TravelCompanion | null>(
     null
   );
@@ -90,6 +102,7 @@ export default function VacationFormScreen() {
   // persisted immediately, like AddExpenseScreen does for an existing expense.
   // Skip the first run (mount's initial state already matches disk).
   const didMountRef = useRef(false);
+  const lastImageLookupNameRef = useRef(vacation?.name ?? '');
   useEffect(() => {
     if (!didMountRef.current) {
       didMountRef.current = true;
@@ -99,6 +112,20 @@ export default function VacationFormScreen() {
     updateVacation(vacation.id, name.trim(), defaultCurrency, leadCurrency, companions);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [name, defaultCurrency, leadCurrency, companions]);
+
+  useEffect(() => {
+    if (!isEditing || !vacation || !canSave) return;
+    const lookupName = name.trim();
+    if (lookupName === lastImageLookupNameRef.current) return;
+    const timer = setTimeout(async () => {
+      lastImageLookupNameRef.current = lookupName;
+      const image = await findDestinationImage(lookupName);
+      if (lastImageLookupNameRef.current === lookupName) {
+        setVacationSummaryImage(vacation.id, image);
+      }
+    }, 900);
+    return () => clearTimeout(timer);
+  }, [name, isEditing, vacation, canSave, setVacationSummaryImage]);
 
   const companionIdsInUse = useMemo(() => {
     if (!vacation) return new Set<string>();
@@ -128,9 +155,26 @@ export default function VacationFormScreen() {
   };
 
   const handleSave = async () => {
-    if (!canSave) return;
-    await addVacation(name.trim(), defaultCurrency, leadCurrency, companions);
-    navigation.goBack();
+    if (!canSave || saving) return;
+    setSaving(true);
+    try {
+      const createdVacation = await addVacation(
+        name.trim(),
+        defaultCurrency,
+        leadCurrency,
+        companions
+      );
+      if (createdVacation.summaryImageUrl) {
+        try {
+          await ExpoImage.prefetch(createdVacation.summaryImageUrl, 'disk');
+        } catch {
+          // The lookup is complete; let the screen's Image retry the cached URL.
+        }
+      }
+      (navigation as any).popTo('Expenses');
+    } catch {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -141,42 +185,63 @@ export default function VacationFormScreen() {
     navigation.goBack();
   };
 
+  const handleClose = useCallback(() => {
+    if (!saving) navigation.goBack();
+  }, [navigation, saving]);
+  const { grabberHandlers, contentHandlers, onContentScroll, translateY } = useDragToDismiss(
+    handleClose,
+    true,
+    true
+  );
+
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <Modal visible transparent animationType="slide" onRequestClose={handleClose}>
+      <View style={styles.overlay}>
+        <TouchableOpacity
+          style={styles.backdrop}
+          activeOpacity={1}
+          onPress={handleClose}
+          disabled={saving}
+        />
+        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+          <View style={styles.grabberArea} {...(saving ? {} : grabberHandlers)}>
+            <View style={styles.grabber} />
+          </View>
+          <SafeAreaView style={styles.safe} edges={[]}>
       <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={handleClose}
+          disabled={saving}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name={isRTL ? 'chevron-forward' : 'chevron-back'} size={20} color={colors.primary} />
+          <Ionicons name="close" size={16} color={colors.textMuted} />
         </TouchableOpacity>
-        <Text style={[styles.title, { textAlign }]} numberOfLines={1}>
+        <Text
+          style={[styles.title, { textAlign }]}
+          numberOfLines={1}
+          onPress={handleClose}
+          accessibilityRole="button"
+        >
           {isEditing ? t.vacations.editTitle : t.vacations.createTitle}
         </Text>
       </View>
+      <View style={{ flex: 1 }} {...(saving ? {} : contentHandlers)}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           ref={scrollViewRef}
-          contentContainerStyle={styles.container}
+          contentContainerStyle={[
+            styles.container,
+            !isEditing && styles.containerWithBottomSave,
+          ]}
           keyboardShouldPersistTaps="handled"
+          onScroll={(event) => onContentScroll(event.nativeEvent.contentOffset.y)}
+          scrollEventThrottle={16}
         >
-          {!isEditing && (
-            <TouchableOpacity
-              style={[styles.saveButton, { flexDirection: rowDirection }, !canSave && styles.saveButtonDisabled]}
-              onPress={handleSave}
-              disabled={!canSave}
-              activeOpacity={0.85}
-            >
-              <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
-              <Text style={styles.saveButtonText}>{t.common.save}</Text>
-            </TouchableOpacity>
-          )}
-
           <View
             style={[
               styles.nameCard,
@@ -338,7 +403,29 @@ export default function VacationFormScreen() {
             </TouchableOpacity>
           )}
         </ScrollView>
+        {!isEditing && (
+          <TouchableOpacity
+            style={[
+              styles.saveButton,
+              { flexDirection: rowDirection },
+              !canSave && styles.saveButtonDisabled,
+            ]}
+            onPress={handleSave}
+            disabled={!canSave || saving}
+            activeOpacity={0.85}
+          >
+            {saving ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+                <Text style={styles.saveButtonText}>{t.common.save}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
       </KeyboardAvoidingView>
+      </View>
 
       <Modal
         visible={deleteConfirmVisible}
@@ -424,13 +511,34 @@ export default function VacationFormScreen() {
         allowNone
         noneLabel={t.vacations.leadCurrencyNone}
       />
-    </SafeAreaView>
+          </SafeAreaView>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(24, 20, 45, 0.42)' },
+  sheet: {
+    height: '92%',
+    paddingTop: 14,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+    shadowColor: '#18142D',
+    shadowOpacity: 0.25,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: -10 },
+    elevation: 8,
+  },
+  grabberArea: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: 10 },
+  grabber: { width: 46, height: 5, borderRadius: 999, backgroundColor: '#D4D4D8' },
   safe: { flex: 1, backgroundColor: colors.background },
   container: { padding: 20, paddingBottom: 24 },
+  containerWithBottomSave: { paddingBottom: 12 },
   headerRow: {
     alignItems: 'center',
     gap: 12,
@@ -573,7 +681,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 9,
-    marginBottom: 16,
+    marginHorizontal: 20,
+    marginTop: 8,
+    marginBottom: 20,
     shadowColor: colors.primary,
     shadowOpacity: 0.4,
     shadowRadius: 16,
