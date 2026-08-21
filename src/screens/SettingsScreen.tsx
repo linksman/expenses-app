@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Linking,
   Modal,
@@ -22,7 +22,6 @@ import { useExpenses } from '../storage/ExpensesContext';
 import { useVacations } from '../storage/VacationsContext';
 import { PaymentMethod } from '../types/paymentMethod';
 import { paymentMethodName } from '../utils/paymentMethodName';
-import { scrollNodeIntoViewAboveKeyboard, scrollToFocusedInput } from '../utils/scrollToFocusedInput';
 import { EXPENSE_GROUPINGS, useExpenseGrouping } from '../storage/ExpenseGroupingContext';
 import { useExchangeRates } from '../storage/ExchangeRatesContext';
 import {
@@ -57,7 +56,6 @@ export default function SettingsScreen() {
   const { languageCode, language, t, isRTL, setLanguage } = useLanguage();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
-  const scrollViewRef = useRef<ScrollView>(null);
 
   const { vacations, activeVacationId, setActiveVacationId } = useVacations();
   const { groupBy, setGroupBy } = useExpenseGrouping();
@@ -75,8 +73,6 @@ export default function SettingsScreen() {
   const { expenses } = useExpenses();
   const [newMethodName, setNewMethodName] = useState('');
   const [pendingDeleteMethod, setPendingDeleteMethod] = useState<PaymentMethod | null>(null);
-  const methodInputNodeRef = useRef<unknown>(null);
-  const [methodInputFocused, setMethodInputFocused] = useState(false);
   const [exporting, setExporting] = useState(false);
 
   const selectedVacation = vacations.find((vacation) => vacation.id === activeVacationId) ?? null;
@@ -89,20 +85,6 @@ export default function SettingsScreen() {
   useEffect(() => {
     if (leadCurrency) ensureRates(leadCurrency);
   }, [leadCurrency, ensureRates]);
-
-  // Adding a method inserts a row above this input while the keyboard stays
-  // open and the field keeps focus, so the one-shot onFocus scroll isn't enough
-  // — the newly grown list pushes the field back under the keyboard. Re-measure
-  // once the new row has actually laid out.
-  useEffect(() => {
-    if (!methodInputFocused) return;
-    const timer = setTimeout(() => {
-      if (methodInputNodeRef.current) {
-        scrollNodeIntoViewAboveKeyboard(scrollViewRef, methodInputNodeRef.current);
-      }
-    }, 50);
-    return () => clearTimeout(timer);
-  }, [methods.length, methodInputFocused]);
 
   const methodIdsInUse = useMemo(
     () => new Set(expenses.map((e) => e.paymentMethodId)),
@@ -132,12 +114,24 @@ export default function SettingsScreen() {
       : null,
     selectedVacation?.defaultCurrency
   )}`;
+  const exportConvert = (amount: number, currencyCode: string) =>
+    selectedVacation
+      ? convertForVacation(selectedVacation, rawConvert, amount, currencyCode)
+      : null;
 
   const handleExportCsv = async () => {
     if (!selectedVacation || currentExpenses.length === 0 || exporting) return;
     setExporting(true);
     try {
-      const csv = buildExpensesCsv(currentExpenses, vacations, methods, t, language.locale);
+      const csv = buildExpensesCsv(
+        currentExpenses,
+        vacations,
+        methods,
+        t,
+        language.locale,
+        { groupBy, vacation: selectedVacation, convert: exportConvert },
+        exportTotalsLine
+      );
       await exportCsvFile(csv, exportTitle);
     } finally {
       setExporting(false);
@@ -156,7 +150,8 @@ export default function SettingsScreen() {
         language.locale,
         exportTitle,
         exportTotalsLine,
-        isRTL
+        isRTL,
+        { groupBy, vacation: selectedVacation, convert: exportConvert }
       );
       await exportPdfFile(html, exportTitle);
     } finally {
@@ -185,7 +180,6 @@ export default function SettingsScreen() {
         </View>
       </View>
       <ScrollView
-        ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
@@ -311,29 +305,6 @@ export default function SettingsScreen() {
             <Ionicons name="document-text-outline" size={20} color={colors.primary} />
             <Text style={[styles.rowLabel, { textAlign }]}>{t.settings.exportToCsv}</Text>
           </TouchableOpacity>
-        </View>
-
-        <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.language}</Text>
-        <View style={styles.card}>
-          {LANGUAGES.map((option, index) => (
-            <TouchableOpacity
-              key={option.code}
-              style={[
-                styles.languageRow,
-                { flexDirection: rowDirection },
-                index < LANGUAGES.length - 1 && styles.methodRowBorder,
-              ]}
-              onPress={() => setLanguage(option.code)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.rowLabel, { textAlign }]}>{option.nativeLabel}</Text>
-              <Ionicons
-                name={languageCode === option.code ? 'radio-button-on' : 'radio-button-off'}
-                size={20}
-                color={languageCode === option.code ? colors.primary : colors.textMuted}
-              />
-            </TouchableOpacity>
-          ))}
         </View>
 
         <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.paymentMethods}</Text>
@@ -462,12 +433,6 @@ export default function SettingsScreen() {
             placeholderTextColor={colors.textMuted}
             returnKeyType="done"
             onSubmitEditing={handleAddMethod}
-            onFocus={(e) => {
-              methodInputNodeRef.current = e.target;
-              setMethodInputFocused(true);
-              scrollToFocusedInput(scrollViewRef, e);
-            }}
-            onBlur={() => setMethodInputFocused(false)}
           />
           <TouchableOpacity
             style={[styles.addButton, !newMethodName.trim() && styles.addButtonDisabled]}
@@ -486,19 +451,45 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-      </ScrollView>
+        <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.language}</Text>
+        <View style={styles.card}>
+          {LANGUAGES.map((option, index) => (
+            <TouchableOpacity
+              key={option.code}
+              style={[
+                styles.languageRow,
+                { flexDirection: rowDirection },
+                index < LANGUAGES.length - 1 && styles.methodRowBorder,
+              ]}
+              onPress={() => setLanguage(option.code)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.rowLabel, { textAlign }]}>{option.nativeLabel}</Text>
+              <Ionicons
+                name={languageCode === option.code ? 'radio-button-on' : 'radio-button-off'}
+                size={20}
+                color={languageCode === option.code ? colors.primary : colors.textMuted}
+              />
+            </TouchableOpacity>
+          ))}
+        </View>
 
-      <TouchableOpacity
-        style={[
-          styles.kofiButton,
-          { flexDirection: rowDirection, bottom: Math.max(insets.bottom, 12) + 12 },
-        ]}
-        onPress={() => Linking.openURL(KOFI_URL)}
-        activeOpacity={0.85}
-      >
-        <Ionicons name="cafe-outline" size={19} color="#fff" />
-        <Text style={styles.kofiButtonText}>{t.settings.buyMeCoffee}</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.kofiButton,
+            {
+              flexDirection: rowDirection,
+              marginBottom: Math.max(insets.bottom, 12) + 12,
+            },
+          ]}
+          onPress={() => Linking.openURL(KOFI_URL)}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="cafe-outline" size={19} color="#fff" />
+          <Text style={styles.kofiButtonText}>{t.settings.buyMeCoffee}</Text>
+        </TouchableOpacity>
+
+      </ScrollView>
 
       <Modal
         visible={pendingDeleteMethod !== null}
@@ -541,7 +532,7 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  scrollContent: { paddingBottom: 110 },
+  scrollContent: { paddingBottom: 0 },
   headerRow: {
     alignItems: 'center',
     gap: 12,
@@ -715,10 +706,9 @@ const styles = StyleSheet.create({
   addButtonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   addButtonTextDisabled: { color: '#B4B4BE' },
   kofiButton: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
     height: 52,
+    marginHorizontal: 20,
+    marginTop: 24,
     borderRadius: 18,
     backgroundColor: colors.primary,
     alignItems: 'center',
@@ -729,7 +719,6 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     shadowOffset: { width: 0, height: 6 },
     elevation: 8,
-    zIndex: 10,
   },
   kofiButtonText: { fontSize: 16, fontWeight: '700', color: '#fff' },
   modalOverlay: {

@@ -1,10 +1,9 @@
 import React from 'react';
-import { Animated, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { CURRENCIES } from '../types/currency';
 import { useLanguage } from '../storage/LanguageContext';
-import { useDragToDismiss } from '../utils/useDragToDismiss';
 
 interface Props {
   visible: boolean;
@@ -28,14 +27,13 @@ export default function CurrencyPickerModal({
   const { t, isRTL } = useLanguage();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
-  const { grabberHandlers, translateY } = useDragToDismiss(onClose, visible);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
-        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-          <View style={styles.grabberArea} {...grabberHandlers}>
+        <View style={styles.sheet}>
+          <View style={styles.grabberArea}>
             <View style={styles.grabber} />
           </View>
           <View style={[styles.header, { flexDirection: rowDirection }]}>
@@ -105,7 +103,7 @@ export default function CurrencyPickerModal({
               );
             }}
           />
-        </Animated.View>
+        </View>
       </View>
     </Modal>
   );

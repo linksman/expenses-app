@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Animated,
   Linking,
-  PanResponder,
   SectionList,
   StyleSheet,
   Text,
@@ -20,25 +19,24 @@ import { usePaymentMethods } from '../storage/PaymentMethodsContext';
 import { useLanguage } from '../storage/LanguageContext';
 import { useVacations } from '../storage/VacationsContext';
 import { useExchangeRates } from '../storage/ExchangeRatesContext';
-import { categoryInfo, Expense } from '../types/expense';
+import { categoryInfo } from '../types/expense';
 import { DEFAULT_PAYMENT_METHOD_ICON } from '../types/paymentMethod';
 import { ME_COMPANION_ID } from '../types/companion';
 import {
-  CurrencyTotal,
   formatAmount,
   formatTotalsWithLead,
   convertedTotal,
   totalsByCurrencyFor,
-  companionCurrencyTotals,
   companionConvertedTotal,
   companionShare,
 } from '../utils/formatCurrency';
 import { paymentMethodName } from '../utils/paymentMethodName';
 import { companionName } from '../utils/companionName';
-import { dayLabel, timeLabel } from '../utils/dateLabel';
+import { timeLabel } from '../utils/dateLabel';
 import { takePendingNewExpenseHighlight } from '../utils/pendingNewExpenseHighlight';
 import { convertForVacation } from '../utils/vacationExchangeRate';
 import { useExpenseGrouping } from '../storage/ExpenseGroupingContext';
+import { ExpenseSection, groupExpenses } from '../utils/groupExpenses';
 
 const HIGHLIGHT_DURATION_MS = 1000;
 const HIGHLIGHT_FADE_MS = 1000;
@@ -50,24 +48,10 @@ const PAGE_ACCENT_SOFT = '#F4F4F5';
 const TOTALS_CARD_GRADIENT = [PAGE_ACCENT, '#FFFFFF'] as const;
 const LOADING_SUMMARY_GRADIENT = ['#D4D4D8', '#F4F4F5'] as const;
 const WORLD_CAPITALS_COLLAGE = require('../../assets/world-capitals-collage.png');
-const SUMMARY_PULL_DISTANCE = 56;
-const SUMMARY_PULL_VELOCITY = 0.45;
 
 function localDateKey(iso: string): string {
   const date = new Date(iso);
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-}
-
-interface Section {
-  key: string;
-  title: string;
-  totals: CurrencyTotal[];
-  // Only set when grouped by collaborator: that person's actual assigned
-  // share of the expenses in this section, as opposed to `totals` (the full
-  // amount of every expense they participated in) — lets the header show
-  // "their share of X" instead of the full trip-expense total.
-  shareTotals?: CurrencyTotal[];
-  data: Expense[];
 }
 
 export default function ManageExpensesScreen() {
@@ -84,7 +68,6 @@ export default function ManageExpensesScreen() {
   const [collapsedOverrides, setCollapsedOverrides] = useState<Record<string, boolean>>({});
   const [highlightedExpenseId, setHighlightedExpenseId] = useState<string | null>(null);
   const highlightAnim = useRef(new Animated.Value(0)).current;
-  const summaryPullY = useRef(new Animated.Value(0)).current;
 
   // After creating a new expense, briefly highlight its row so the user can
   // spot it in the list. Also force-expand its day section in case it isn't
@@ -143,50 +126,10 @@ export default function ManageExpensesScreen() {
     return method ? paymentMethodName(method, t) : null;
   };
 
-  const sections: Section[] = useMemo(() => {
-    const grouped = new Map<string, { title: string; data: Expense[] }>();
-    const addToGroup = (key: string, title: string, expense: Expense) => {
-      if (!grouped.has(key)) grouped.set(key, { title, data: [] });
-      grouped.get(key)!.data.push(expense);
-    };
-
-    for (const e of filteredExpenses) {
-      if (groupBy === 'date') {
-        const dateKey = localDateKey(e.createdAt);
-        addToGroup(dateKey, dayLabel(e.createdAt, t, language.locale), e);
-      } else if (groupBy === 'paymentMethod') {
-        addToGroup(e.paymentMethodId, methodName(e.paymentMethodId) ?? e.paymentMethodId, e);
-      } else if (groupBy === 'category') {
-        const category = e.category ?? 'Other';
-        addToGroup(category, t.categories[category], e);
-      } else if (groupBy === 'currency') {
-        addToGroup(e.currencyCode, e.currencyCode, e);
-      } else {
-        const participantIds = [ME_COMPANION_ID, ...e.split.map((share) => share.companionId)];
-        for (const participantId of participantIds) {
-          addToGroup(
-            participantId,
-            companionName(participantId, selectedVacation?.companions ?? [], t),
-            e
-          );
-        }
-      }
-    }
-
-    return Array.from(grouped.entries()).map(([key, { title, data }]) => {
-      const sortedByDate = [...data].sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-      return {
-        key,
-        title,
-        data: sortedByDate,
-        totals: totalsByCurrencyFor(sortedByDate),
-        shareTotals:
-          groupBy === 'collaborators' ? companionCurrencyTotals(sortedByDate, key) : undefined,
-      };
-    });
-  }, [filteredExpenses, groupBy, methods, selectedVacation, t, language.locale]);
+  const sections: ExpenseSection[] = useMemo(
+    () => groupExpenses(filteredExpenses, groupBy, methods, selectedVacation, t, language.locale),
+    [filteredExpenses, groupBy, methods, selectedVacation, t, language.locale]
+  );
 
   // All day-groups start collapsed except today's, until the user toggles one.
   // Other grouping modes start expanded so changing the setting reveals the result immediately.
@@ -208,35 +151,6 @@ export default function ManageExpensesScreen() {
   const openVacationForm = useCallback((vacationId?: string) => {
     (navigation as any).navigate('VacationForm', vacationId ? { vacationId } : undefined);
   }, [navigation]);
-
-  const summaryPullHandlers = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, gesture) =>
-          gesture.dy > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx) * 1.5,
-        onPanResponderMove: (_, gesture) => {
-          if (gesture.dy > 0) summaryPullY.setValue(Math.min(gesture.dy, 90));
-        },
-        onPanResponderRelease: (_, gesture) => {
-          const shouldOpen =
-            gesture.dy > SUMMARY_PULL_DISTANCE || gesture.vy > SUMMARY_PULL_VELOCITY;
-          Animated.spring(summaryPullY, {
-            toValue: 0,
-            useNativeDriver: true,
-            bounciness: 5,
-          }).start();
-          if (shouldOpen && activeVacationId) openVacationForm(activeVacationId);
-        },
-        onPanResponderTerminate: () => {
-          Animated.spring(summaryPullY, {
-            toValue: 0,
-            useNativeDriver: true,
-            bounciness: 5,
-          }).start();
-        },
-      }).panHandlers,
-    [activeVacationId, openVacationForm, summaryPullY]
-  );
 
   if (vacationsLoading) {
     return <SafeAreaView style={styles.safe} edges={['top']} />;
@@ -319,11 +233,7 @@ export default function ManageExpensesScreen() {
         </>
       ) : null}
       <View style={styles.container}>
-        <Animated.View
-          style={[styles.summaryCard, { transform: [{ translateY: summaryPullY }] }]}
-          {...summaryPullHandlers}
-          accessibilityLabel={t.vacations.editTitle}
-        >
+        <View style={styles.summaryCard} accessibilityLabel={t.vacations.editTitle}>
           <View style={styles.totalsCard}>
           {summaryImageUri ? (
             <Image
@@ -455,8 +365,8 @@ export default function ManageExpensesScreen() {
             ) : null}
             <TouchableOpacity
               style={[
-                styles.summaryPullHandle,
-                summaryImageUri && styles.summaryPullHandleOnImage,
+                styles.summaryEditHandle,
+                summaryImageUri && styles.summaryEditHandleOnImage,
               ]}
               onPress={() => {
                 if (selectedVacation) openVacationForm(selectedVacation.id);
@@ -489,7 +399,7 @@ export default function ManageExpensesScreen() {
             />
           </TouchableOpacity>
           </View>
-        </Animated.View>
+        </View>
 
       </View>
 
@@ -737,7 +647,7 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     paddingHorizontal: 22,
   },
-  summaryPullHandle: {
+  summaryEditHandle: {
     marginHorizontal: -22,
     marginBottom: -20,
     marginTop: 14,
@@ -748,7 +658,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  summaryPullHandleOnImage: {
+  summaryEditHandleOnImage: {
     borderTopColor: 'rgba(255, 255, 255, 0.25)',
     backgroundColor: 'rgba(10, 5, 24, 0.18)',
   },

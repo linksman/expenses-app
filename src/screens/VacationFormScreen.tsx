@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
@@ -33,6 +33,7 @@ interface RouteParams {
 
 export default function VacationFormScreen() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const route = useRoute();
   const { vacationId } = (route.params ?? {}) as RouteParams;
 
@@ -476,7 +477,10 @@ export default function VacationFormScreen() {
         </ScrollView>
         {isEditing ? (
           <TouchableOpacity
-            style={[styles.saveButton, { flexDirection: rowDirection }]}
+            style={[
+              styles.saveButton,
+              { flexDirection: rowDirection, bottom: Math.max(insets.bottom, 12) + 8 },
+            ]}
             onPress={handleClose}
             activeOpacity={0.85}
           >
@@ -487,7 +491,7 @@ export default function VacationFormScreen() {
           <TouchableOpacity
             style={[
               styles.saveButton,
-              { flexDirection: rowDirection },
+              { flexDirection: rowDirection, bottom: Math.max(insets.bottom, 12) + 8 },
               !canSave && styles.saveButtonDisabled,
             ]}
             onPress={handleSave}
@@ -618,7 +622,7 @@ const styles = StyleSheet.create({
   grabber: { width: 46, height: 5, borderRadius: 999, backgroundColor: '#D4D4D8' },
   safe: { flex: 1, backgroundColor: colors.background },
   container: { padding: 20, paddingBottom: 24 },
-  containerWithBottomSave: { paddingBottom: 12 },
+  containerWithBottomSave: { paddingBottom: 104 },
   headerRow: {
     alignItems: 'center',
     gap: 12,
@@ -787,20 +791,21 @@ const styles = StyleSheet.create({
   addButtonText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   addButtonTextDisabled: { color: '#B4B4BE' },
   saveButton: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
     backgroundColor: colors.primary,
     borderRadius: 18,
     height: 56,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 9,
-    marginHorizontal: 20,
-    marginTop: 8,
-    marginBottom: 20,
     shadowColor: colors.primary,
     shadowOpacity: 0.4,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 8 },
-    elevation: 3,
+    elevation: 8,
+    zIndex: 10,
   },
   saveButtonDisabled: { backgroundColor: colors.border, shadowOpacity: 0, elevation: 0 },
   saveButtonText: { color: '#fff', fontSize: 17, fontWeight: '700' },

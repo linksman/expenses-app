@@ -1,11 +1,10 @@
 import React, { useMemo } from 'react';
-import { Animated, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { usePaymentMethods } from '../storage/PaymentMethodsContext';
 import { useLanguage } from '../storage/LanguageContext';
 import { paymentMethodName } from '../utils/paymentMethodName';
-import { useDragToDismiss } from '../utils/useDragToDismiss';
 
 interface Props {
   visible: boolean;
@@ -25,14 +24,13 @@ export default function PaymentMethodPickerModal({
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
   const enabledMethods = useMemo(() => methods.filter((m) => m.enabled), [methods]);
-  const { grabberHandlers, translateY } = useDragToDismiss(onClose, visible);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
-        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-          <View style={styles.grabberArea} {...grabberHandlers}>
+        <View style={styles.sheet}>
+          <View style={styles.grabberArea}>
             <View style={styles.grabber} />
           </View>
           <View style={[styles.header, { flexDirection: rowDirection }]}>
@@ -75,7 +73,7 @@ export default function PaymentMethodPickerModal({
               );
             }}
           />
-        </Animated.View>
+        </View>
       </View>
     </Modal>
   );

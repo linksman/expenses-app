@@ -7,6 +7,15 @@ import { Vacation } from '../types/vacation';
 import { PaymentMethod } from '../types/paymentMethod';
 import { Translations } from '../i18n/translations';
 import { paymentMethodName } from './paymentMethodName';
+import { ExpenseGrouping } from '../storage/ExpenseGroupingContext';
+import { companionShare, formatAmount, formatTotalsWithLead, companionConvertedTotal, convertedTotal } from './formatCurrency';
+import { groupExpenses } from './groupExpenses';
+
+export interface ExportViewOptions {
+  groupBy: ExpenseGrouping;
+  vacation: Vacation;
+  convert: (amount: number, currencyCode: string) => number | null;
+}
 
 interface ExportRow {
   date: string;
@@ -55,7 +64,9 @@ export function buildExpensesCsv(
   vacations: Vacation[],
   methods: PaymentMethod[],
   t: Translations,
-  locale: string
+  locale: string,
+  view: ExportViewOptions,
+  totalsLine: string
 ): string {
   const headers = [
     t.add.date,
@@ -66,15 +77,46 @@ export function buildExpensesCsv(
     t.manage.amount,
     t.currency.pickerTitle,
   ];
-  const rows = buildRows(expenses, vacations, methods, t, locale);
-  const lines = [headers.map(csvField).join(',')];
-  for (const r of rows) {
+  const groupHeader = t.settings.groupByOptions[view.groupBy];
+  const lines = [[groupHeader, ...headers].map(csvField).join(',')];
+  const sections = groupExpenses(expenses, view.groupBy, methods, view.vacation, t, locale);
+  for (const section of sections) {
+    for (const expense of section.data) {
+      const row = buildRows([expense], vacations, methods, t, locale)[0];
+      const amount = view.groupBy === 'collaborators'
+        ? `${formatAmount(companionShare(expense, section.key), expense.currencyCode)} ${t.manage.of} ${formatAmount(expense.amount, expense.currencyCode)}`
+        : row.amount;
+      lines.push(
+        [section.title, row.date, row.description, row.category, row.paymentMethod, row.vacation, amount, row.currency]
+          .map(csvField)
+          .join(',')
+      );
+    }
+    const totals = view.groupBy === 'collaborators' && section.shareTotals
+      ? section.shareTotals
+      : section.totals;
+    const leadTotal = view.vacation.leadCurrency
+      ? view.groupBy === 'collaborators'
+        ? companionConvertedTotal(section.data, section.key, view.convert)
+        : convertedTotal(section.data, view.convert)
+      : null;
+    const summary = formatTotalsWithLead(
+      totals,
+      view.vacation.leadCurrency,
+      leadTotal,
+      view.vacation.defaultCurrency
+    );
     lines.push(
-      [r.date, r.description, r.category, r.paymentMethod, r.vacation, r.amount, r.currency]
+      [`${section.title} — ${t.manage.tripTotal}`, '', '', '', '', '', summary, '']
         .map(csvField)
         .join(',')
     );
   }
+  lines.push(
+    [t.manage.tripTotal, '', '', '', '', '', totalsLine.replace(`${t.manage.tripTotal} `, ''), '']
+      .map(csvField)
+      .join(',')
+  );
   // A leading UTF-8 BOM is required for Excel to detect the encoding and render
   // non-ASCII text (Hebrew, accented Latin letters, etc.) correctly instead of as
   // garbled characters — without it Excel assumes the system's ANSI codepage.
@@ -93,25 +135,39 @@ export function buildExpensesHtml(
   locale: string,
   title: string,
   totalsLine: string,
-  isRTL: boolean
+  isRTL: boolean,
+  view: ExportViewOptions
 ): string {
-  const rows = buildRows(expenses, vacations, methods, t, locale);
   const dir = isRTL ? 'rtl' : 'ltr';
   const align = isRTL ? 'right' : 'left';
   const amountAlign = isRTL ? 'left' : 'right';
-  const bodyRows = rows
-    .map(
-      (r) => `
+  const sections = groupExpenses(expenses, view.groupBy, methods, view.vacation, t, locale);
+  const bodyRows = sections.map((section) => {
+    const rows = section.data.map((expense) => {
+      const r = buildRows([expense], vacations, methods, t, locale)[0];
+      const amount = view.groupBy === 'collaborators'
+        ? `${formatAmount(companionShare(expense, section.key), expense.currencyCode)} ${t.manage.of} ${formatAmount(expense.amount, expense.currencyCode)}`
+        : r.amount;
+      return `
         <tr>
           <td>${escapeHtml(r.date)}</td>
           <td>${escapeHtml(r.description)}</td>
           <td>${escapeHtml(r.category)}</td>
           <td>${escapeHtml(r.paymentMethod)}</td>
           <td>${escapeHtml(r.vacation)}</td>
-          <td class="amount">${escapeHtml(r.amount)} ${escapeHtml(r.currency)}</td>
-        </tr>`
-    )
-    .join('');
+          <td class="amount">${escapeHtml(amount)}${view.groupBy === 'collaborators' ? '' : ` ${escapeHtml(r.currency)}`}</td>
+        </tr>`;
+    }).join('');
+    const totals = view.groupBy === 'collaborators' && section.shareTotals ? section.shareTotals : section.totals;
+    const leadTotal = view.vacation.leadCurrency
+      ? view.groupBy === 'collaborators'
+        ? companionConvertedTotal(section.data, section.key, view.convert)
+        : convertedTotal(section.data, view.convert)
+      : null;
+    const summary = formatTotalsWithLead(totals, view.vacation.leadCurrency, leadTotal, view.vacation.defaultCurrency);
+    return `<tr class="group"><td colspan="6">${escapeHtml(section.title)}</td></tr>${rows}
+      <tr class="subtotal"><td colspan="5">${escapeHtml(t.manage.tripTotal)}</td><td class="amount">${escapeHtml(summary)}</td></tr>`;
+  }).join('');
 
   return `
     <!DOCTYPE html>
@@ -126,6 +182,8 @@ export function buildExpensesHtml(
           th, td { border-bottom: 1px solid #E6ECEC; padding: 8px; text-align: ${align}; }
           th { color: #7A8894; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px; }
           .amount { font-weight: 700; text-align: ${amountAlign}; }
+          .group td { background: #F4F4F5; font-size: 13px; font-weight: 700; padding-top: 12px; }
+          .subtotal td { font-weight: 700; border-bottom: 2px solid #D4D4D8; }
           .total { margin-top: 18px; font-weight: 700; font-size: 14px; text-align: ${align}; }
         </style>
       </head>
@@ -133,7 +191,7 @@ export function buildExpensesHtml(
         <h1>${escapeHtml(title)}</h1>
         <div class="meta">${escapeHtml(t.manage.generatedOn)} ${escapeHtml(
           new Date().toLocaleString(locale)
-        )}</div>
+        )} · ${escapeHtml(t.settings.groupBy)}: ${escapeHtml(t.settings.groupByOptions[view.groupBy])}</div>
         <table>
           <thead>
             <tr>

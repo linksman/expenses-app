@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -57,6 +58,7 @@ const CHIP_ROW_GAP = SECTION_GAP - 12;
 
 export default function AddExpenseScreen() {
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const route = useRoute();
   const { vacationId, expenseId } = (route.params ?? {}) as RouteParams;
   const isEditing = !!expenseId;
@@ -104,6 +106,8 @@ export default function AddExpenseScreen() {
   const descriptionInputRef = useRef<TextInput>(null);
   const saveButtonRef = useRef<React.ElementRef<typeof TouchableOpacity>>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+  const scrollViewportHeightRef = useRef(0);
+  const revealSplitOnLayoutRef = useRef(false);
   const closingRef = useRef(false);
   const submittingRef = useRef(false);
   // Once true, the description-based category guess never runs again for
@@ -350,6 +354,9 @@ export default function AddExpenseScreen() {
               ref={scrollViewRef}
               contentContainerStyle={[styles.container, styles.containerWithFloatingSave]}
               keyboardShouldPersistTaps="handled"
+              onLayout={(event) => {
+                scrollViewportHeightRef.current = event.nativeEvent.layout.height;
+              }}
             >
               <TouchableOpacity
                 style={styles.amountBlock}
@@ -523,7 +530,10 @@ export default function AddExpenseScreen() {
                 style={[styles.fieldCard, { flexDirection: rowDirection }]}
                 onPress={() => {
                   if (Number.isNaN(parsedAmount) || parsedAmount <= 0) return;
-                  setSplitExpanded((expanded) => !expanded);
+                  setSplitExpanded((expanded) => {
+                    revealSplitOnLayoutRef.current = !expanded;
+                    return !expanded;
+                  });
                 }}
                 activeOpacity={0.8}
               >
@@ -552,7 +562,21 @@ export default function AddExpenseScreen() {
               </TouchableOpacity>
 
               {splitExpanded && (
-                <View style={styles.splitEditor}>
+                <View
+                  style={styles.splitEditor}
+                  onLayout={(event) => {
+                    if (!revealSplitOnLayoutRef.current) return;
+                    revealSplitOnLayoutRef.current = false;
+                    const { y, height } = event.nativeEvent.layout;
+                    const visibleHeight = Math.max(0, scrollViewportHeightRef.current - 92);
+                    requestAnimationFrame(() => {
+                      scrollViewRef.current?.scrollTo({
+                        y: Math.max(0, y + height - visibleHeight + 12),
+                        animated: true,
+                      });
+                    });
+                  }}
+                >
                   {vacation.companions.length === 0 ? (
                     <Text style={[styles.emptySplitText, { textAlign }]}>
                       {t.splitScreen.emptyCompanions}
@@ -562,9 +586,6 @@ export default function AddExpenseScreen() {
                       <View style={[styles.splitTotalsRow, { flexDirection: rowDirection }]}>
                         <Text style={[styles.splitTotalText, { textAlign }]}>
                           {t.splitScreen.totalLabel} {formatAmount(parsedAmount, currencyCode)}
-                        </Text>
-                        <Text style={[styles.splitAssignedText, { textAlign }]}>
-                          {t.splitScreen.assigned} {formatAmount(assignedTotal, currencyCode)}
                         </Text>
                       </View>
 
@@ -582,9 +603,27 @@ export default function AddExpenseScreen() {
                             {t.splitScreen.autoHint}
                           </Text>
                         </View>
-                        <Text style={[styles.meAmount, overAllocated && styles.meAmountNegative]}>
-                          {formatAmount(meAmount, currencyCode)}
-                        </Text>
+                        <View
+                          style={[
+                            styles.splitAmountInputWrap,
+                            styles.splitAmountInputWrapDisabled,
+                            { flexDirection: rowDirection },
+                          ]}
+                        >
+                          <Text style={styles.splitCurrencyPrefix}>
+                            {currencyInfo(currencyCode).symbol}
+                          </Text>
+                          <TextInput
+                            style={[
+                              styles.splitAmountInput,
+                              styles.splitAmountInputDisabled,
+                              overAllocated && styles.splitAmountInputNegative,
+                              { textAlign },
+                            ]}
+                            value={meAmount.toFixed(2)}
+                            editable={false}
+                          />
+                        </View>
                       </View>
 
                       {vacation.companions.map((companion, index) => {
@@ -626,7 +665,6 @@ export default function AddExpenseScreen() {
                                 placeholder="0"
                                 placeholderTextColor={colors.textMuted}
                                 keyboardType="decimal-pad"
-                                onFocus={(e) => scrollToFocusedInput(scrollViewRef, e)}
                               />
                             </View>
                           </View>
@@ -690,7 +728,10 @@ export default function AddExpenseScreen() {
             </ScrollView>
             {isEditing ? (
               <TouchableOpacity
-                style={[styles.floatingSaveButton, { flexDirection: rowDirection }]}
+                style={[
+                  styles.floatingSaveButton,
+                  { flexDirection: rowDirection, bottom: Math.max(insets.bottom, 12) + 8 },
+                ]}
                 onPress={handleClose}
                 activeOpacity={0.85}
               >
@@ -702,7 +743,7 @@ export default function AddExpenseScreen() {
                 ref={saveButtonRef}
                 style={[
                   styles.floatingSaveButton,
-                  { flexDirection: rowDirection },
+                  { flexDirection: rowDirection, bottom: Math.max(insets.bottom, 12) + 8 },
                   !canSave && styles.saveButtonDisabled,
                 ]}
                 onPress={handleSubmit}
@@ -931,14 +972,12 @@ const styles = StyleSheet.create({
   fieldChevron: { fontSize: 20, color: colors.textMuted, marginLeft: 8 },
   splitEditor: { marginBottom: SECTION_GAP },
   splitTotalsRow: {
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 14,
     marginBottom: 10,
-    gap: 12,
   },
-  splitTotalText: { flex: 1, fontSize: 13, fontWeight: '700', color: colors.text },
-  splitAssignedText: { fontSize: 12, fontWeight: '600', color: colors.primary },
+  splitTotalText: { width: 100, fontSize: 13, fontWeight: '700', color: colors.text },
   participantRow: {
     alignItems: 'center',
     gap: 12,
@@ -962,8 +1001,6 @@ const styles = StyleSheet.create({
   participantTextBlock: { flex: 1 },
   participantName: { fontSize: 15, fontWeight: '600', color: colors.text },
   autoHint: { fontSize: 11, color: colors.textMuted, marginTop: 2 },
-  meAmount: { fontSize: 16, fontWeight: '700', color: colors.text },
-  meAmountNegative: { color: colors.danger },
   splitAmountInputWrap: {
     alignItems: 'center',
     gap: 4,
@@ -975,8 +1012,11 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     width: 100,
   },
+  splitAmountInputWrapDisabled: { backgroundColor: colors.divider },
   splitCurrencyPrefix: { fontSize: 14, fontWeight: '700', color: colors.textMuted },
   splitAmountInput: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text, padding: 0 },
+  splitAmountInputDisabled: { color: colors.textMuted },
+  splitAmountInputNegative: { color: colors.danger },
   emptySplitText: { fontSize: 13, color: colors.textMuted, lineHeight: 19, marginBottom: 8 },
   overAllocatedBanner: {
     alignItems: 'center',
@@ -1063,7 +1103,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 20,
     right: 20,
-    bottom: 20,
     backgroundColor: colors.primary,
     borderRadius: 18,
     height: 54,

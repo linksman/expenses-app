@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Animated, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../storage/LanguageContext';
 import { sameDay } from '../utils/dateLabel';
-import { useDragToDismiss } from '../utils/useDragToDismiss';
 
 interface Props {
   visible: boolean;
@@ -24,7 +23,6 @@ export default function DatePickerModal({ visible, selectedDate, onSelect, onClo
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
   const [viewDate, setViewDate] = useState(selectedDate);
-  const { grabberHandlers, translateY } = useDragToDismiss(onClose, visible);
 
   useEffect(() => {
     if (visible) setViewDate(selectedDate);
@@ -73,8 +71,8 @@ export default function DatePickerModal({ visible, selectedDate, onSelect, onClo
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
-        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-          <View style={styles.grabberArea} {...grabberHandlers}>
+        <View style={styles.sheet}>
+          <View style={styles.grabberArea}>
             <View style={styles.grabber} />
           </View>
           <View style={[styles.header, { flexDirection: rowDirection }]}>
@@ -142,7 +140,7 @@ export default function DatePickerModal({ visible, selectedDate, onSelect, onClo
           <TouchableOpacity style={styles.todayButton} onPress={selectToday} activeOpacity={0.8}>
             <Text style={styles.todayButtonText}>{t.manage.today}</Text>
           </TouchableOpacity>
-        </Animated.View>
+        </View>
       </View>
     </Modal>
   );
