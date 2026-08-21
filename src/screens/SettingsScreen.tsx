@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
+  AccessibilityInfo,
   Linking,
   Modal,
   ScrollView,
@@ -22,20 +23,6 @@ import { useExpenses } from '../storage/ExpensesContext';
 import { useVacations } from '../storage/VacationsContext';
 import { PaymentMethod } from '../types/paymentMethod';
 import { paymentMethodName } from '../utils/paymentMethodName';
-import { EXPENSE_GROUPINGS, useExpenseGrouping } from '../storage/ExpenseGroupingContext';
-import { useExchangeRates } from '../storage/ExchangeRatesContext';
-import {
-  convertedTotal,
-  formatTotalsWithLead,
-  totalsByCurrencyFor,
-} from '../utils/formatCurrency';
-import { convertForVacation } from '../utils/vacationExchangeRate';
-import {
-  buildExpensesCsv,
-  buildExpensesHtml,
-  exportCsvFile,
-  exportPdfFile,
-} from '../utils/exportExpenses';
 
 const METHOD_ICON_PALETTE = [
   { color: '#159C87', tint: '#E7F6F1' },
@@ -58,8 +45,6 @@ export default function SettingsScreen() {
   const rowDirection = isRTL ? 'row-reverse' : 'row';
 
   const { vacations, activeVacationId, setActiveVacationId } = useVacations();
-  const { groupBy, setGroupBy } = useExpenseGrouping();
-  const { ensureRates, convert: rawConvert } = useExchangeRates();
 
   const {
     methods,
@@ -73,18 +58,6 @@ export default function SettingsScreen() {
   const { expenses } = useExpenses();
   const [newMethodName, setNewMethodName] = useState('');
   const [pendingDeleteMethod, setPendingDeleteMethod] = useState<PaymentMethod | null>(null);
-  const [exporting, setExporting] = useState(false);
-
-  const selectedVacation = vacations.find((vacation) => vacation.id === activeVacationId) ?? null;
-  const currentExpenses = useMemo(
-    () => expenses.filter((expense) => expense.vacationId === activeVacationId),
-    [expenses, activeVacationId]
-  );
-  const leadCurrency = selectedVacation?.leadCurrency ?? null;
-
-  useEffect(() => {
-    if (leadCurrency) ensureRates(leadCurrency);
-  }, [leadCurrency, ensureRates]);
 
   const methodIdsInUse = useMemo(
     () => new Set(expenses.map((e) => e.paymentMethodId)),
@@ -95,86 +68,34 @@ export default function SettingsScreen() {
     const trimmed = newMethodName.trim();
     if (!trimmed) return;
     await addPaymentMethod(trimmed);
+    AccessibilityInfo.announceForAccessibility(`${trimmed}, ${t.paymentMethods.addButton}`);
     setNewMethodName('');
   };
 
   const handleConfirmDeleteMethod = async () => {
     if (pendingDeleteMethod) await deletePaymentMethod(pendingDeleteMethod.id);
+    if (pendingDeleteMethod) AccessibilityInfo.announceForAccessibility(`${paymentMethodName(pendingDeleteMethod, t)}, ${t.manage.delete}`);
     setPendingDeleteMethod(null);
   };
 
-  const exportTitle = selectedVacation?.name ?? '';
-  const exportTotalsLine = `${t.manage.tripTotal} ${formatTotalsWithLead(
-    totalsByCurrencyFor(currentExpenses),
-    leadCurrency,
-    leadCurrency && selectedVacation
-      ? convertedTotal(currentExpenses, (amount, currencyCode) =>
-          convertForVacation(selectedVacation, rawConvert, amount, currencyCode)
-        )
-      : null,
-    selectedVacation?.defaultCurrency
-  )}`;
-  const exportConvert = (amount: number, currencyCode: string) =>
-    selectedVacation
-      ? convertForVacation(selectedVacation, rawConvert, amount, currencyCode)
-      : null;
-
-  const handleExportCsv = async () => {
-    if (!selectedVacation || currentExpenses.length === 0 || exporting) return;
-    setExporting(true);
-    try {
-      const csv = buildExpensesCsv(
-        currentExpenses,
-        vacations,
-        methods,
-        t,
-        language.locale,
-        { groupBy, vacation: selectedVacation, convert: exportConvert },
-        exportTotalsLine
-      );
-      await exportCsvFile(csv, exportTitle);
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const handleExportPdf = async () => {
-    if (!selectedVacation || currentExpenses.length === 0 || exporting) return;
-    setExporting(true);
-    try {
-      const html = buildExpensesHtml(
-        currentExpenses,
-        vacations,
-        methods,
-        t,
-        language.locale,
-        exportTitle,
-        exportTotalsLine,
-        isRTL,
-        { groupBy, vacation: selectedVacation, convert: exportConvert }
-      );
-      await exportPdfFile(html, exportTitle);
-    } finally {
-      setExporting(false);
-    }
-  };
-
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top']} accessibilityLanguage={language.locale}>
       <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => navigation.goBack()}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={t.common.back}
         >
           <Ionicons name={isRTL ? 'chevron-forward' : 'chevron-back'} size={20} color={colors.primary} />
         </TouchableOpacity>
         <View style={styles.headerTextBlock}>
-          <Text style={[styles.title, { textAlign }]} numberOfLines={1}>
+          <Text style={[styles.title, { textAlign }]} accessibilityRole="header">
             {t.settings.title}
           </Text>
-          <Text style={[styles.subtitle, { textAlign }]} numberOfLines={1}>
+          <Text style={[styles.subtitle, { textAlign }]}>
             {t.settings.subtitle}
           </Text>
         </View>
@@ -202,6 +123,9 @@ export default function SettingsScreen() {
                     navigation.goBack();
                   }}
                   activeOpacity={0.7}
+                  accessibilityRole="radio"
+                  accessibilityLabel={vacation.name}
+                  accessibilityState={{ selected }}
                 >
                   {hasImage && (
                     <>
@@ -210,6 +134,7 @@ export default function SettingsScreen() {
                         style={StyleSheet.absoluteFillObject}
                         contentFit="cover"
                         cachePolicy="disk"
+                        accessible={false}
                       />
                       <LinearGradient
                         colors={['rgba(20, 12, 40, 0.35)', 'rgba(20, 12, 40, 0.7)']}
@@ -228,7 +153,6 @@ export default function SettingsScreen() {
                   </View>
                   <Text
                     style={[styles.rowLabel, { textAlign }, hasImage && styles.rowLabelOnImage]}
-                    numberOfLines={1}
                   >
                     {vacation.name}
                   </Text>
@@ -244,68 +168,11 @@ export default function SettingsScreen() {
           style={[styles.newVacationButton, { flexDirection: rowDirection }]}
           onPress={() => (navigation as any).navigate('VacationForm')}
           activeOpacity={0.7}
+          accessibilityRole="button"
         >
           <Ionicons name="add" size={16} color={colors.primary} />
           <Text style={styles.newVacationButtonText}>{t.vacations.createNew}</Text>
         </TouchableOpacity>
-
-        <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.groupBy}</Text>
-        <View style={styles.card}>
-          {EXPENSE_GROUPINGS.map((option, index) => (
-            <TouchableOpacity
-              key={option}
-              style={[
-                styles.groupingRow,
-                { flexDirection: rowDirection },
-                index < EXPENSE_GROUPINGS.length - 1 && styles.methodRowBorder,
-              ]}
-              onPress={() => setGroupBy(option)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.rowLabel, { textAlign }]}>
-                {t.settings.groupByOptions[option]}
-              </Text>
-              <Ionicons
-                name={groupBy === option ? 'radio-button-on' : 'radio-button-off'}
-                size={20}
-                color={groupBy === option ? colors.primary : colors.textMuted}
-              />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text style={[styles.sectionLabel, { textAlign }]}>
-          {t.settings.exportCurrentView}
-        </Text>
-        <View style={styles.card}>
-          <TouchableOpacity
-            style={[
-              styles.exportRow,
-              styles.methodRowBorder,
-              { flexDirection: rowDirection },
-              (currentExpenses.length === 0 || exporting) && styles.exportRowDisabled,
-            ]}
-            onPress={handleExportPdf}
-            disabled={currentExpenses.length === 0 || exporting}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="document-outline" size={20} color={colors.primary} />
-            <Text style={[styles.rowLabel, { textAlign }]}>{t.settings.exportToPdf}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.exportRow,
-              { flexDirection: rowDirection },
-              (currentExpenses.length === 0 || exporting) && styles.exportRowDisabled,
-            ]}
-            onPress={handleExportCsv}
-            disabled={currentExpenses.length === 0 || exporting}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="document-text-outline" size={20} color={colors.primary} />
-            <Text style={[styles.rowLabel, { textAlign }]}>{t.settings.exportToCsv}</Text>
-          </TouchableOpacity>
-        </View>
 
         <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.paymentMethods}</Text>
         <Text style={[styles.sectionHint, { textAlign }]}>{t.settings.paymentMethodsHint}</Text>
@@ -325,9 +192,16 @@ export default function SettingsScreen() {
                 <View style={[styles.methodRowTop, { flexDirection: rowDirection }]}>
                   <View style={styles.reorderCol}>
                     <TouchableOpacity
-                      onPress={() => moveMethod(method.id, 'up')}
+                      style={styles.reorderButton}
+                      onPress={() => {
+                        moveMethod(method.id, 'up');
+                        AccessibilityInfo.announceForAccessibility(`${paymentMethodName(method, t)}, ${index}`);
+                      }}
                       disabled={index === 0}
-                      hitSlop={{ top: 4, bottom: 4, left: 8, right: 8 }}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t.common.previous}, ${paymentMethodName(method, t)}`}
+                      accessibilityState={{ disabled: index === 0 }}
                     >
                       <Ionicons
                         name="chevron-up"
@@ -336,9 +210,16 @@ export default function SettingsScreen() {
                       />
                     </TouchableOpacity>
                     <TouchableOpacity
-                      onPress={() => moveMethod(method.id, 'down')}
+                      style={styles.reorderButton}
+                      onPress={() => {
+                        moveMethod(method.id, 'down');
+                        AccessibilityInfo.announceForAccessibility(`${paymentMethodName(method, t)}, ${index + 2}`);
+                      }}
                       disabled={index === methods.length - 1}
-                      hitSlop={{ top: 4, bottom: 4, left: 8, right: 8 }}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t.common.next}, ${paymentMethodName(method, t)}`}
+                      accessibilityState={{ disabled: index === methods.length - 1 }}
                     >
                       <Ionicons
                         name="chevron-down"
@@ -370,7 +251,6 @@ export default function SettingsScreen() {
                           { textAlign },
                           !method.enabled && styles.methodRowNameDisabled,
                         ]}
-                        numberOfLines={1}
                       >
                         {paymentMethodName(method, t)}
                       </Text>
@@ -389,6 +269,8 @@ export default function SettingsScreen() {
                       onPress={() => setDefaultMethodId(method.id)}
                       disabled={!method.enabled}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: !method.enabled }}
                     >
                       <Text
                         style={[
@@ -405,6 +287,8 @@ export default function SettingsScreen() {
                     <TouchableOpacity
                       onPress={() => setMethodEnabled(method.id, !method.enabled)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="switch"
+                      accessibilityState={{ checked: method.enabled }}
                     >
                       <Text style={styles.actionTextSecondary}>
                         {method.enabled ? t.settings.disable : t.settings.enable}
@@ -414,6 +298,8 @@ export default function SettingsScreen() {
                     <TouchableOpacity
                       onPress={() => setPendingDeleteMethod(method)}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t.manage.delete}, ${paymentMethodName(method, t)}`}
                     >
                       <Text style={styles.deleteActionText}>{t.manage.delete}</Text>
                     </TouchableOpacity>
@@ -433,12 +319,15 @@ export default function SettingsScreen() {
             placeholderTextColor={colors.textMuted}
             returnKeyType="done"
             onSubmitEditing={handleAddMethod}
+            accessibilityLabel={t.paymentMethods.addPlaceholder}
           />
           <TouchableOpacity
             style={[styles.addButton, !newMethodName.trim() && styles.addButtonDisabled]}
             onPress={handleAddMethod}
             disabled={!newMethodName.trim()}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !newMethodName.trim() }}
           >
             <Text
               style={[
@@ -463,6 +352,8 @@ export default function SettingsScreen() {
               ]}
               onPress={() => setLanguage(option.code)}
               activeOpacity={0.7}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: languageCode === option.code }}
             >
               <Text style={[styles.rowLabel, { textAlign }]}>{option.nativeLabel}</Text>
               <Ionicons
@@ -484,6 +375,7 @@ export default function SettingsScreen() {
           ]}
           onPress={() => Linking.openURL(KOFI_URL)}
           activeOpacity={0.85}
+          accessibilityRole="link"
         >
           <Ionicons name="cafe-outline" size={19} color="#fff" />
           <Text style={styles.kofiButtonText}>{t.settings.buyMeCoffee}</Text>
@@ -497,9 +389,9 @@ export default function SettingsScreen() {
         animationType="fade"
         onRequestClose={() => setPendingDeleteMethod(null)}
       >
-        <View style={styles.modalOverlay}>
+        <View style={styles.modalOverlay} accessibilityViewIsModal>
           <View style={styles.modalCard}>
-            <Text style={[styles.modalTitle, { textAlign }]}>
+            <Text style={[styles.modalTitle, { textAlign }]} accessibilityRole="header">
               {t.settings.deleteMethodConfirmTitle}
             </Text>
             {pendingDeleteMethod && (
@@ -512,6 +404,7 @@ export default function SettingsScreen() {
                 style={[styles.modalButton, styles.modalCancelButton]}
                 onPress={() => setPendingDeleteMethod(null)}
                 activeOpacity={0.8}
+                accessibilityRole="button"
               >
                 <Text style={styles.modalCancelText}>{t.manage.cancel}</Text>
               </TouchableOpacity>
@@ -519,6 +412,7 @@ export default function SettingsScreen() {
                 style={[styles.modalButton, styles.modalDeleteButton]}
                 onPress={handleConfirmDeleteMethod}
                 activeOpacity={0.8}
+                accessibilityRole="button"
               >
                 <Text style={styles.modalDeleteText}>{t.manage.delete}</Text>
               </TouchableOpacity>
@@ -541,8 +435,8 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backButton: {
-    width: 34,
-    height: 34,
+    width: 48,
+    height: 48,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -585,19 +479,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
-  groupingRow: {
-    alignItems: 'center',
-    gap: 13,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  exportRow: {
-    alignItems: 'center',
-    gap: 13,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
-  exportRowDisabled: { opacity: 0.4 },
   vacationIconBadge: {
     width: 38,
     height: 38,
@@ -637,6 +518,7 @@ const styles = StyleSheet.create({
   methodRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.divider },
   methodRowTop: { alignItems: 'center', gap: 12 },
   reorderCol: { gap: 2 },
+  reorderButton: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   methodIconBadge: {
     width: 36,
     height: 36,
@@ -686,7 +568,7 @@ const styles = StyleSheet.create({
   addRow: { gap: 9, marginHorizontal: 20, marginTop: 12 },
   addInput: {
     flex: 1,
-    height: 46,
+    minHeight: 48,
     backgroundColor: colors.card,
     borderRadius: 16,
     paddingHorizontal: 14,

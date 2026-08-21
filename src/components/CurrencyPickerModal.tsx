@@ -31,17 +31,19 @@ export default function CurrencyPickerModal({
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
-        <View style={styles.sheet}>
-          <View style={styles.grabberArea}>
+        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} accessible={false} />
+        <View style={styles.sheet} accessibilityViewIsModal accessibilityRole="none">
+          <View style={styles.grabberArea} accessible={false}>
             <View style={styles.grabber} />
           </View>
           <View style={[styles.header, { flexDirection: rowDirection }]}>
-            <Text style={[styles.title, { textAlign }]}>{t.currency.pickerTitle}</Text>
+            <Text style={[styles.title, { textAlign }]} accessibilityRole="header">{t.currency.pickerTitle}</Text>
             <TouchableOpacity
               onPress={onClose}
               style={styles.closeButton}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={t.common.close}
             >
               <Ionicons name="close" size={14} color="#71717A" />
             </TouchableOpacity>
@@ -63,6 +65,9 @@ export default function CurrencyPickerModal({
                     onClose();
                   }}
                   activeOpacity={0.7}
+                  accessibilityRole="radio"
+                  accessibilityLabel={noneLabel}
+                  accessibilityState={{ selected: selectedCode === NONE_CODE }}
                 >
                   <View style={styles.iconBadge}>
                     <Text style={styles.symbol}>—</Text>
@@ -86,6 +91,9 @@ export default function CurrencyPickerModal({
                     onClose();
                   }}
                   activeOpacity={0.7}
+                  accessibilityRole="radio"
+                  accessibilityLabel={`${item.code}, ${item.name}`}
+                  accessibilityState={{ selected }}
                 >
                   <View style={[styles.iconBadge, selected && styles.iconBadgeSelected]}>
                     <Text style={[styles.symbol, selected && styles.symbolSelected]}>
@@ -142,8 +150,8 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   title: { fontSize: 18, fontWeight: '700', color: colors.text },
   closeButton: {
-    width: 32,
-    height: 32,
+    width: 48,
+    height: 48,
     borderRadius: 11,
     backgroundColor: '#F5F5F8',
     alignItems: 'center',
@@ -154,7 +162,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 10,
+    minHeight: 48,
+    paddingVertical: 6,
     paddingHorizontal: 4,
   },
   rowSelected: { backgroundColor: '#F9F6FE', borderRadius: 14 },

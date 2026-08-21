@@ -4,13 +4,18 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '../storage/LanguageContext';
+import { useReducedMotion } from '../utils/useReducedMotion';
 
 const WORLD_CAPITALS_COLLAGE = require('../../assets/world-capitals-collage.png');
 
-function LoadingDot({ delay }: { delay: number }) {
+function LoadingDot({ delay, reduceMotion }: { delay: number; reduceMotion: boolean }) {
   const opacity = useRef(new Animated.Value(0.25)).current;
 
   useEffect(() => {
+    if (reduceMotion) {
+      opacity.setValue(1);
+      return;
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
@@ -32,7 +37,7 @@ function LoadingDot({ delay }: { delay: number }) {
       clearTimeout(timer);
       loop.stop();
     };
-  }, [delay, opacity]);
+  }, [delay, opacity, reduceMotion]);
 
   return <Animated.View style={[styles.dot, { opacity }]} />;
 }
@@ -43,10 +48,16 @@ function LoadingDot({ delay }: { delay: number }) {
 // saved language rather than flashing the 'en' default and vanishing.
 export default function SplashScreen() {
   const { t } = useLanguage();
+  const reduceMotion = useReducedMotion();
   const halo = useRef(new Animated.Value(0)).current;
   const rise = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (reduceMotion) {
+      halo.setValue(0);
+      rise.setValue(1);
+      return;
+    }
     Animated.loop(
       Animated.sequence([
         Animated.timing(halo, {
@@ -69,7 +80,7 @@ export default function SplashScreen() {
       easing: Easing.out(Easing.ease),
       useNativeDriver: true,
     }).start();
-  }, [halo, rise]);
+  }, [halo, rise, reduceMotion]);
 
   const haloScale = halo.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] });
   const haloOpacity = halo.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0.8] });
@@ -82,12 +93,13 @@ export default function SplashScreen() {
         source={WORLD_CAPITALS_COLLAGE}
         style={styles.backgroundImage}
         contentFit="cover"
+        accessible={false}
       />
-      <View style={styles.backgroundWash} />
+      <View style={styles.backgroundWash} accessible={false} />
       <View style={[styles.glow, styles.glowTop]} />
       <View style={[styles.glow, styles.glowBottom]} />
 
-      <View style={styles.iconAnchor}>
+      <View style={styles.iconAnchor} accessible={false} importantForAccessibility="no-hide-descendants">
         <View style={styles.markWrap}>
           <Animated.View
             style={[
@@ -102,7 +114,7 @@ export default function SplashScreen() {
         </View>
       </View>
 
-      <View style={styles.center}>
+      <View style={styles.center} accessibilityRole="header">
         <Animated.View
           style={[
             styles.textBlock,
@@ -114,10 +126,14 @@ export default function SplashScreen() {
         </Animated.View>
       </View>
 
-      <View style={styles.dots}>
-        <LoadingDot delay={0} />
-        <LoadingDot delay={200} />
-        <LoadingDot delay={400} />
+      <View
+        style={styles.dots}
+        accessibilityRole="progressbar"
+        accessibilityLabel={t.rates.loading}
+      >
+        <LoadingDot delay={0} reduceMotion={reduceMotion} />
+        <LoadingDot delay={200} reduceMotion={reduceMotion} />
+        <LoadingDot delay={400} reduceMotion={reduceMotion} />
       </View>
     </SafeAreaView>
   );

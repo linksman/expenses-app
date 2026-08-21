@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  AccessibilityInfo,
   Linking,
   SectionList,
   StyleSheet,
@@ -35,8 +36,8 @@ import { companionName } from '../utils/companionName';
 import { timeLabel } from '../utils/dateLabel';
 import { takePendingNewExpenseHighlight } from '../utils/pendingNewExpenseHighlight';
 import { convertForVacation } from '../utils/vacationExchangeRate';
-import { useExpenseGrouping } from '../storage/ExpenseGroupingContext';
 import { ExpenseSection, groupExpenses } from '../utils/groupExpenses';
+import { useReducedMotion } from '../utils/useReducedMotion';
 
 const HIGHLIGHT_DURATION_MS = 1000;
 const HIGHLIGHT_FADE_MS = 1000;
@@ -63,11 +64,13 @@ export default function ManageExpensesScreen() {
   const rowDirection = isRTL ? 'row-reverse' : 'row';
   const { vacations, activeVacationId, loading: vacationsLoading } = useVacations();
   const { ensureRates, convert: rawConvert } = useExchangeRates();
-  const { groupBy } = useExpenseGrouping();
   const textAlign = isRTL ? 'right' : 'left';
   const [collapsedOverrides, setCollapsedOverrides] = useState<Record<string, boolean>>({});
   const [highlightedExpenseId, setHighlightedExpenseId] = useState<string | null>(null);
   const highlightAnim = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
+  const selectedVacation = vacations.find((v) => v.id === activeVacationId) ?? null;
+  const groupBy = selectedVacation?.groupBy ?? 'date';
 
   // After creating a new expense, briefly highlight its row so the user can
   // spot it in the list. Also force-expand its day section in case it isn't
@@ -82,6 +85,12 @@ export default function ManageExpensesScreen() {
         setCollapsedOverrides((prev) => ({ ...prev, [`date:${key}`]: false }));
       }
       setHighlightedExpenseId(id);
+      AccessibilityInfo.announceForAccessibility(t.add.saved);
+      if (reduceMotion) {
+        highlightAnim.setValue(0);
+        setHighlightedExpenseId(null);
+        return;
+      }
       highlightAnim.setValue(1);
       Animated.sequence([
         Animated.delay(HIGHLIGHT_DURATION_MS),
@@ -94,10 +103,9 @@ export default function ManageExpensesScreen() {
         if (finished) setHighlightedExpenseId(null);
       });
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [expenses, groupBy])
+    }, [expenses, groupBy, reduceMotion, t.add.saved])
   );
 
-  const selectedVacation = vacations.find((v) => v.id === activeVacationId) ?? null;
   const leadCurrency = selectedVacation?.leadCurrency ?? null;
 
   useEffect(() => {
@@ -153,16 +161,17 @@ export default function ManageExpensesScreen() {
   }, [navigation]);
 
   if (vacationsLoading) {
-    return <SafeAreaView style={styles.safe} edges={['top']} />;
+    return <SafeAreaView style={styles.safe} edges={['top']} accessibilityLanguage={language.locale} />;
   }
 
   if (vacations.length === 0) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <SafeAreaView style={styles.safe} edges={['top']} accessibilityLanguage={language.locale}>
         <Image
           source={WORLD_CAPITALS_COLLAGE}
           style={styles.noVacationsBackgroundImage}
           contentFit="cover"
+          accessible={false}
         />
         <View pointerEvents="none" style={styles.noVacationsBackgroundWash} />
         <View style={[styles.noVacationsHeaderRow, { justifyContent: isRTL ? 'flex-start' : 'flex-end' }]}>
@@ -170,7 +179,8 @@ export default function ManageExpensesScreen() {
             style={styles.settingsButtonBox}
             onPress={() => (navigation as any).navigate('Settings')}
             activeOpacity={0.7}
-            accessibilityLabel={t.settings.title}
+          accessibilityLabel={t.settings.title}
+          accessibilityRole="button"
           >
             <Ionicons name="settings-outline" size={17} color="#52525B" />
           </TouchableOpacity>
@@ -187,6 +197,7 @@ export default function ManageExpensesScreen() {
             style={[styles.noVacationsButton, { flexDirection: rowDirection }]}
             onPress={() => openVacationForm()}
             activeOpacity={0.85}
+            accessibilityRole="button"
           >
             <Ionicons name="add" size={16} color="#fff" />
             <Text style={styles.noVacationsButtonText}>{t.vacations.emptyButton}</Text>
@@ -220,7 +231,7 @@ export default function ManageExpensesScreen() {
   const summaryImagePending = selectedVacation?.summaryImageUrl === undefined;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top']} accessibilityLanguage={language.locale}>
       {summaryImageUri ? (
         <>
           <Image
@@ -228,12 +239,13 @@ export default function ManageExpensesScreen() {
             style={styles.appBackgroundImage}
             contentFit="cover"
             cachePolicy="disk"
+            accessible={false}
           />
           <View pointerEvents="none" style={styles.appBackgroundWash} />
         </>
       ) : null}
       <View style={styles.container}>
-        <View style={styles.summaryCard} accessibilityLabel={t.vacations.editTitle}>
+        <View style={styles.summaryCard}>
           <View style={styles.totalsCard}>
           {summaryImageUri ? (
             <Image
@@ -243,6 +255,7 @@ export default function ManageExpensesScreen() {
               contentFit="cover"
               cachePolicy="disk"
               transition={200}
+              accessible={false}
             />
           ) : null}
           <LinearGradient
@@ -273,7 +286,7 @@ export default function ManageExpensesScreen() {
                   summaryImageUri && styles.summaryTextOnImage,
                   { textAlign },
                 ]}
-                numberOfLines={1}
+                accessibilityRole="header"
               >
                 {selectedVacation?.name ?? ''}
               </Text>
@@ -391,6 +404,7 @@ export default function ManageExpensesScreen() {
             onPress={() => (navigation as any).navigate('Settings')}
             activeOpacity={0.7}
             accessibilityLabel={t.settings.title}
+            accessibilityRole="button"
           >
             <Ionicons
               name="settings-outline"
@@ -447,6 +461,9 @@ export default function ManageExpensesScreen() {
                 style={[styles.sectionHeader, { flexDirection: rowDirection }]}
                 onPress={() => toggleSection(section.key, section.title)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`${section.title}, ${formatTotalsWithLead(sectionTotals, leadCurrency, sectionLeadTotal, selectedVacation?.defaultCurrency)}`}
+                accessibilityState={{ expanded: !collapsed }}
               >
                 <View style={[styles.sectionTitleRow, { flexDirection: rowDirection }]}>
                   <Ionicons
@@ -497,6 +514,8 @@ export default function ManageExpensesScreen() {
                   })
                 }
                 activeOpacity={0.6}
+                accessibilityRole="button"
+                accessibilityLabel={`${descriptionText}, ${method ?? ''}, ${formatAmount(item.amount, item.currencyCode)}${splitLabel ? `, ${splitLabel}` : ''}`}
               >
                 {isHighlighted && (
                   <Animated.View
@@ -508,14 +527,14 @@ export default function ManageExpensesScreen() {
                   <Ionicons name={info ? info.icon : methodIcon} size={19} color={iconColor} />
                 </View>
                 <View style={styles.rowMiddle}>
-                  <Text style={[styles.rowDescription, { textAlign }]} numberOfLines={1}>
+                  <Text style={[styles.rowDescription, { textAlign }]}>
                     {descriptionText}
                   </Text>
-                  <Text style={[styles.rowMethod, { textAlign }]} numberOfLines={1}>
+                  <Text style={[styles.rowMethod, { textAlign }]}>
                     {method ?? ''}
                   </Text>
                   {splitLabel && (
-                    <Text style={[styles.rowSplit, { textAlign }]} numberOfLines={1}>
+                    <Text style={[styles.rowSplit, { textAlign }]}>
                       {splitLabel}
                     </Text>
                   )}
@@ -558,6 +577,8 @@ export default function ManageExpensesScreen() {
         }}
         disabled={!canAdd}
         activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !canAdd }}
       >
         <Ionicons name="add" size={20} color="#fff" />
         <Text style={styles.addButtonText}>{t.add.save}</Text>
@@ -600,8 +621,8 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   settingsButtonBox: {
-    width: 34,
-    height: 34,
+    width: 48,
+    height: 48,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.border,
@@ -651,7 +672,7 @@ const styles = StyleSheet.create({
     marginHorizontal: -22,
     marginBottom: -20,
     marginTop: 14,
-    minHeight: 42,
+    minHeight: 48,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: 'rgba(39, 39, 42, 0.20)',
     backgroundColor: 'rgba(255, 255, 255, 0.28)',
@@ -665,8 +686,8 @@ const styles = StyleSheet.create({
   summarySettingsButton: {
     position: 'absolute',
     top: 14,
-    width: 34,
-    height: 34,
+    width: 48,
+    height: 48,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: 'rgba(39, 39, 42, 0.16)',

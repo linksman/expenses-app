@@ -4,8 +4,9 @@ export const colors = {
   primary: '#6D28D9',
   primaryDark: '#5B21B6',
   text: '#18181B',
-  textMuted: '#8B8B96',
+  // 5.5:1 on card white and 5.3:1 on the app background (WCAG AA body text).
+  textMuted: '#62626D',
   border: '#EAEAF0',
   divider: '#F1F1F5',
-  danger: '#D4526B',
+  danger: '#B42342',
 };

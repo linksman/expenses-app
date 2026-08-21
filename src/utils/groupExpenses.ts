@@ -1,5 +1,5 @@
 import { Translations } from '../i18n/translations';
-import { ExpenseGrouping } from '../storage/ExpenseGroupingContext';
+import { ExpenseGrouping } from '../types/expenseGrouping';
 import { ME_COMPANION_ID } from '../types/companion';
 import { Expense } from '../types/expense';
 import { PaymentMethod } from '../types/paymentMethod';

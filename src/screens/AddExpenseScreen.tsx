@@ -3,6 +3,7 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Modal,
+  AccessibilityInfo,
   Platform,
   ScrollView,
   StyleSheet,
@@ -269,6 +270,7 @@ export default function AddExpenseScreen() {
       );
       setActiveVacationId(vacation.id);
       setPendingNewExpenseHighlight(newExpenseId);
+      AccessibilityInfo.announceForAccessibility(t.add.saved);
       navigation.goBack();
     } finally {
       submittingRef.current = false;
@@ -298,6 +300,7 @@ export default function AddExpenseScreen() {
   const handleDelete = async () => {
     if (!expenseId) return;
     await deleteExpense(expenseId);
+    AccessibilityInfo.announceForAccessibility(t.add.deleteExpense);
     setDeleteConfirmVisible(false);
     if (vacation) setActiveVacationId(vacation.id);
     navigation.goBack();
@@ -323,17 +326,17 @@ export default function AddExpenseScreen() {
       onShow={scheduleAmountFocus}
     >
       <View style={styles.overlay}>
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={handleClose} />
-        <View style={styles.sheet}>
-          <TouchableOpacity style={styles.grabberArea} onPress={handleClose} activeOpacity={0.8}>
+        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={handleClose} accessible={false} />
+        <View style={styles.sheet} accessibilityViewIsModal accessibilityLanguage={language.locale}>
+          <TouchableOpacity style={styles.grabberArea} onPress={handleClose} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t.common.close}>
             <View style={styles.grabber} />
           </TouchableOpacity>
           <View style={[styles.header, { flexDirection: rowDirection }]}>
             <Text
               style={[styles.headerTitle, { textAlign }]}
-              numberOfLines={1}
               onPress={handleClose}
               accessibilityRole="button"
+              accessibilityLabel={`${isEditing ? t.add.editTitle : t.add.title}, ${t.common.close}`}
             >
               {isEditing ? t.add.editTitle : t.add.title}
             </Text>
@@ -341,6 +344,8 @@ export default function AddExpenseScreen() {
               onPress={handleClose}
               style={styles.closeButton}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={t.common.close}
             >
               <Ionicons name="close" size={14} color="#71717A" />
             </TouchableOpacity>
@@ -365,6 +370,7 @@ export default function AddExpenseScreen() {
                   else amountInputRef.current?.focus();
                 }}
                 activeOpacity={hasSplit ? 1 : 0.8}
+                accessible={false}
               >
                 <View style={[styles.amountRow, { flexDirection: rowDirection }]}>
                   <View
@@ -388,6 +394,8 @@ export default function AddExpenseScreen() {
                       blurOnSubmit={false}
                       editable={!hasSplit}
                       onFocus={(e) => scrollToFocusedInput(scrollViewRef, e)}
+                      accessibilityLabel={t.manage.amount}
+                      accessibilityState={{ disabled: hasSplit }}
                     />
                     <Text
                       style={[
@@ -405,6 +413,8 @@ export default function AddExpenseScreen() {
                     style={styles.currencyButton}
                     onPress={() => setCurrencyModalVisible(true)}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t.currency.pickerTitle}, ${currencyCode}`}
                   >
                     <Text style={styles.currencySign}>{currencyInfo(currencyCode).symbol}</Text>
                     <View style={[styles.currencyCodeRow, { flexDirection: rowDirection }]}>
@@ -427,6 +437,7 @@ export default function AddExpenseScreen() {
                 ]}
                 onPress={() => descriptionInputRef.current?.focus()}
                 activeOpacity={0.8}
+                accessible={false}
               >
                 <View
                   style={[
@@ -448,6 +459,7 @@ export default function AddExpenseScreen() {
                     returnKeyType="done"
                     onSubmitEditing={() => saveButtonRef.current?.focus?.()}
                     onFocus={(e) => scrollToFocusedInput(scrollViewRef, e)}
+                    accessibilityLabel={t.add.description}
                   />
                 </View>
               </TouchableOpacity>
@@ -466,6 +478,8 @@ export default function AddExpenseScreen() {
                       ]}
                       activeOpacity={0.8}
                       accessibilityLabel={paymentMethodName(m, t)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
                     >
                       <Ionicons
                         name={m.icon}
@@ -477,7 +491,6 @@ export default function AddExpenseScreen() {
                           styles.categoryChipLabel,
                           selected && styles.categoryChipLabelSelected,
                         ]}
-                        numberOfLines={1}
                       >
                         {paymentMethodName(m, t)}
                       </Text>
@@ -489,13 +502,14 @@ export default function AddExpenseScreen() {
                   style={[styles.categoryChip, styles.paymentMethodChip]}
                   activeOpacity={0.8}
                   accessibilityLabel={t.add.moreMethods}
+                  accessibilityRole="button"
                 >
                   <Ionicons
                     name="ellipsis-horizontal"
                     size={21}
                     color={FIELD_ICON_STYLES.payment.color}
                   />
-                  <Text style={styles.categoryChipLabel} numberOfLines={1}>
+                  <Text style={styles.categoryChipLabel}>
                     {t.add.moreMethods}
                   </Text>
                 </TouchableOpacity>
@@ -505,6 +519,8 @@ export default function AddExpenseScreen() {
                 style={[styles.fieldCard, { flexDirection: rowDirection }]}
                 onPress={() => setDateModalVisible(true)}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={`${t.add.date}, ${dayLabel(expenseDate.toISOString(), t, language.locale)}`}
               >
                 <View
                   style={[
@@ -518,7 +534,6 @@ export default function AddExpenseScreen() {
                 <View style={styles.fieldTextBlock}>
                   <Text
                     style={[styles.fieldValue, styles.fieldValueAlone, { textAlign }]}
-                    numberOfLines={1}
                   >
                     {dayLabel(expenseDate.toISOString(), t, language.locale)}
                   </Text>
@@ -536,6 +551,9 @@ export default function AddExpenseScreen() {
                   });
                 }}
                 activeOpacity={0.8}
+                accessibilityRole="button"
+                accessibilityLabel={`${t.add.split}, ${payerNames}`}
+                accessibilityState={{ expanded: splitExpanded, disabled: Number.isNaN(parsedAmount) || parsedAmount <= 0 }}
               >
                 <View
                   style={[
@@ -549,7 +567,6 @@ export default function AddExpenseScreen() {
                 <View style={styles.fieldTextBlock}>
                   <Text
                     style={[styles.fieldValue, styles.fieldValueAlone, { textAlign }]}
-                    numberOfLines={1}
                   >
                     {payerNames}
                   </Text>
@@ -622,6 +639,7 @@ export default function AddExpenseScreen() {
                             ]}
                             value={meAmount.toFixed(2)}
                             editable={false}
+                            accessibilityLabel={`${t.companions.me}, ${t.manage.amount}`}
                           />
                         </View>
                       </View>
@@ -640,7 +658,6 @@ export default function AddExpenseScreen() {
                             </View>
                             <Text
                               style={[styles.participantName, { textAlign, flex: 1 }]}
-                              numberOfLines={1}
                             >
                               {companion.name}
                             </Text>
@@ -665,6 +682,7 @@ export default function AddExpenseScreen() {
                                 placeholder="0"
                                 placeholderTextColor={colors.textMuted}
                                 keyboardType="decimal-pad"
+                                accessibilityLabel={`${companion.name}, ${t.manage.amount}`}
                               />
                             </View>
                           </View>
@@ -672,7 +690,7 @@ export default function AddExpenseScreen() {
                       })}
 
                       {overAllocated && (
-                        <View style={[styles.overAllocatedBanner, { flexDirection: rowDirection }]}>
+                        <View style={[styles.overAllocatedBanner, { flexDirection: rowDirection }]} accessibilityRole="alert" accessibilityLiveRegion="assertive">
                           <Ionicons name="alert-circle-outline" size={17} color="#B03A52" />
                           <Text style={[styles.overAllocatedText, { textAlign }]}>
                             {t.splitScreen.overAllocated}
@@ -697,6 +715,8 @@ export default function AddExpenseScreen() {
                       style={[styles.categoryChip, selected && styles.categoryChipSelected]}
                       activeOpacity={0.8}
                       accessibilityLabel={t.categories[c.key]}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: selected }}
                     >
                       <Ionicons name={c.icon} size={21} color={selected ? colors.primary : c.color} />
                       <Text
@@ -704,7 +724,6 @@ export default function AddExpenseScreen() {
                           styles.categoryChipLabel,
                           selected && styles.categoryChipLabelSelected,
                         ]}
-                        numberOfLines={1}
                       >
                         {t.categories[c.key]}
                       </Text>
@@ -721,6 +740,7 @@ export default function AddExpenseScreen() {
                   onPress={() => setDeleteConfirmVisible(true)}
                   activeOpacity={0.7}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.deleteExpenseText}>{t.add.deleteExpense}</Text>
                 </TouchableOpacity>
@@ -734,6 +754,7 @@ export default function AddExpenseScreen() {
                 ]}
                 onPress={handleClose}
                 activeOpacity={0.85}
+                accessibilityRole="button"
               >
                 <Ionicons name="checkmark-circle-outline" size={19} color="#fff" />
                 <Text style={styles.saveButtonText}>{t.common.done}</Text>
@@ -749,6 +770,8 @@ export default function AddExpenseScreen() {
                 onPress={handleSubmit}
                 disabled={!canSave}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !canSave }}
               >
                 <Ionicons name="checkmark-circle-outline" size={19} color="#fff" />
                 <Text style={styles.saveButtonText}>{t.common.save}</Text>
@@ -783,9 +806,9 @@ export default function AddExpenseScreen() {
         animationType="fade"
         onRequestClose={() => setDeleteConfirmVisible(false)}
       >
-        <View style={styles.confirmOverlay}>
+        <View style={styles.confirmOverlay} accessibilityViewIsModal>
           <View style={styles.confirmCard}>
-            <Text style={[styles.confirmTitle, { textAlign }]}>
+            <Text style={[styles.confirmTitle, { textAlign }]} accessibilityRole="header">
               {t.manage.deleteConfirmTitle}
             </Text>
             {existingExpense && (
@@ -799,6 +822,7 @@ export default function AddExpenseScreen() {
                 style={[styles.confirmButton, styles.confirmCancelButton]}
                 onPress={() => setDeleteConfirmVisible(false)}
                 activeOpacity={0.8}
+                accessibilityRole="button"
               >
                 <Text style={styles.confirmCancelText}>{t.manage.cancel}</Text>
               </TouchableOpacity>
@@ -806,6 +830,7 @@ export default function AddExpenseScreen() {
                 style={[styles.confirmButton, styles.confirmDeleteButton]}
                 onPress={handleDelete}
                 activeOpacity={0.8}
+                accessibilityRole="button"
               >
                 <Text style={styles.confirmDeleteText}>{t.manage.delete}</Text>
               </TouchableOpacity>
@@ -859,8 +884,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   closeButton: {
-    width: 32,
-    height: 32,
+    width: 48,
+    height: 48,
     borderRadius: 11,
     backgroundColor: '#F5F5F8',
     alignItems: 'center',
@@ -1014,7 +1039,7 @@ const styles = StyleSheet.create({
   },
   splitAmountInputWrapDisabled: { backgroundColor: colors.divider },
   splitCurrencyPrefix: { fontSize: 14, fontWeight: '700', color: colors.textMuted },
-  splitAmountInput: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text, padding: 0 },
+  splitAmountInput: { flex: 1, minWidth: 0, fontSize: 15, fontWeight: '700', color: colors.text, padding: 0 },
   splitAmountInputDisabled: { color: colors.textMuted },
   splitAmountInputNegative: { color: colors.danger },
   emptySplitText: { fontSize: 13, color: colors.textMuted, lineHeight: 19, marginBottom: 8 },
@@ -1081,7 +1106,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
   },
   categoryChipLabelSelected: { color: colors.primaryDark, fontWeight: '700' },
-  deleteExpenseButton: { paddingTop: 4, paddingBottom: 8, marginBottom: 12 },
+  deleteExpenseButton: { minHeight: 48, justifyContent: 'center', marginBottom: 12 },
   deleteExpenseText: { fontSize: 13, fontWeight: '600', color: colors.danger },
   confirmOverlay: {
     flex: 1,

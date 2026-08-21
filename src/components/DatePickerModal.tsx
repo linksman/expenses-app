@@ -70,28 +70,30 @@ export default function DatePickerModal({ visible, selectedDate, onSelect, onClo
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
-        <View style={styles.sheet}>
-          <View style={styles.grabberArea}>
+        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} accessible={false} />
+        <View style={styles.sheet} accessibilityViewIsModal accessibilityRole="none">
+          <View style={styles.grabberArea} accessible={false}>
             <View style={styles.grabber} />
           </View>
           <View style={[styles.header, { flexDirection: rowDirection }]}>
-            <Text style={[styles.title, { textAlign }]}>{t.add.date}</Text>
+            <Text style={[styles.title, { textAlign }]} accessibilityRole="header">{t.add.date}</Text>
             <TouchableOpacity
               onPress={onClose}
               style={styles.closeButton}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={t.common.close}
             >
               <Ionicons name="close" size={14} color="#71717A" />
             </TouchableOpacity>
           </View>
 
           <View style={[styles.monthHeader, { flexDirection: rowDirection }]}>
-            <TouchableOpacity onPress={goPrevMonth} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={goPrevMonth} style={styles.monthButton} accessibilityRole="button" accessibilityLabel={t.common.previous}>
               <Text style={styles.navArrow}>{isRTL ? '›' : '‹'}</Text>
             </TouchableOpacity>
             <Text style={styles.monthLabel}>{monthLabel}</Text>
-            <TouchableOpacity onPress={goNextMonth} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={goNextMonth} style={styles.monthButton} accessibilityRole="button" accessibilityLabel={t.common.next}>
               <Text style={styles.navArrow}>{isRTL ? '‹' : '›'}</Text>
             </TouchableOpacity>
           </View>
@@ -121,6 +123,9 @@ export default function DatePickerModal({ visible, selectedDate, onSelect, onClo
                     ]}
                     onPress={() => selectDay(day)}
                     activeOpacity={0.7}
+                    accessibilityRole="radio"
+                    accessibilityLabel={cellDate.toLocaleDateString(language.locale, { dateStyle: 'full' })}
+                    accessibilityState={{ selected: isSelected }}
                   >
                     <Text
                       style={[
@@ -137,7 +142,7 @@ export default function DatePickerModal({ visible, selectedDate, onSelect, onClo
             </View>
           ))}
 
-          <TouchableOpacity style={styles.todayButton} onPress={selectToday} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.todayButton} onPress={selectToday} activeOpacity={0.8} accessibilityRole="button">
             <Text style={styles.todayButtonText}>{t.manage.today}</Text>
           </TouchableOpacity>
         </View>
@@ -178,8 +183,8 @@ const styles = StyleSheet.create({
   header: { alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   title: { fontSize: 18, fontWeight: '700', color: colors.text },
   closeButton: {
-    width: 32,
-    height: 32,
+    width: 48,
+    height: 48,
     borderRadius: 11,
     backgroundColor: '#F5F5F8',
     alignItems: 'center',
@@ -190,21 +195,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
+  monthButton: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
   navArrow: { fontSize: 22, color: colors.primaryDark, fontWeight: '700', paddingHorizontal: 12 },
   monthLabel: { fontSize: 16, fontWeight: '700', color: colors.text },
   weekdayRow: { justifyContent: 'space-between', marginBottom: 6 },
   weekdayLabel: {
-    width: 36,
+    width: 48,
     textAlign: 'center',
     fontSize: 12,
     fontWeight: '700',
     color: colors.textMuted,
   },
-  weekRow: { justifyContent: 'space-between', marginBottom: 4 },
+  weekRow: { justifyContent: 'space-between' },
   dayCell: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -217,6 +223,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     alignItems: 'center',
     paddingVertical: 12,
+    minHeight: 48,
     borderRadius: 12,
     backgroundColor: colors.background,
   },

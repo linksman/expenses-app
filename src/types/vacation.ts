@@ -1,10 +1,12 @@
 import { TravelCompanion } from './companion';
+import { ExpenseGrouping } from './expenseGrouping';
 
 export interface Vacation {
   id: string;
   name: string;
   defaultCurrency: string;
   leadCurrency: string | null;
+  groupBy: ExpenseGrouping;
   // How many units of leadCurrency equal 1 unit of defaultCurrency. When set,
   // this overrides the live exchange rate for converting defaultCurrency
   // amounts to leadCurrency — for this vacation only, existing expenses

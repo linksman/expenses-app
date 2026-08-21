@@ -8,7 +8,6 @@ import { PaymentMethodsProvider } from './src/storage/PaymentMethodsContext';
 import { LanguageProvider, useLanguage } from './src/storage/LanguageContext';
 import { VacationsProvider } from './src/storage/VacationsContext';
 import { ExchangeRatesProvider } from './src/storage/ExchangeRatesContext';
-import { ExpenseGroupingProvider } from './src/storage/ExpenseGroupingContext';
 import AddExpenseScreen from './src/screens/AddExpenseScreen';
 import ManageExpensesScreen from './src/screens/ManageExpensesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -79,9 +78,7 @@ export default function App() {
           <ExchangeRatesProvider>
             <PaymentMethodsProvider>
               <ExpensesProvider>
-                <ExpenseGroupingProvider>
-                  <AppGate />
-                </ExpenseGroupingProvider>
+                <AppGate />
               </ExpensesProvider>
             </PaymentMethodsProvider>
           </ExchangeRatesProvider>

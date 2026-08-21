@@ -7,7 +7,7 @@ import { Vacation } from '../types/vacation';
 import { PaymentMethod } from '../types/paymentMethod';
 import { Translations } from '../i18n/translations';
 import { paymentMethodName } from './paymentMethodName';
-import { ExpenseGrouping } from '../storage/ExpenseGroupingContext';
+import { ExpenseGrouping } from '../types/expenseGrouping';
 import { companionShare, formatAmount, formatTotalsWithLead, companionConvertedTotal, convertedTotal } from './formatCurrency';
 import { groupExpenses } from './groupExpenses';
 

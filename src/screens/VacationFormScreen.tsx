@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  AccessibilityInfo,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -20,12 +21,17 @@ import { useLanguage } from '../storage/LanguageContext';
 import { useVacations } from '../storage/VacationsContext';
 import { useExpenses } from '../storage/ExpensesContext';
 import { useExchangeRates } from '../storage/ExchangeRatesContext';
+import { usePaymentMethods } from '../storage/PaymentMethodsContext';
 import { currencyInfo } from '../types/currency';
 import { TravelCompanion } from '../types/companion';
+import { EXPENSE_GROUPINGS } from '../types/expenseGrouping';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
 import { companionAvatarColor } from '../utils/companionAvatar';
 import { scrollNodeIntoViewAboveKeyboard, scrollToFocusedInput } from '../utils/scrollToFocusedInput';
 import { findDestinationImage } from '../utils/destinationImage';
+import { convertedTotal, formatTotalsWithLead, totalsByCurrencyFor } from '../utils/formatCurrency';
+import { convertForVacation } from '../utils/vacationExchangeRate';
+import { buildExpensesCsv, buildExpensesHtml, exportCsvFile, exportPdfFile } from '../utils/exportExpenses';
 
 interface RouteParams {
   vacationId?: string;
@@ -37,7 +43,7 @@ export default function VacationFormScreen() {
   const route = useRoute();
   const { vacationId } = (route.params ?? {}) as RouteParams;
 
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, language } = useLanguage();
   const {
     vacations,
     addVacation,
@@ -45,8 +51,10 @@ export default function VacationFormScreen() {
     deleteVacation,
     setVacationSummaryImage,
     setVacationFixedExchangeRate,
+    setVacationGroupBy,
   } = useVacations();
   const { expenses, deleteExpensesByVacation } = useExpenses();
+  const { methods } = usePaymentMethods();
   const { ensureRates, convert: rawConvert } = useExchangeRates();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
@@ -67,6 +75,7 @@ export default function VacationFormScreen() {
   const [leadCurrencyModalVisible, setLeadCurrencyModalVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const closingRef = useRef(false);
   const [pendingDeleteCompanion, setPendingDeleteCompanion] = useState<TravelCompanion | null>(
     null
@@ -169,6 +178,67 @@ export default function VacationFormScreen() {
     return ids;
   }, [expenses, vacation]);
 
+  const vacationExpenses = useMemo(
+    () => (vacation ? expenses.filter((expense) => expense.vacationId === vacation.id) : []),
+    [expenses, vacation]
+  );
+
+  const exportTotalsLine = vacation
+    ? `${t.manage.tripTotal} ${formatTotalsWithLead(
+        totalsByCurrencyFor(vacationExpenses),
+        vacation.leadCurrency,
+        vacation.leadCurrency
+          ? convertedTotal(vacationExpenses, (amount, currencyCode) =>
+              convertForVacation(vacation, rawConvert, amount, currencyCode)
+            )
+          : null,
+        vacation.defaultCurrency
+      )}`
+    : '';
+
+  const exportConvert = (amount: number, currencyCode: string) =>
+    vacation ? convertForVacation(vacation, rawConvert, amount, currencyCode) : null;
+
+  const handleExportCsv = async () => {
+    if (!vacation || vacationExpenses.length === 0 || exporting) return;
+    setExporting(true);
+    try {
+      const csv = buildExpensesCsv(
+        vacationExpenses,
+        vacations,
+        methods,
+        t,
+        language.locale,
+        { groupBy: vacation.groupBy, vacation, convert: exportConvert },
+        exportTotalsLine
+      );
+      await exportCsvFile(csv, vacation.name);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!vacation || vacationExpenses.length === 0 || exporting) return;
+    setExporting(true);
+    try {
+      const html = buildExpensesHtml(
+        vacationExpenses,
+        vacations,
+        methods,
+        t,
+        language.locale,
+        vacation.name,
+        exportTotalsLine,
+        isRTL,
+        { groupBy: vacation.groupBy, vacation, convert: exportConvert }
+      );
+      await exportPdfFile(html, vacation.name);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleAddCompanion = () => {
     const trimmed = newCompanionName.trim();
     if (!trimmed) return;
@@ -177,6 +247,7 @@ export default function VacationFormScreen() {
       { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name: trimmed },
     ]);
     setNewCompanionName('');
+    AccessibilityInfo.announceForAccessibility(`${trimmed}, ${t.companions.addButton}`);
   };
 
   const handleConfirmDeleteCompanion = () => {
@@ -204,6 +275,7 @@ export default function VacationFormScreen() {
         }
       }
       (navigation as any).popTo('Expenses');
+      AccessibilityInfo.announceForAccessibility(t.vacations.createButton);
     } catch {
       setSaving(false);
     }
@@ -213,6 +285,7 @@ export default function VacationFormScreen() {
     if (!vacation) return;
     await deleteExpensesByVacation(vacation.id);
     await deleteVacation(vacation.id);
+    AccessibilityInfo.announceForAccessibility(t.vacations.deleteLink);
     setDeleteConfirmVisible(false);
     navigation.goBack();
   };
@@ -231,17 +304,20 @@ export default function VacationFormScreen() {
           activeOpacity={1}
           onPress={handleClose}
           disabled={saving}
+          accessible={false}
         />
-        <View style={styles.sheet}>
+        <View style={styles.sheet} accessibilityViewIsModal>
           <TouchableOpacity
             style={styles.grabberArea}
             onPress={handleClose}
             disabled={saving}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={t.common.close}
           >
             <View style={styles.grabber} />
           </TouchableOpacity>
-          <SafeAreaView style={styles.safe} edges={[]}>
+          <SafeAreaView style={styles.safe} edges={[]} accessibilityLanguage={language.locale}>
       <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
         <TouchableOpacity
           style={styles.backButton}
@@ -249,14 +325,16 @@ export default function VacationFormScreen() {
           disabled={saving}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={t.common.close}
         >
           <Ionicons name="close" size={16} color={colors.textMuted} />
         </TouchableOpacity>
         <Text
           style={[styles.title, { textAlign }]}
-          numberOfLines={1}
           onPress={handleClose}
           accessibilityRole="button"
+          accessibilityLabel={`${isEditing ? t.vacations.editTitle : t.vacations.createTitle}, ${t.common.close}`}
         >
           {isEditing ? t.vacations.editTitle : t.vacations.createTitle}
         </Text>
@@ -292,6 +370,8 @@ export default function VacationFormScreen() {
                 placeholderTextColor={colors.textMuted}
                 returnKeyType="done"
                 onFocus={(e) => scrollToFocusedInput(scrollViewRef, e)}
+                accessibilityLabel={t.vacations.nameLabel}
+                accessibilityState={{ disabled: saving }}
               />
             </View>
           </View>
@@ -302,6 +382,8 @@ export default function VacationFormScreen() {
               style={[styles.row, styles.rowBorder, { flexDirection: rowDirection }]}
               onPress={() => setDefaultCurrencyModalVisible(true)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`${t.vacations.defaultCurrency}, ${defaultCurrency}`}
             >
               <View style={[styles.currencyIconBadge, { backgroundColor: '#F1EAFE' }]}>
                 <Text style={[styles.currencyIconText, { color: '#7C3AED' }]}>
@@ -327,6 +409,8 @@ export default function VacationFormScreen() {
               ]}
               onPress={() => setLeadCurrencyModalVisible(true)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`${t.vacations.leadCurrency}, ${leadCurrency ?? t.vacations.leadCurrencyNone}`}
             >
               <View style={[styles.currencyIconBadge, { backgroundColor: '#E7F6F1' }]}>
                 <Text style={[styles.currencyIconText, { color: '#159C87' }]}>
@@ -362,6 +446,8 @@ export default function VacationFormScreen() {
                   editable={!rateAuto}
                   keyboardType="decimal-pad"
                   placeholderTextColor={colors.textMuted}
+                  accessibilityLabel={`${t.vacations.defaultCurrency} ${t.vacations.leadCurrency}`}
+                  accessibilityState={{ disabled: rateAuto }}
                 />
                 <Text style={styles.rateCurrency}>{leadCurrency}</Text>
                 <TouchableOpacity
@@ -376,6 +462,9 @@ export default function VacationFormScreen() {
                     });
                   }}
                   activeOpacity={0.7}
+                  accessibilityRole="checkbox"
+                  accessibilityLabel={t.vacations.autoRateLabel}
+                  accessibilityState={{ checked: rateAuto }}
                 >
                   <View style={[styles.checkbox, rateAuto && styles.checkboxChecked]}>
                     {rateAuto && <Ionicons name="checkmark" size={12} color="#fff" />}
@@ -385,6 +474,74 @@ export default function VacationFormScreen() {
               </View>
             )}
           </View>
+
+          {isEditing && vacation && (
+            <>
+              <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.groupBy}</Text>
+              <View style={styles.card}>
+                {EXPENSE_GROUPINGS.map((option, index) => (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.optionRow,
+                      { flexDirection: rowDirection },
+                      index < EXPENSE_GROUPINGS.length - 1 && styles.rowBorder,
+                    ]}
+                    onPress={() => setVacationGroupBy(vacation.id, option)}
+                    activeOpacity={0.7}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: vacation.groupBy === option }}
+                  >
+                    <Text style={[styles.optionLabel, { textAlign }]}>
+                      {t.settings.groupByOptions[option]}
+                    </Text>
+                    <Ionicons
+                      name={vacation.groupBy === option ? 'radio-button-on' : 'radio-button-off'}
+                      size={20}
+                      color={vacation.groupBy === option ? colors.primary : colors.textMuted}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={[styles.sectionLabel, { textAlign }]}>
+                {t.settings.exportCurrentView}
+              </Text>
+              <View style={styles.card}>
+                <TouchableOpacity
+                  style={[
+                    styles.optionRow,
+                    styles.rowBorder,
+                    { flexDirection: rowDirection },
+                    (vacationExpenses.length === 0 || exporting) && styles.optionRowDisabled,
+                  ]}
+                  onPress={handleExportPdf}
+                  disabled={vacationExpenses.length === 0 || exporting}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: vacationExpenses.length === 0 || exporting, busy: exporting }}
+                >
+                  <Ionicons name="document-outline" size={20} color={colors.primary} />
+                  <Text style={[styles.optionLabel, { textAlign }]}>{t.settings.exportToPdf}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.optionRow,
+                    { flexDirection: rowDirection },
+                    (vacationExpenses.length === 0 || exporting) && styles.optionRowDisabled,
+                  ]}
+                  onPress={handleExportCsv}
+                  disabled={vacationExpenses.length === 0 || exporting}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: vacationExpenses.length === 0 || exporting, busy: exporting }}
+                >
+                  <Ionicons name="document-text-outline" size={20} color={colors.primary} />
+                  <Text style={[styles.optionLabel, { textAlign }]}>{t.settings.exportToCsv}</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
 
           <Text style={[styles.sectionLabel, { textAlign }]}>{t.companions.title}</Text>
           <Text style={[styles.sectionHint, { textAlign }]}>{t.companions.hint}</Text>
@@ -408,7 +565,7 @@ export default function VacationFormScreen() {
                       </Text>
                     </View>
                     <View style={styles.companionTextBlock}>
-                      <Text style={[styles.companionName, { textAlign }]} numberOfLines={1}>
+                      <Text style={[styles.companionName, { textAlign }]}>
                         {c.name}
                       </Text>
                       {inUse && (
@@ -422,6 +579,8 @@ export default function VacationFormScreen() {
                         onPress={() => setPendingDeleteCompanion(c)}
                         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         style={styles.companionDeleteButton}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${t.manage.delete}, ${c.name}`}
                       >
                         <Ionicons name="close" size={14} color={colors.textMuted} />
                       </TouchableOpacity>
@@ -446,12 +605,15 @@ export default function VacationFormScreen() {
                 scrollToFocusedInput(scrollViewRef, e);
               }}
               onBlur={() => setCompanionInputFocused(false)}
+              accessibilityLabel={t.companions.namePlaceholder}
             />
             <TouchableOpacity
               style={[styles.addButton, !newCompanionName.trim() && styles.addButtonDisabled]}
               onPress={handleAddCompanion}
               disabled={!newCompanionName.trim()}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !newCompanionName.trim() }}
             >
               <Text
                 style={[
@@ -470,6 +632,7 @@ export default function VacationFormScreen() {
               onPress={() => setDeleteConfirmVisible(true)}
               activeOpacity={0.7}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
             >
               <Text style={styles.deleteLinkText}>{t.vacations.deleteLink}</Text>
             </TouchableOpacity>
@@ -483,6 +646,7 @@ export default function VacationFormScreen() {
             ]}
             onPress={handleClose}
             activeOpacity={0.85}
+            accessibilityRole="button"
           >
             <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
             <Text style={styles.saveButtonText}>{t.common.done}</Text>
@@ -497,6 +661,8 @@ export default function VacationFormScreen() {
             onPress={handleSave}
             disabled={!canSave || saving}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canSave || saving, busy: saving }}
           >
             {saving ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -517,9 +683,9 @@ export default function VacationFormScreen() {
         animationType="fade"
         onRequestClose={() => setDeleteConfirmVisible(false)}
       >
-        <View style={styles.confirmOverlay}>
+        <View style={styles.confirmOverlay} accessibilityViewIsModal>
           <View style={styles.confirmCard}>
-            <Text style={[styles.confirmTitle, { textAlign }]}>
+            <Text style={[styles.confirmTitle, { textAlign }]} accessibilityRole="header">
               {t.vacations.deleteConfirmTitle}
             </Text>
             <Text style={[styles.confirmMessage, { textAlign }]}>
@@ -530,6 +696,7 @@ export default function VacationFormScreen() {
                 style={[styles.confirmButton, styles.confirmCancelButton]}
                 onPress={() => setDeleteConfirmVisible(false)}
                 activeOpacity={0.8}
+                accessibilityRole="button"
               >
                 <Text style={styles.confirmCancelText}>{t.manage.cancel}</Text>
               </TouchableOpacity>
@@ -537,6 +704,7 @@ export default function VacationFormScreen() {
                 style={[styles.confirmButton, styles.confirmDeleteButton]}
                 onPress={handleDelete}
                 activeOpacity={0.8}
+                accessibilityRole="button"
               >
                 <Text style={styles.confirmDeleteText}>{t.manage.delete}</Text>
               </TouchableOpacity>
@@ -551,9 +719,9 @@ export default function VacationFormScreen() {
         animationType="fade"
         onRequestClose={() => setPendingDeleteCompanion(null)}
       >
-        <View style={styles.confirmOverlay}>
+        <View style={styles.confirmOverlay} accessibilityViewIsModal>
           <View style={styles.confirmCard}>
-            <Text style={[styles.confirmTitle, { textAlign }]}>
+            <Text style={[styles.confirmTitle, { textAlign }]} accessibilityRole="header">
               {t.companions.deleteConfirmTitle}
             </Text>
             {pendingDeleteCompanion && (
@@ -566,6 +734,7 @@ export default function VacationFormScreen() {
                 style={[styles.confirmButton, styles.confirmCancelButton]}
                 onPress={() => setPendingDeleteCompanion(null)}
                 activeOpacity={0.8}
+                accessibilityRole="button"
               >
                 <Text style={styles.confirmCancelText}>{t.manage.cancel}</Text>
               </TouchableOpacity>
@@ -573,6 +742,7 @@ export default function VacationFormScreen() {
                 style={[styles.confirmButton, styles.confirmDeleteButton]}
                 onPress={handleConfirmDeleteCompanion}
                 activeOpacity={0.8}
+                accessibilityRole="button"
               >
                 <Text style={styles.confirmDeleteText}>{t.manage.delete}</Text>
               </TouchableOpacity>
@@ -631,15 +801,15 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   backButton: {
-    width: 34,
-    height: 34,
+    width: 48,
+    height: 48,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#F5F1FE',
     flexShrink: 0,
   },
-  deleteVacationButton: { marginTop: 4, marginBottom: 8 },
+  deleteVacationButton: { minHeight: 48, justifyContent: 'center', marginTop: 4, marginBottom: 8 },
   deleteLinkText: { fontSize: 13, fontWeight: '600', color: colors.danger },
   title: { flex: 1, fontSize: 20, fontWeight: '700', color: colors.text, letterSpacing: -0.2 },
   nameCard: {
@@ -698,6 +868,15 @@ const styles = StyleSheet.create({
     paddingVertical: 13,
   },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.divider },
+  optionRow: {
+    minHeight: 52,
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+  optionLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
+  optionRowDisabled: { opacity: 0.4 },
   rowTextBlock: { flex: 1, minWidth: 0 },
   rowValue: { fontSize: 16, fontWeight: '600', color: colors.text, marginTop: 1 },
   rateRow: {
@@ -760,8 +939,8 @@ const styles = StyleSheet.create({
   companionName: { fontSize: 16, fontWeight: '600', color: colors.text },
   companionInUseHint: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
   companionDeleteButton: {
-    width: 32,
-    height: 32,
+    width: 48,
+    height: 48,
     borderRadius: 11,
     backgroundColor: colors.background,
     alignItems: 'center',
@@ -771,7 +950,7 @@ const styles = StyleSheet.create({
   addRow: { gap: 9, marginBottom: 24 },
   addInput: {
     flex: 1,
-    height: 46,
+    minHeight: 48,
     backgroundColor: colors.card,
     borderRadius: 16,
     paddingHorizontal: 14,

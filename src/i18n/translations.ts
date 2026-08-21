@@ -2,7 +2,7 @@ import { LanguageCode } from './languages';
 
 export interface Translations {
   tabs: { expenses: string; settings: string };
-  common: { back: string; save: string; done: string };
+  common: { back: string; save: string; done: string; close: string; previous: string; next: string };
   splash: { title: string; tagline: string };
   add: {
     title: string;
@@ -141,7 +141,7 @@ export interface Translations {
 export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   en: {
     tabs: { expenses: 'Expenses', settings: 'Settings' },
-    common: { back: 'Back', save: 'Save', done: 'Done' },
+    common: { back: 'Back', save: 'Save', done: 'Done', close: 'Close', previous: 'Previous', next: 'Next' },
     splash: { title: 'Vacation Expenses', tagline: 'Every vacation, every expense, every currency' },
     add: {
       title: 'Add Expense',
@@ -273,7 +273,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   },
   fr: {
     tabs: { expenses: 'Dépenses', settings: 'Réglages' },
-    common: { back: 'Retour', save: 'Enregistrer', done: 'Terminé' },
+    common: { back: 'Retour', save: 'Enregistrer', done: 'Terminé', close: 'Fermer', previous: 'Précédent', next: 'Suivant' },
     splash: { title: 'Dépenses de séjour', tagline: 'Chaque séjour, chaque dépense, chaque devise' },
     add: {
       title: 'Ajouter une dépense',
@@ -408,7 +408,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   },
   de: {
     tabs: { expenses: 'Ausgaben', settings: 'Einstellungen' },
-    common: { back: 'Zurück', save: 'Speichern', done: 'Fertig' },
+    common: { back: 'Zurück', save: 'Speichern', done: 'Fertig', close: 'Schließen', previous: 'Zurück', next: 'Weiter' },
     splash: { title: 'Urlaubsausgaben', tagline: 'Jeder Urlaub, jede Ausgabe, jede Währung' },
     add: {
       title: 'Ausgabe hinzufügen',
@@ -543,7 +543,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   },
   es: {
     tabs: { expenses: 'Gastos', settings: 'Ajustes' },
-    common: { back: 'Atrás', save: 'Guardar', done: 'Listo' },
+    common: { back: 'Atrás', save: 'Guardar', done: 'Listo', close: 'Cerrar', previous: 'Anterior', next: 'Siguiente' },
     splash: { title: 'Gastos de viaje', tagline: 'Cada viaje, cada gasto, cada moneda' },
     add: {
       title: 'Añadir gasto',
@@ -677,7 +677,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   },
   he: {
     tabs: { expenses: 'הוצאות', settings: 'הגדרות' },
-    common: { back: 'חזרה', save: 'שמירה', done: 'סיום' },
+    common: { back: 'חזרה', save: 'שמירה', done: 'סיום', close: 'סגירה', previous: 'הקודם', next: 'הבא' },
     splash: { title: 'הוצאות חופשה', tagline: 'כל חופשה, כל הוצאה, כל מטבע' },
     add: {
       title: 'הוספת הוצאה',

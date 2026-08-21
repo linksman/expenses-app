@@ -9,21 +9,28 @@ import React, {
 } from 'react';
 import { Vacation } from '../types/vacation';
 import { TravelCompanion } from '../types/companion';
+import { ExpenseGrouping, isExpenseGrouping } from '../types/expenseGrouping';
 import { type DestinationImageResult, findDestinationImage } from '../utils/destinationImage';
 
 const VACATIONS_KEY = 'vacation-expenses:vacations:v1';
 const ACTIVE_VACATION_KEY = 'vacation-expenses:active-vacation:v1';
+const LEGACY_GROUP_BY_KEY = 'vacation-expenses:group-by:v1';
 // Pre-rename keys (back when vacations were called "groups"). Read once to
 // migrate existing users' data over; never written to again.
 const LEGACY_VACATIONS_KEY = 'vacation-expenses:groups:v1';
 const LEGACY_ACTIVE_VACATION_KEY = 'vacation-expenses:active-group:v1';
 
 // Vacations persisted before travel companions existed lack the field entirely.
-function normalizeVacation(raw: any): Vacation {
+function normalizeVacation(raw: any, legacyGroupBy: unknown = 'date'): Vacation {
   const hasUnsplashImage = !!raw.summaryImageUrl && !!raw.summaryImagePhotographerName;
   return {
     ...raw,
     companions: raw.companions ?? [],
+    groupBy: isExpenseGrouping(raw.groupBy)
+      ? raw.groupBy
+      : isExpenseGrouping(legacyGroupBy)
+        ? legacyGroupBy
+        : 'date',
     summaryImageLocalUri: undefined,
     ...(!hasUnsplashImage
       ? {
@@ -57,6 +64,7 @@ interface VacationsContextValue {
   deleteVacation: (id: string) => Promise<void>;
   setVacationSummaryImage: (id: string, image: DestinationImageResult | null) => void;
   setVacationFixedExchangeRate: (id: string, rate: number | null) => void;
+  setVacationGroupBy: (id: string, groupBy: ExpenseGrouping) => void;
   setActiveVacationId: (id: string) => void;
 }
 
@@ -95,12 +103,23 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const setVacationGroupBy = useCallback((id: string, groupBy: ExpenseGrouping) => {
+    setVacations((current) => {
+      const next = current.map((vacation) =>
+        vacation.id === id ? { ...vacation, groupBy } : vacation
+      );
+      void AsyncStorage.setItem(VACATIONS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   useEffect(() => {
     (async () => {
       try {
-        let [rawVacations, rawActive] = await Promise.all([
+        let [rawVacations, rawActive, legacyGroupBy] = await Promise.all([
           AsyncStorage.getItem(VACATIONS_KEY),
           AsyncStorage.getItem(ACTIVE_VACATION_KEY),
+          AsyncStorage.getItem(LEGACY_GROUP_BY_KEY),
         ]);
         if (rawVacations === null) {
           const [legacyVacations, legacyActive] = await Promise.all([
@@ -111,7 +130,7 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
           if (rawActive === null && legacyActive !== null) rawActive = legacyActive;
         }
         const loadedVacations: Vacation[] = rawVacations
-          ? JSON.parse(rawVacations).map(normalizeVacation)
+          ? JSON.parse(rawVacations).map((raw: unknown) => normalizeVacation(raw, legacyGroupBy))
           : [];
         setVacations(loadedVacations);
         if (rawVacations) await AsyncStorage.setItem(VACATIONS_KEY, JSON.stringify(loadedVacations));
@@ -158,6 +177,7 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
         name: name.trim(),
         defaultCurrency,
         leadCurrency,
+        groupBy: 'date',
         companions,
         createdAt: new Date().toISOString(),
       };
@@ -228,6 +248,7 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
       deleteVacation,
       setVacationSummaryImage,
       setVacationFixedExchangeRate,
+      setVacationGroupBy,
       setActiveVacationId,
     }),
     [
@@ -240,6 +261,7 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
       deleteVacation,
       setVacationSummaryImage,
       setVacationFixedExchangeRate,
+      setVacationGroupBy,
       setActiveVacationId,
     ]
   );
