@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -20,13 +19,13 @@ import { colors } from '../theme/colors';
 import { useLanguage } from '../storage/LanguageContext';
 import { useVacations } from '../storage/VacationsContext';
 import { useExpenses } from '../storage/ExpensesContext';
+import { useExchangeRates } from '../storage/ExchangeRatesContext';
 import { currencyInfo } from '../types/currency';
 import { TravelCompanion } from '../types/companion';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
 import { companionAvatarColor } from '../utils/companionAvatar';
 import { scrollNodeIntoViewAboveKeyboard, scrollToFocusedInput } from '../utils/scrollToFocusedInput';
 import { findDestinationImage } from '../utils/destinationImage';
-import { useDragToDismiss } from '../utils/useDragToDismiss';
 
 interface RouteParams {
   vacationId?: string;
@@ -44,8 +43,10 @@ export default function VacationFormScreen() {
     updateVacation,
     deleteVacation,
     setVacationSummaryImage,
+    setVacationFixedExchangeRate,
   } = useVacations();
   const { expenses, deleteExpensesByVacation } = useExpenses();
+  const { ensureRates, convert: rawConvert } = useExchangeRates();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
 
@@ -55,12 +56,17 @@ export default function VacationFormScreen() {
   const [name, setName] = useState(vacation?.name ?? '');
   const [defaultCurrency, setDefaultCurrency] = useState(vacation?.defaultCurrency ?? 'USD');
   const [leadCurrency, setLeadCurrency] = useState<string | null>(vacation?.leadCurrency ?? null);
+  const [rateAuto, setRateAuto] = useState(vacation?.fixedExchangeRate == null);
+  const [fixedRateInput, setFixedRateInput] = useState(
+    vacation?.fixedExchangeRate != null ? String(vacation.fixedExchangeRate) : ''
+  );
   const [companions, setCompanions] = useState<TravelCompanion[]>(vacation?.companions ?? []);
   const [newCompanionName, setNewCompanionName] = useState('');
   const [defaultCurrencyModalVisible, setDefaultCurrencyModalVisible] = useState(false);
   const [leadCurrencyModalVisible, setLeadCurrencyModalVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [saving, setSaving] = useState(false);
+  const closingRef = useRef(false);
   const [pendingDeleteCompanion, setPendingDeleteCompanion] = useState<TravelCompanion | null>(
     null
   );
@@ -114,17 +120,42 @@ export default function VacationFormScreen() {
   }, [name, defaultCurrency, leadCurrency, companions]);
 
   useEffect(() => {
+    if (!isEditing || !vacation) return;
+    const trimmed = fixedRateInput.trim();
+    const parsed = parseFloat(trimmed.replace(',', '.'));
+    const nextRate =
+      !rateAuto && trimmed && Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    if (nextRate === (vacation.fixedExchangeRate ?? null)) return;
+    setVacationFixedExchangeRate(vacation.id, nextRate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rateAuto, fixedRateInput]);
+
+  useEffect(() => {
+    if (leadCurrency) ensureRates(leadCurrency);
+  }, [leadCurrency, ensureRates]);
+  const automaticRate = leadCurrency ? rawConvert(1, defaultCurrency, leadCurrency) : null;
+
+  const imageLookupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
     if (!isEditing || !vacation || !canSave) return;
     const lookupName = name.trim();
     if (lookupName === lastImageLookupNameRef.current) return;
-    const timer = setTimeout(async () => {
+    if (imageLookupTimerRef.current) clearTimeout(imageLookupTimerRef.current);
+    const vacationId = vacation.id;
+    imageLookupTimerRef.current = setTimeout(async () => {
       lastImageLookupNameRef.current = lookupName;
       const image = await findDestinationImage(lookupName);
       if (lastImageLookupNameRef.current === lookupName) {
-        setVacationSummaryImage(vacation.id, image);
+        setVacationSummaryImage(vacationId, image);
       }
     }, 900);
-    return () => clearTimeout(timer);
+    // Deliberately no cleanup-on-unmount: setVacationSummaryImage writes to
+    // VacationsContext, which outlives this screen, so closing the sheet
+    // right after typing a new name (a very normal flow) shouldn't cancel a
+    // lookup that's already in flight — it should just finish in the
+    // background instead of silently leaving the old photo in place. The
+    // timer is still reset (debounced) on every keystroke while mounted via
+    // the manual clearTimeout above.
   }, [name, isEditing, vacation, canSave, setVacationSummaryImage]);
 
   const companionIdsInUse = useMemo(() => {
@@ -186,13 +217,10 @@ export default function VacationFormScreen() {
   };
 
   const handleClose = useCallback(() => {
-    if (!saving) navigation.goBack();
+    if (saving || closingRef.current || !navigation.canGoBack()) return;
+    closingRef.current = true;
+    navigation.goBack();
   }, [navigation, saving]);
-  const { grabberHandlers, contentHandlers, onContentScroll, translateY } = useDragToDismiss(
-    handleClose,
-    true,
-    true
-  );
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={handleClose}>
@@ -203,10 +231,15 @@ export default function VacationFormScreen() {
           onPress={handleClose}
           disabled={saving}
         />
-        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-          <View style={styles.grabberArea} {...(saving ? {} : grabberHandlers)}>
+        <View style={styles.sheet}>
+          <TouchableOpacity
+            style={styles.grabberArea}
+            onPress={handleClose}
+            disabled={saving}
+            activeOpacity={0.8}
+          >
             <View style={styles.grabber} />
-          </View>
+          </TouchableOpacity>
           <SafeAreaView style={styles.safe} edges={[]}>
       <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
         <TouchableOpacity
@@ -227,20 +260,15 @@ export default function VacationFormScreen() {
           {isEditing ? t.vacations.editTitle : t.vacations.createTitle}
         </Text>
       </View>
-      <View style={{ flex: 1 }} {...(saving ? {} : contentHandlers)}>
+      <View style={{ flex: 1 }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           ref={scrollViewRef}
-          contentContainerStyle={[
-            styles.container,
-            !isEditing && styles.containerWithBottomSave,
-          ]}
+          contentContainerStyle={[styles.container, styles.containerWithBottomSave]}
           keyboardShouldPersistTaps="handled"
-          onScroll={(event) => onContentScroll(event.nativeEvent.contentOffset.y)}
-          scrollEventThrottle={16}
         >
           <View
             style={[
@@ -291,7 +319,11 @@ export default function VacationFormScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.row, { flexDirection: rowDirection }]}
+              style={[
+                styles.row,
+                isEditing && leadCurrency && styles.rowBorder,
+                { flexDirection: rowDirection },
+              ]}
               onPress={() => setLeadCurrencyModalVisible(true)}
               activeOpacity={0.7}
             >
@@ -312,6 +344,45 @@ export default function VacationFormScreen() {
                 color={colors.border}
               />
             </TouchableOpacity>
+
+            {isEditing && leadCurrency && (
+              <View style={[styles.rateRow, { flexDirection: rowDirection }]}>
+                <Text style={[styles.rateEquation, { textAlign }]}>
+                  {`1 ${defaultCurrency} =`}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.rateInput,
+                    { textAlign },
+                    !rateAuto && styles.rateInputEditable,
+                  ]}
+                  value={rateAuto ? (automaticRate !== null ? automaticRate.toFixed(4) : '') : fixedRateInput}
+                  onChangeText={setFixedRateInput}
+                  editable={!rateAuto}
+                  keyboardType="decimal-pad"
+                  placeholderTextColor={colors.textMuted}
+                />
+                <Text style={styles.rateCurrency}>{leadCurrency}</Text>
+                <TouchableOpacity
+                  style={[styles.rateAutoToggle, { flexDirection: rowDirection }]}
+                  onPress={() => {
+                    setRateAuto((wasAuto) => {
+                      const nextAuto = !wasAuto;
+                      if (!nextAuto && !fixedRateInput && automaticRate !== null) {
+                        setFixedRateInput(automaticRate.toFixed(4));
+                      }
+                      return nextAuto;
+                    });
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, rateAuto && styles.checkboxChecked]}>
+                    {rateAuto && <Ionicons name="checkmark" size={12} color="#fff" />}
+                  </View>
+                  <Text style={styles.rateAutoLabel}>{t.vacations.autoRateLabel}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           <Text style={[styles.sectionLabel, { textAlign }]}>{t.companions.title}</Text>
@@ -403,7 +474,16 @@ export default function VacationFormScreen() {
             </TouchableOpacity>
           )}
         </ScrollView>
-        {!isEditing && (
+        {isEditing ? (
+          <TouchableOpacity
+            style={[styles.saveButton, { flexDirection: rowDirection }]}
+            onPress={handleClose}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="checkmark-circle-outline" size={20} color="#fff" />
+            <Text style={styles.saveButtonText}>{t.common.done}</Text>
+          </TouchableOpacity>
+        ) : (
           <TouchableOpacity
             style={[
               styles.saveButton,
@@ -512,7 +592,7 @@ export default function VacationFormScreen() {
         noneLabel={t.vacations.leadCurrencyNone}
       />
           </SafeAreaView>
-        </Animated.View>
+        </View>
       </View>
     </Modal>
   );
@@ -616,6 +696,38 @@ const styles = StyleSheet.create({
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.divider },
   rowTextBlock: { flex: 1, minWidth: 0 },
   rowValue: { fontSize: 16, fontWeight: '600', color: colors.text, marginTop: 1 },
+  rateRow: {
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  rateEquation: { fontSize: 14, fontWeight: '600', color: colors.text, flexShrink: 0 },
+  rateCurrency: { fontSize: 14, fontWeight: '600', color: colors.text, flexShrink: 0 },
+  rateInput: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textMuted,
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    minWidth: 0,
+  },
+  rateInputEditable: { color: colors.text },
+  rateAutoToggle: { alignItems: 'center', gap: 6, flexShrink: 0 },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
+  rateAutoLabel: { fontSize: 13, fontWeight: '600', color: colors.text },
   currencyIconBadge: {
     width: 36,
     height: 36,

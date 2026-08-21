@@ -29,11 +29,15 @@ import {
   formatTotalsWithLead,
   convertedTotal,
   totalsByCurrencyFor,
+  companionCurrencyTotals,
+  companionConvertedTotal,
+  companionShare,
 } from '../utils/formatCurrency';
 import { paymentMethodName } from '../utils/paymentMethodName';
 import { companionName } from '../utils/companionName';
 import { dayLabel, timeLabel } from '../utils/dateLabel';
 import { takePendingNewExpenseHighlight } from '../utils/pendingNewExpenseHighlight';
+import { convertForVacation } from '../utils/vacationExchangeRate';
 import { useExpenseGrouping } from '../storage/ExpenseGroupingContext';
 
 const HIGHLIGHT_DURATION_MS = 1000;
@@ -58,6 +62,11 @@ interface Section {
   key: string;
   title: string;
   totals: CurrencyTotal[];
+  // Only set when grouped by collaborator: that person's actual assigned
+  // share of the expenses in this section, as opposed to `totals` (the full
+  // amount of every expense they participated in) — lets the header show
+  // "their share of X" instead of the full trip-expense total.
+  shareTotals?: CurrencyTotal[];
   data: Expense[];
 }
 
@@ -113,7 +122,9 @@ export default function ManageExpensesScreen() {
   }, [leadCurrency, ensureRates]);
 
   const convert = (amount: number, fromCode: string) =>
-    rawConvert(amount, fromCode, leadCurrency);
+    selectedVacation
+      ? convertForVacation(selectedVacation, rawConvert, amount, fromCode)
+      : rawConvert(amount, fromCode, leadCurrency);
 
   const filteredExpenses = useMemo(() => {
     const list = expenses.filter((e) => e.vacationId === activeVacationId);
@@ -171,6 +182,8 @@ export default function ManageExpensesScreen() {
         title,
         data: sortedByDate,
         totals: totalsByCurrencyFor(sortedByDate),
+        shareTotals:
+          groupBy === 'collaborators' ? companionCurrencyTotals(sortedByDate, key) : undefined,
       };
     });
   }, [filteredExpenses, groupBy, methods, selectedVacation, t, language.locale]);
@@ -505,8 +518,19 @@ export default function ManageExpensesScreen() {
             // look totals up from the full (un-collapsed) section for the header.
             const fullSection = sections.find((s) => s.key === section.key) ?? section;
             const collapsed = isSectionCollapsed(section.key, section.title);
+            // Grouped by collaborator: show that person's own share of the
+            // trip, not the full amount of every expense they happened to be
+            // part of — companionConvertedTotal mirrors that for the
+            // lead-currency conversion the same way convertedTotal does for
+            // every other grouping.
+            const sectionTotals =
+              groupBy === 'collaborators' && fullSection.shareTotals
+                ? fullSection.shareTotals
+                : fullSection.totals;
             const sectionLeadTotal = leadCurrency
-              ? convertedTotal(fullSection.data, convert)
+              ? groupBy === 'collaborators'
+                ? companionConvertedTotal(fullSection.data, section.key, convert)
+                : convertedTotal(fullSection.data, convert)
               : null;
             return (
               <TouchableOpacity
@@ -524,7 +548,7 @@ export default function ManageExpensesScreen() {
                 </View>
                 <Text style={styles.sectionTotal}>
                   {formatTotalsWithLead(
-                    fullSection.totals,
+                    sectionTotals,
                     leadCurrency,
                     sectionLeadTotal,
                     selectedVacation?.defaultCurrency
@@ -533,7 +557,7 @@ export default function ManageExpensesScreen() {
               </TouchableOpacity>
             );
           }}
-          renderItem={({ item }) => {
+          renderItem={({ item, section }) => {
             const category = item.category;
             const info = category ? categoryInfo(category) : null;
             const method = methodName(item.paymentMethodId);
@@ -588,7 +612,12 @@ export default function ManageExpensesScreen() {
                 </View>
                 <View style={styles.rowRight}>
                   <Text style={styles.rowAmount}>
-                    {formatAmount(item.amount, item.currencyCode)}
+                    {groupBy === 'collaborators' && item.split.length > 0
+                      ? `${formatAmount(
+                          companionShare(item, section.key),
+                          item.currencyCode
+                        )} ${t.manage.of} ${formatAmount(item.amount, item.currencyCode)}`
+                      : formatAmount(item.amount, item.currencyCode)}
                   </Text>
                   {leadCurrency && leadCurrency !== item.currencyCode && (() => {
                     const converted = convert(item.amount, item.currencyCode);

@@ -1,6 +1,6 @@
+import { translateToEnglish } from './translateToEnglish';
+
 const UNSPLASH_SEARCH_ENDPOINT = 'https://api.unsplash.com/search/photos';
-const GOOGLE_TRANSLATE_ENDPOINT = 'https://translate.googleapis.com/translate_a/single';
-const MYMEMORY_TRANSLATE_ENDPOINT = 'https://api.mymemory.translated.net/get';
 
 const TRIP_WORDS = new Set([
   'trip', 'travel', 'vacation', 'holiday', 'visit', 'journey', 'summer', 'winter',
@@ -38,55 +38,6 @@ function destinationQueries(name: string): string[] {
   }
 
   return [...new Set(queries)];
-}
-
-async function translateVacationNameToEnglish(name: string): Promise<string> {
-  const trimmedName = name.trim();
-  if (!trimmedName) return '';
-
-  // Google Translate's anonymous endpoint is blocked in some app runtimes. Use
-  // MyMemory for Hebrew names (the only supported non-Latin UI language), then
-  // retain Google as a fallback and for automatic detection of other languages.
-  if (/\p{Script=Hebrew}/u.test(trimmedName)) {
-    try {
-      const response = await fetch(
-        `${MYMEMORY_TRANSLATE_ENDPOINT}?q=${encodeURIComponent(trimmedName)}&langpair=he%7Cen`
-      );
-      if (response.ok) {
-        const payload = await response.json();
-        const translatedName = payload?.responseData?.translatedText;
-        if (typeof translatedName === 'string' && translatedName.trim()) {
-          return translatedName.trim();
-        }
-      }
-    } catch {
-      // Fall through to the second translation provider.
-    }
-  }
-
-  const params = [
-    'client=gtx',
-    'sl=auto',
-    'tl=en',
-    'dt=t',
-    `q=${encodeURIComponent(trimmedName)}`,
-  ].join('&');
-
-  try {
-    const response = await fetch(`${GOOGLE_TRANSLATE_ENDPOINT}?${params}`);
-    if (!response.ok) return trimmedName;
-
-    const payload = await response.json();
-    const translatedName = Array.isArray(payload?.[0])
-      ? payload[0]
-          .map((part: unknown) => (Array.isArray(part) && typeof part[0] === 'string' ? part[0] : ''))
-          .join('')
-          .trim()
-      : '';
-    return translatedName || trimmedName;
-  } catch {
-    return trimmedName;
-  }
 }
 
 export interface DestinationImageResult {
@@ -140,7 +91,7 @@ export async function findDestinationImage(name: string): Promise<DestinationIma
   const accessKey = process.env.EXPO_PUBLIC_UNSPLASH_ACCESS_KEY;
   if (!accessKey || !name.trim()) return null;
 
-  const englishName = await translateVacationNameToEnglish(name);
+  const englishName = await translateToEnglish(name);
   for (const query of destinationQueries(englishName)) {
     const image = await searchDestinationImage(query, accessKey);
     if (image) return image;

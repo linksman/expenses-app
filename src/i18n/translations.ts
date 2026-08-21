@@ -2,7 +2,7 @@ import { LanguageCode } from './languages';
 
 export interface Translations {
   tabs: { expenses: string; settings: string };
-  common: { back: string; save: string };
+  common: { back: string; save: string; done: string };
   splash: { title: string; tagline: string };
   add: {
     title: string;
@@ -12,6 +12,7 @@ export interface Translations {
     category: string;
     paymentMethod: string;
     selectMethod: string;
+    moreMethods: string;
     description: string;
     descriptionPlaceholder: string;
     save: string;
@@ -42,6 +43,7 @@ export interface Translations {
     generatedOn: string;
     splitTotalsTitle: string;
     splitBadge: string;
+    of: string;
   };
   companions: {
     me: string;
@@ -118,6 +120,7 @@ export interface Translations {
     leadCurrency: string;
     leadCurrencyHint: string;
     leadCurrencyNone: string;
+    autoRateLabel: string;
     deleteLink: string;
     deleteConfirmTitle: string;
     deleteConfirmMessage: string;
@@ -138,8 +141,8 @@ export interface Translations {
 export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   en: {
     tabs: { expenses: 'Expenses', settings: 'Settings' },
-    common: { back: 'Back', save: 'Save' },
-    splash: { title: 'Vacation Expenses', tagline: 'Every trip, every currency' },
+    common: { back: 'Back', save: 'Save', done: 'Done' },
+    splash: { title: 'Vacation Expenses', tagline: 'Every vacation, every expense, every currency' },
     add: {
       title: 'Add Expense',
       editTitle: 'Edit Expense',
@@ -148,12 +151,13 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       category: 'Category',
       paymentMethod: 'Payment Method',
       selectMethod: 'Select a method',
+      moreMethods: 'More',
       description: 'Description',
       descriptionPlaceholder: 'What did you spend on?',
       save: 'Add Expense',
       saved: 'Added ✓',
       split: 'Split',
-      splitNotSplit: '-',
+      splitNotSplit: 'No split',
       splitWith: 'Split with:',
       splitLockedHint: "Split expense total can't be changed here — edit the split instead.",
       deleteExpense: 'Delete Expense',
@@ -178,6 +182,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       generatedOn: 'Generated on',
       splitTotalsTitle: 'Split totals',
       splitBadge: 'Split',
+      of: 'of',
     },
     categories: {
       Food: 'Food',
@@ -231,6 +236,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       leadCurrency: 'Show Totals Also In',
       leadCurrencyHint: 'Convert every expense and the vacation total into one currency',
       leadCurrencyNone: 'None',
+      autoRateLabel: 'Auto',
       deleteLink: 'Delete Vacation',
       deleteConfirmTitle: 'Delete Vacation?',
       deleteConfirmMessage: 'This will also permanently delete all expenses in this vacation.',
@@ -247,7 +253,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       namePlaceholder: 'Companion name',
       addButton: 'Add',
       deleteConfirmTitle: 'Remove this companion?',
-      inUseHint: 'Already used in a split — remove them from any splits first.',
+      inUseHint: 'for removal, first remove from splits.',
     },
     splitScreen: {
       title: 'Split Expense',
@@ -267,8 +273,8 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   },
   fr: {
     tabs: { expenses: 'Dépenses', settings: 'Réglages' },
-    common: { back: 'Retour', save: 'Enregistrer' },
-    splash: { title: 'Dépenses de séjour', tagline: 'Chaque voyage, chaque devise' },
+    common: { back: 'Retour', save: 'Enregistrer', done: 'Terminé' },
+    splash: { title: 'Dépenses de séjour', tagline: 'Chaque séjour, chaque dépense, chaque devise' },
     add: {
       title: 'Ajouter une dépense',
       editTitle: 'Modifier la dépense',
@@ -277,12 +283,13 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       category: 'Catégorie',
       paymentMethod: 'Moyen de paiement',
       selectMethod: 'Choisir un moyen',
+      moreMethods: 'Plus',
       description: 'Description',
       descriptionPlaceholder: 'Pour quoi avez-vous dépensé ?',
       save: 'Ajouter la dépense',
       saved: 'Ajouté ✓',
       split: 'Partager',
-      splitNotSplit: '-',
+      splitNotSplit: 'Pas de partage',
       splitWith: 'Partagée avec :',
       splitLockedHint:
         "Le total d'une dépense partagée ne peut pas être modifié ici — modifiez le partage à la place.",
@@ -308,6 +315,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       generatedOn: 'Généré le',
       splitTotalsTitle: 'Totaux partagés',
       splitBadge: 'Partagée',
+      of: 'sur',
     },
     categories: {
       Food: 'Nourriture',
@@ -361,6 +369,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       leadCurrency: 'Afficher aussi les totaux en',
       leadCurrencyHint: 'Convertir chaque dépense et le total du séjour dans une seule devise',
       leadCurrencyNone: 'Aucune',
+      autoRateLabel: 'Auto',
       deleteLink: 'Supprimer le séjour',
       deleteConfirmTitle: 'Supprimer le séjour ?',
       deleteConfirmMessage:
@@ -378,7 +387,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       namePlaceholder: 'Nom du compagnon',
       addButton: 'Ajouter',
       deleteConfirmTitle: 'Retirer ce compagnon ?',
-      inUseHint: 'Déjà utilisé dans un partage — retirez-le des partages d’abord.',
+      inUseHint: 'Pour le supprimer, retirez-le d’abord des partages.',
     },
     splitScreen: {
       title: 'Partager la dépense',
@@ -399,8 +408,8 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   },
   de: {
     tabs: { expenses: 'Ausgaben', settings: 'Einstellungen' },
-    common: { back: 'Zurück', save: 'Speichern' },
-    splash: { title: 'Urlaubsausgaben', tagline: 'Jede Reise, jede Währung' },
+    common: { back: 'Zurück', save: 'Speichern', done: 'Fertig' },
+    splash: { title: 'Urlaubsausgaben', tagline: 'Jeder Urlaub, jede Ausgabe, jede Währung' },
     add: {
       title: 'Ausgabe hinzufügen',
       editTitle: 'Ausgabe bearbeiten',
@@ -409,12 +418,13 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       category: 'Kategorie',
       paymentMethod: 'Zahlungsmethode',
       selectMethod: 'Methode auswählen',
+      moreMethods: 'Mehr',
       description: 'Beschreibung',
       descriptionPlaceholder: 'Wofür hast du bezahlt?',
       save: 'Ausgabe hinzufügen',
       saved: 'Hinzugefügt ✓',
       split: 'Aufteilen',
-      splitNotSplit: '-',
+      splitNotSplit: 'Keine Aufteilung',
       splitWith: 'Aufgeteilt mit:',
       splitLockedHint:
         'Der Gesamtbetrag einer aufgeteilten Ausgabe kann hier nicht geändert werden — bearbeite stattdessen die Aufteilung.',
@@ -440,6 +450,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       generatedOn: 'Erstellt am',
       splitTotalsTitle: 'Aufgeteilte Summen',
       splitBadge: 'Aufgeteilt',
+      of: 'von',
     },
     categories: {
       Food: 'Essen',
@@ -493,6 +504,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       leadCurrency: 'Summen zusätzlich anzeigen in',
       leadCurrencyHint: 'Jede Ausgabe und die Urlaubssumme in eine Währung umrechnen',
       leadCurrencyNone: 'Keine',
+      autoRateLabel: 'Auto',
       deleteLink: 'Urlaub löschen',
       deleteConfirmTitle: 'Urlaub löschen?',
       deleteConfirmMessage:
@@ -510,7 +522,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       namePlaceholder: 'Name des Begleiters',
       addButton: 'Hinzufügen',
       deleteConfirmTitle: 'Diesen Begleiter entfernen?',
-      inUseHint: 'Bereits in einer Aufteilung verwendet — zuerst dort entfernen.',
+      inUseHint: 'Zum Entfernen zuerst aus den Aufteilungen entfernen.',
     },
     splitScreen: {
       title: 'Ausgabe aufteilen',
@@ -531,8 +543,8 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   },
   es: {
     tabs: { expenses: 'Gastos', settings: 'Ajustes' },
-    common: { back: 'Atrás', save: 'Guardar' },
-    splash: { title: 'Gastos de viaje', tagline: 'Cada viaje, cada moneda' },
+    common: { back: 'Atrás', save: 'Guardar', done: 'Listo' },
+    splash: { title: 'Gastos de viaje', tagline: 'Cada viaje, cada gasto, cada moneda' },
     add: {
       title: 'Añadir gasto',
       editTitle: 'Editar gasto',
@@ -541,12 +553,13 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       category: 'Categoría',
       paymentMethod: 'Método de pago',
       selectMethod: 'Selecciona un método',
+      moreMethods: 'Más',
       description: 'Descripción',
       descriptionPlaceholder: '¿En qué gastaste?',
       save: 'Añadir gasto',
       saved: 'Añadido ✓',
       split: 'Dividir',
-      splitNotSplit: '-',
+      splitNotSplit: 'Sin división',
       splitWith: 'Dividido con:',
       splitLockedHint:
         'El total de un gasto dividido no se puede cambiar aquí — edita la división en su lugar.',
@@ -572,6 +585,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       generatedOn: 'Generado el',
       splitTotalsTitle: 'Totales divididos',
       splitBadge: 'Dividido',
+      of: 'de',
     },
     categories: {
       Food: 'Comida',
@@ -625,6 +639,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       leadCurrency: 'Mostrar también los totales en',
       leadCurrencyHint: 'Convertir cada gasto y el total del viaje a una sola moneda',
       leadCurrencyNone: 'Ninguna',
+      autoRateLabel: 'Auto',
       deleteLink: 'Eliminar viaje',
       deleteConfirmTitle: '¿Eliminar viaje?',
       deleteConfirmMessage: 'Esto también eliminará permanentemente todos los gastos de este viaje.',
@@ -641,7 +656,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       namePlaceholder: 'Nombre del compañero',
       addButton: 'Añadir',
       deleteConfirmTitle: '¿Quitar a este compañero?',
-      inUseHint: 'Ya está en una división — quítalo de las divisiones primero.',
+      inUseHint: 'Para eliminarlo, primero quítalo de las divisiones.',
     },
     splitScreen: {
       title: 'Dividir gasto',
@@ -662,8 +677,8 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   },
   he: {
     tabs: { expenses: 'הוצאות', settings: 'הגדרות' },
-    common: { back: 'חזרה', save: 'שמירה' },
-    splash: { title: 'הוצאות חופשה', tagline: 'כל טיול, כל מטבע' },
+    common: { back: 'חזרה', save: 'שמירה', done: 'סיום' },
+    splash: { title: 'הוצאות חופשה', tagline: 'כל חופשה, כל הוצאה, כל מטבע' },
     add: {
       title: 'הוספת הוצאה',
       editTitle: 'עריכת הוצאה',
@@ -672,12 +687,13 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       category: 'קטגוריה',
       paymentMethod: 'אמצעי תשלום',
       selectMethod: 'בחרו אמצעי תשלום',
+      moreMethods: 'עוד',
       description: 'תיאור',
       descriptionPlaceholder: 'על מה הוצאת?',
       save: 'הוספת הוצאה',
       saved: 'נוסף ✓',
       split: 'פיצול',
-      splitNotSplit: '-',
+      splitNotSplit: 'ללא פיצול',
       splitWith: 'מפוצלת עם:',
       splitLockedHint: 'לא ניתן לשנות כאן את סכום ההוצאה המפוצלת — יש לערוך את הפיצול במקום זאת.',
       deleteExpense: 'מחיקת הוצאה',
@@ -702,6 +718,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       generatedOn: 'הופק בתאריך',
       splitTotalsTitle: 'סיכומי פיצול',
       splitBadge: 'מפוצלת',
+      of: 'מתוך',
     },
     categories: {
       Food: 'אוכל',
@@ -755,6 +772,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       leadCurrency: 'הצגת הסכומים גם במטבע',
       leadCurrencyHint: 'המרת כל הוצאה וסך החופשה למטבע אחד',
       leadCurrencyNone: 'ללא',
+      autoRateLabel: 'אוטומטי',
       deleteLink: 'מחיקת חופשה',
       deleteConfirmTitle: 'למחוק את החופשה?',
       deleteConfirmMessage: 'פעולה זו תמחק לצמיתות גם את כל ההוצאות בחופשה זו.',
@@ -771,7 +789,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       namePlaceholder: 'שם המלווה',
       addButton: 'הוספה',
       deleteConfirmTitle: 'להסיר את המלווה הזה?',
-      inUseHint: 'כבר בשימוש בפיצול — יש להסיר אותו מהפיצולים תחילה.',
+      inUseHint: 'כדי להסיר, יש להסיר תחילה מהפיצולים.',
     },
     splitScreen: {
       title: 'פיצול הוצאה',

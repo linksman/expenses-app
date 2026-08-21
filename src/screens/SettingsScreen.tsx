@@ -12,6 +12,8 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../storage/LanguageContext';
 import { LANGUAGES } from '../i18n/languages';
@@ -28,6 +30,7 @@ import {
   formatTotalsWithLead,
   totalsByCurrencyFor,
 } from '../utils/formatCurrency';
+import { convertForVacation } from '../utils/vacationExchangeRate';
 import {
   buildExpensesCsv,
   buildExpensesHtml,
@@ -122,9 +125,9 @@ export default function SettingsScreen() {
   const exportTotalsLine = `${t.manage.tripTotal} ${formatTotalsWithLead(
     totalsByCurrencyFor(currentExpenses),
     leadCurrency,
-    leadCurrency
+    leadCurrency && selectedVacation
       ? convertedTotal(currentExpenses, (amount, currencyCode) =>
-          rawConvert(amount, currencyCode, leadCurrency)
+          convertForVacation(selectedVacation, rawConvert, amount, currencyCode)
         )
       : null,
     selectedVacation?.defaultCurrency
@@ -188,32 +191,60 @@ export default function SettingsScreen() {
       >
         <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.vacations}</Text>
         <View style={styles.card}>
-          {vacations.map((vacation, index) => {
-            const selected = vacation.id === activeVacationId;
-            return (
-              <TouchableOpacity
-                key={vacation.id}
-                style={[
-                  styles.vacationRow,
-                  { flexDirection: rowDirection },
-                  index < vacations.length - 1 && styles.methodRowBorder,
-                ]}
-                onPress={() => {
-                  if (!selected) setActiveVacationId(vacation.id);
-                  navigation.goBack();
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={styles.vacationIconBadge}>
-                  <Ionicons name="location-outline" size={18} color="#7C3AED" />
-                </View>
-                <Text style={[styles.rowLabel, { textAlign }]} numberOfLines={1}>
-                  {vacation.name}
-                </Text>
-                {selected && <Ionicons name="checkmark" size={19} color={colors.primary} />}
-              </TouchableOpacity>
-            );
-          })}
+          <View style={styles.vacationsCardInner}>
+            {vacations.map((vacation, index) => {
+              const selected = vacation.id === activeVacationId;
+              const hasImage = !!vacation.summaryImageUrl;
+              return (
+                <TouchableOpacity
+                  key={vacation.id}
+                  style={[
+                    styles.vacationRow,
+                    { flexDirection: rowDirection },
+                    index < vacations.length - 1 && styles.methodRowBorder,
+                  ]}
+                  onPress={() => {
+                    if (!selected) setActiveVacationId(vacation.id);
+                    navigation.goBack();
+                  }}
+                  activeOpacity={0.7}
+                >
+                  {hasImage && (
+                    <>
+                      <Image
+                        source={{ uri: vacation.summaryImageUrl }}
+                        style={StyleSheet.absoluteFillObject}
+                        contentFit="cover"
+                        cachePolicy="disk"
+                      />
+                      <LinearGradient
+                        colors={['rgba(20, 12, 40, 0.35)', 'rgba(20, 12, 40, 0.7)']}
+                        style={StyleSheet.absoluteFillObject}
+                      />
+                    </>
+                  )}
+                  <View
+                    style={[styles.vacationIconBadge, hasImage && styles.vacationIconBadgeOnImage]}
+                  >
+                    <Ionicons
+                      name="location-outline"
+                      size={18}
+                      color={hasImage ? '#fff' : '#7C3AED'}
+                    />
+                  </View>
+                  <Text
+                    style={[styles.rowLabel, { textAlign }, hasImage && styles.rowLabelOnImage]}
+                    numberOfLines={1}
+                  >
+                    {vacation.name}
+                  </Text>
+                  {selected && (
+                    <Ionicons name="checkmark" size={19} color={hasImage ? '#fff' : colors.primary} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
         <TouchableOpacity
           style={[styles.newVacationButton, { flexDirection: rowDirection }]}
@@ -556,6 +587,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
+  vacationsCardInner: { borderRadius: 20, overflow: 'hidden' },
   vacationRow: {
     alignItems: 'center',
     gap: 13,
@@ -584,6 +616,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
+  vacationIconBadgeOnImage: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+  rowLabelOnImage: { color: '#fff' },
   newVacationButton: {
     alignItems: 'center',
     justifyContent: 'center',

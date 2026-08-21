@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -22,15 +21,15 @@ import { useVacations } from '../storage/VacationsContext';
 import { useExchangeRates } from '../storage/ExchangeRatesContext';
 import { CATEGORIES, Category, ExpenseSplitShare } from '../types/expense';
 import { currencyInfo } from '../types/currency';
-import { DEFAULT_PAYMENT_METHOD_ICON } from '../types/paymentMethod';
 import { formatAmount } from '../utils/formatCurrency';
 import { paymentMethodName } from '../utils/paymentMethodName';
 import { companionName } from '../utils/companionName';
 import { setPendingNewExpenseHighlight } from '../utils/pendingNewExpenseHighlight';
 import { dayLabel } from '../utils/dateLabel';
 import { scrollToFocusedInput } from '../utils/scrollToFocusedInput';
-import { useDragToDismiss } from '../utils/useDragToDismiss';
 import { companionAvatarColor } from '../utils/companionAvatar';
+import { guessCategory } from '../utils/categoryGuess';
+import { convertForVacation } from '../utils/vacationExchangeRate';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
 import PaymentMethodPickerModal from '../components/PaymentMethodPickerModal';
 import DatePickerModal from '../components/DatePickerModal';
@@ -48,6 +47,13 @@ const FIELD_ICON_STYLES = {
 };
 
 const ME_AVATAR = { color: '#6D28D9', tint: '#F1EAFE' };
+
+// Vertical gap kept even between every section of the form (the amount card,
+// each field card, the payment-method/category chip rows, ...). Chip rows
+// reuse `categoryChip`'s own marginBottom for the gutter between wrapped
+// rows, so their section-level margin only needs to make up the difference.
+const SECTION_GAP = 14;
+const CHIP_ROW_GAP = SECTION_GAP - 12;
 
 export default function AddExpenseScreen() {
   const navigation = useNavigation();
@@ -98,8 +104,23 @@ export default function AddExpenseScreen() {
   const descriptionInputRef = useRef<TextInput>(null);
   const saveButtonRef = useRef<React.ElementRef<typeof TouchableOpacity>>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+  const closingRef = useRef(false);
+  const submittingRef = useRef(false);
+  // Once true, the description-based category guess never runs again for
+  // this expense — set the moment the user touches a category chip
+  // themselves (whether picking one or toggling it back off), and seeded
+  // from whatever an existing expense already has so opening it for editing
+  // never silently overwrites an already-set category.
+  const categoryManuallySetRef = useRef(!!existingExpense?.category);
+  const categoryGuessRequestRef = useRef(0);
   const amountFocusTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
+  // Focusing a TextInput the instant the screen mounts often loses the race
+  // against the Modal's own slide-in presentation on native, especially iOS —
+  // the input can end up reporting itself "focused" without the keyboard
+  // ever actually appearing. Retry at a couple of delays and again once the
+  // Modal reports itself fully shown, resetting any stale focus first so the
+  // retry actually re-triggers the keyboard instead of being a no-op.
   const scheduleAmountFocus = useCallback(() => {
     if (isEditing) return;
     amountFocusTimersRef.current.forEach(clearTimeout);
@@ -108,10 +129,6 @@ export default function AddExpenseScreen() {
         const input = amountInputRef.current;
         if (!input) return;
         if (input.isFocused() && (Platform.OS === 'web' || Keyboard.isVisible())) return;
-
-        // A TextInput can report itself focused even when focus happened before
-        // the Modal was ready and no keyboard was presented. Reset that stale
-        // focus before retrying so native platforms show the numeric keyboard.
         if (input.isFocused()) input.blur();
         requestAnimationFrame(() => input.focus());
       }, delay)
@@ -136,7 +153,9 @@ export default function AddExpenseScreen() {
   }, [effectiveDefaultMethodId, paymentMethodId]);
 
   const convert = (amount: number, fromCode: string) =>
-    rawConvert(amount, fromCode, leadCurrency);
+    vacation
+      ? convertForVacation(vacation, rawConvert, amount, fromCode)
+      : rawConvert(amount, fromCode, leadCurrency);
 
   const parsedAmount = parseFloat(amount.replace(',', '.'));
   const split = useMemo<ExpenseSplitShare[]>(
@@ -174,6 +193,28 @@ export default function AddExpenseScreen() {
     setExpenseDate(combined);
   };
 
+  // Re-guess on every description change, not just on blur/submit, so the
+  // category chip updates live as the user types. Debounced so it settles
+  // once typing pauses rather than firing a translate/classify call per
+  // keystroke — cleared on unmount since, unlike e.g. the vacation image
+  // lookup, there's nothing to finish in the background for a closed screen
+  // (setCategory is local state, not something persisted elsewhere).
+  useEffect(() => {
+    if (categoryManuallySetRef.current) return;
+    const trimmed = description.trim();
+    if (!trimmed) return;
+    const timer = setTimeout(() => {
+      const requestId = ++categoryGuessRequestRef.current;
+      guessCategory(trimmed).then((guessed) => {
+        // Bail if superseded by a newer guess, or the user picked a category
+        // manually while this (network) request was still in flight.
+        if (categoryGuessRequestRef.current !== requestId || categoryManuallySetRef.current) return;
+        setCategory(guessed);
+      });
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [description]);
+
   // Editing an existing expense saves every field change immediately — there's
   // no explicit save step, so skip the first run (the mount's initial state is
   // already what's on disk) and only persist once something actually changes.
@@ -198,29 +239,57 @@ export default function AddExpenseScreen() {
   }, [amount, category, description, currencyCode, paymentMethodId, expenseDate, split]);
 
   const handleSubmit = async () => {
-    if (!canSave || !vacation) return;
-    const createdAt = expenseDate.toISOString();
-    const newExpenseId = await addExpense(
-      parsedAmount,
-      category,
-      description,
-      currencyCode,
-      paymentMethodId,
-      vacation.id,
-      createdAt,
-      split
-    );
-    setActiveVacationId(vacation.id);
-    setPendingNewExpenseHighlight(newExpenseId);
-    navigation.goBack();
+    if (!canSave || !vacation || submittingRef.current) return;
+    submittingRef.current = true;
+    try {
+      // The description-blur guess is fire-and-forget for a snappy UI, but
+      // its translate/classify round trip easily loses the race against a
+      // save tapped right after typing — the most common flow for a
+      // brand-new expense. Await a fresh guess here as a correctness safety
+      // net so the saved expense never just misses out on it.
+      let finalCategory = category;
+      if (!categoryManuallySetRef.current && !finalCategory && description.trim()) {
+        finalCategory = await guessCategory(description);
+        if (!categoryManuallySetRef.current) setCategory(finalCategory);
+      }
+      const createdAt = expenseDate.toISOString();
+      const newExpenseId = await addExpense(
+        parsedAmount,
+        finalCategory,
+        description,
+        currencyCode,
+        paymentMethodId,
+        vacation.id,
+        createdAt,
+        split
+      );
+      setActiveVacationId(vacation.id);
+      setPendingNewExpenseHighlight(newExpenseId);
+      navigation.goBack();
+    } finally {
+      submittingRef.current = false;
+    }
   };
 
   const selectedMethod = methods.find((m) => m.id === paymentMethodId);
+  // The 4th box is always the "more" entry point into the full picker. If the
+  // current selection isn't one of the first three quick-pick methods, it
+  // bumps the 3rd default one out and takes that spot instead, so the active
+  // method stays visible without needing to open the picker.
+  const quickMethods = useMemo(() => {
+    const base = methods.filter((m) => m.enabled).slice(0, 3);
+    if (selectedMethod && !base.some((m) => m.id === selectedMethod.id)) {
+      return [...base.slice(0, 2), selectedMethod];
+    }
+    return base;
+  }, [methods, selectedMethod]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
+    if (closingRef.current || !navigation.canGoBack()) return;
+    closingRef.current = true;
     if (isEditing && vacation) setActiveVacationId(vacation.id);
     navigation.goBack();
-  };
+  }, [isEditing, navigation, setActiveVacationId, vacation]);
 
   const handleDelete = async () => {
     if (!expenseId) return;
@@ -229,22 +298,17 @@ export default function AddExpenseScreen() {
     if (vacation) setActiveVacationId(vacation.id);
     navigation.goBack();
   };
-  const { grabberHandlers, contentHandlers, onContentScroll, translateY } = useDragToDismiss(
-    handleClose,
-    true,
-    true
-  );
-
   if (!vacation) {
     return null;
   }
 
-  const splitSummary =
+  const payerNames =
     split.length === 0
       ? t.add.splitNotSplit
-      : `${t.add.splitWith} ${split
-          .map((s) => companionName(s.companionId, vacation.companions, t))
-          .join(', ')}`;
+      : [
+          t.companions.me,
+          ...split.map((s) => companionName(s.companionId, vacation.companions, t)),
+        ].join(', ');
 
   return (
     <Modal
@@ -256,10 +320,10 @@ export default function AddExpenseScreen() {
     >
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={handleClose} />
-        <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
-          <View style={styles.grabberArea} {...grabberHandlers}>
+        <View style={styles.sheet}>
+          <TouchableOpacity style={styles.grabberArea} onPress={handleClose} activeOpacity={0.8}>
             <View style={styles.grabber} />
-          </View>
+          </TouchableOpacity>
           <View style={[styles.header, { flexDirection: rowDirection }]}>
             <Text
               style={[styles.headerTitle, { textAlign }]}
@@ -277,20 +341,15 @@ export default function AddExpenseScreen() {
               <Ionicons name="close" size={14} color="#71717A" />
             </TouchableOpacity>
           </View>
-          <View style={{ flex: 1 }} {...contentHandlers}>
+          <View style={{ flex: 1 }}>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           >
             <ScrollView
               ref={scrollViewRef}
-              contentContainerStyle={[
-                styles.container,
-                !isEditing && styles.containerWithFloatingSave,
-              ]}
+              contentContainerStyle={[styles.container, styles.containerWithFloatingSave]}
               keyboardShouldPersistTaps="handled"
-              onScroll={(e) => onContentScroll(e.nativeEvent.contentOffset.y)}
-              scrollEventThrottle={16}
             >
               <TouchableOpacity
                 style={styles.amountBlock}
@@ -372,10 +431,9 @@ export default function AddExpenseScreen() {
                   <Ionicons name="pencil" size={18} color={FIELD_ICON_STYLES.description.color} />
                 </View>
                 <View style={styles.fieldTextBlock}>
-                  <Text style={[styles.fieldLabel, { textAlign }]}>{t.add.description}</Text>
                   <TextInput
                     ref={descriptionInputRef}
-                    style={[styles.fieldValueInput, { textAlign }]}
+                    style={[styles.fieldValueInput, styles.fieldValueInputAlone, { textAlign }]}
                     value={description}
                     onChangeText={setDescription}
                     placeholder={t.add.descriptionPlaceholder}
@@ -387,32 +445,54 @@ export default function AddExpenseScreen() {
                 </View>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.fieldCard, { flexDirection: rowDirection }]}
-                onPress={() => setMethodModalVisible(true)}
-                activeOpacity={0.8}
-              >
-                <View
-                  style={[
-                    styles.fieldIconBadge,
-                    isRTL ? styles.fieldIconBadgeRTL : styles.fieldIconBadgeLTR,
-                    { backgroundColor: FIELD_ICON_STYLES.payment.tint },
-                  ]}
+              <View style={[styles.paymentMethodRow, { flexDirection: rowDirection }]}>
+                {quickMethods.map((m) => {
+                  const selected = m.id === paymentMethodId;
+                  return (
+                    <TouchableOpacity
+                      key={m.id}
+                      onPress={() => setPaymentMethodId(m.id)}
+                      style={[
+                        styles.categoryChip,
+                        styles.paymentMethodChip,
+                        selected && styles.categoryChipSelected,
+                      ]}
+                      activeOpacity={0.8}
+                      accessibilityLabel={paymentMethodName(m, t)}
+                    >
+                      <Ionicons
+                        name={m.icon}
+                        size={21}
+                        color={selected ? colors.primary : FIELD_ICON_STYLES.payment.color}
+                      />
+                      <Text
+                        style={[
+                          styles.categoryChipLabel,
+                          selected && styles.categoryChipLabelSelected,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {paymentMethodName(m, t)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                <TouchableOpacity
+                  onPress={() => setMethodModalVisible(true)}
+                  style={[styles.categoryChip, styles.paymentMethodChip]}
+                  activeOpacity={0.8}
+                  accessibilityLabel={t.add.moreMethods}
                 >
                   <Ionicons
-                    name={selectedMethod?.icon ?? DEFAULT_PAYMENT_METHOD_ICON}
-                    size={18}
+                    name="ellipsis-horizontal"
+                    size={21}
                     color={FIELD_ICON_STYLES.payment.color}
                   />
-                </View>
-                <View style={styles.fieldTextBlock}>
-                  <Text style={[styles.fieldLabel, { textAlign }]}>{t.add.paymentMethod}</Text>
-                  <Text style={[styles.fieldValue, { textAlign }]} numberOfLines={1}>
-                    {selectedMethod ? paymentMethodName(selectedMethod, t) : t.add.selectMethod}
+                  <Text style={styles.categoryChipLabel} numberOfLines={1}>
+                    {t.add.moreMethods}
                   </Text>
-                </View>
-                <Text style={styles.fieldChevron}>{isRTL ? '‹' : '›'}</Text>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              </View>
 
               <TouchableOpacity
                 style={[styles.fieldCard, { flexDirection: rowDirection }]}
@@ -429,8 +509,10 @@ export default function AddExpenseScreen() {
                   <Ionicons name="calendar-outline" size={18} color={FIELD_ICON_STYLES.date.color} />
                 </View>
                 <View style={styles.fieldTextBlock}>
-                  <Text style={[styles.fieldLabel, { textAlign }]}>{t.add.date}</Text>
-                  <Text style={[styles.fieldValue, { textAlign }]} numberOfLines={1}>
+                  <Text
+                    style={[styles.fieldValue, styles.fieldValueAlone, { textAlign }]}
+                    numberOfLines={1}
+                  >
                     {dayLabel(expenseDate.toISOString(), t, language.locale)}
                   </Text>
                 </View>
@@ -455,9 +537,11 @@ export default function AddExpenseScreen() {
                   <Ionicons name="people-outline" size={18} color={FIELD_ICON_STYLES.split.color} />
                 </View>
                 <View style={styles.fieldTextBlock}>
-                  <Text style={[styles.fieldLabel, { textAlign }]}>{t.add.split}</Text>
-                  <Text style={[styles.fieldValue, { textAlign }]} numberOfLines={1}>
-                    {splitSummary}
+                  <Text
+                    style={[styles.fieldValue, styles.fieldValueAlone, { textAlign }]}
+                    numberOfLines={1}
+                  >
+                    {payerNames}
                   </Text>
                 </View>
                 <Ionicons
@@ -562,14 +646,16 @@ export default function AddExpenseScreen() {
                 </View>
               )}
 
-              <Text style={[styles.sectionLabel, { textAlign }]}>{t.add.category}</Text>
               <View style={styles.categoryGrid}>
                 {CATEGORIES.map((c) => {
                   const selected = c.key === category;
                   return (
                     <TouchableOpacity
                       key={c.key}
-                      onPress={() => setCategory(selected ? null : c.key)}
+                      onPress={() => {
+                        categoryManuallySetRef.current = true;
+                        setCategory(selected ? null : c.key);
+                      }}
                       style={[styles.categoryChip, selected && styles.categoryChipSelected]}
                       activeOpacity={0.8}
                       accessibilityLabel={t.categories[c.key]}
@@ -602,7 +688,16 @@ export default function AddExpenseScreen() {
                 </TouchableOpacity>
               )}
             </ScrollView>
-            {!isEditing && (
+            {isEditing ? (
+              <TouchableOpacity
+                style={[styles.floatingSaveButton, { flexDirection: rowDirection }]}
+                onPress={handleClose}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="checkmark-circle-outline" size={19} color="#fff" />
+                <Text style={styles.saveButtonText}>{t.common.done}</Text>
+              </TouchableOpacity>
+            ) : (
               <TouchableOpacity
                 ref={saveButtonRef}
                 style={[
@@ -620,7 +715,7 @@ export default function AddExpenseScreen() {
             )}
           </KeyboardAvoidingView>
           </View>
-        </Animated.View>
+        </View>
       </View>
 
       <CurrencyPickerModal
@@ -753,7 +848,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     padding: 18,
     paddingBottom: 14,
-    marginBottom: 24,
+    marginBottom: SECTION_GAP,
     minHeight: 132,
     shadowColor: '#18142D',
     shadowOpacity: 0.06,
@@ -796,13 +891,6 @@ const styles = StyleSheet.create({
   amountInputLocked: {
     color: colors.textMuted,
   },
-  sectionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.textMuted,
-    letterSpacing: 1,
-    marginBottom: 10,
-  },
   fieldCard: {
     alignItems: 'center',
     backgroundColor: colors.card,
@@ -811,7 +899,7 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     paddingHorizontal: 14,
     paddingVertical: 12,
-    marginBottom: 10,
+    marginBottom: SECTION_GAP,
     shadowColor: '#18142D',
     shadowOpacity: 0.05,
     shadowRadius: 3,
@@ -831,6 +919,7 @@ const styles = StyleSheet.create({
   fieldTextBlock: { flex: 1 },
   fieldLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '500' },
   fieldValue: { fontSize: 16, fontWeight: '600', color: colors.text, marginTop: 1 },
+  fieldValueAlone: { marginTop: 0 },
   fieldValueInput: {
     fontSize: 16,
     fontWeight: '600',
@@ -838,8 +927,9 @@ const styles = StyleSheet.create({
     marginTop: 1,
     padding: 0,
   },
+  fieldValueInputAlone: { marginTop: 0 },
   fieldChevron: { fontSize: 20, color: colors.textMuted, marginLeft: 8 },
-  splitEditor: { marginBottom: 14 },
+  splitEditor: { marginBottom: SECTION_GAP },
   splitTotalsRow: {
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -899,11 +989,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   overAllocatedText: { flex: 1, fontSize: 12, fontWeight: '600', color: '#B03A52' },
+  paymentMethodRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: CHIP_ROW_GAP,
+  },
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: CHIP_ROW_GAP,
   },
   categoryChip: {
     width: '22%',
@@ -922,6 +1018,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
+  // Category has 8 chips wrapping into 2 rows, where a square aspect ratio
+  // keeps the grid tidy. Payment methods are just 4 chips in a single row
+  // with no wrapping to line up, so the same square shape only added empty
+  // space above/below the icon — this trims it back down to content height.
+  paymentMethodChip: {
+    aspectRatio: undefined,
+    height: 72,
+  },
   categoryChipLabel: {
     fontSize: 11,
     fontWeight: '600',
@@ -937,7 +1041,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
   },
   categoryChipLabelSelected: { color: colors.primaryDark, fontWeight: '700' },
-  deleteExpenseButton: { paddingVertical: 8, marginBottom: 12 },
+  deleteExpenseButton: { paddingTop: 4, paddingBottom: 8, marginBottom: 12 },
   deleteExpenseText: { fontSize: 13, fontWeight: '600', color: colors.danger },
   confirmOverlay: {
     flex: 1,

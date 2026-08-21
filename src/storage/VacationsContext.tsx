@@ -56,6 +56,7 @@ interface VacationsContextValue {
   ) => Promise<Vacation>;
   deleteVacation: (id: string) => Promise<void>;
   setVacationSummaryImage: (id: string, image: DestinationImageResult | null) => void;
+  setVacationFixedExchangeRate: (id: string, rate: number | null) => void;
   setActiveVacationId: (id: string) => void;
 }
 
@@ -78,6 +79,16 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
               summaryImageUnsplashUrl: image?.unsplashUrl,
             }
           : vacation
+      );
+      void AsyncStorage.setItem(VACATIONS_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const setVacationFixedExchangeRate = useCallback((id: string, rate: number | null) => {
+    setVacations((current) => {
+      const next = current.map((vacation) =>
+        vacation.id === id ? { ...vacation, fixedExchangeRate: rate } : vacation
       );
       void AsyncStorage.setItem(VACATIONS_KEY, JSON.stringify(next));
       return next;
@@ -216,6 +227,7 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
       updateVacation,
       deleteVacation,
       setVacationSummaryImage,
+      setVacationFixedExchangeRate,
       setActiveVacationId,
     }),
     [
@@ -227,6 +239,7 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
       updateVacation,
       deleteVacation,
       setVacationSummaryImage,
+      setVacationFixedExchangeRate,
       setActiveVacationId,
     ]
   );
