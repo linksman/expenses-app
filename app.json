@@ -3,7 +3,7 @@
     "name": "Vacation Expenses",
     "slug": "vacation-expenses",
     "version": "1.0.0",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icon-neutral.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true
@@ -11,15 +11,14 @@
     "android": {
       "package": "com.linksman.vacationexpenses",
       "adaptiveIcon": {
-        "backgroundColor": "#6D28D9",
+        "backgroundColor": "#18181B",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/icon-neutral.png"
     },
     "plugins": [
       "expo-font",
@@ -27,10 +26,10 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash-icon.png",
+          "image": "./assets/android-icon-foreground.png",
           "imageWidth": 240,
           "resizeMode": "contain",
-          "backgroundColor": "#4C1D95"
+          "backgroundColor": "#18181B"
         }
       ]
     ],

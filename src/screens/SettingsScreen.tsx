@@ -27,7 +27,7 @@ import { paymentMethodName } from '../utils/paymentMethodName';
 const METHOD_ICON_PALETTE = [
   { color: '#159C87', tint: '#E7F6F1' },
   { color: '#4C9E4C', tint: '#EAF4EA' },
-  { color: '#7C3AED', tint: '#F1EAFE' },
+  { color: '#3F3F46', tint: '#F0F0F1' },
   { color: '#3B82D6', tint: '#E9F1FF' },
   { color: '#EA8C3A', tint: '#FFF4E8' },
   { color: '#DB5C8C', tint: '#FDECF2' },
@@ -111,21 +111,12 @@ export default function SettingsScreen() {
               const selected = vacation.id === activeVacationId;
               const hasImage = !!vacation.summaryImageUrl;
               return (
-                <TouchableOpacity
+                <View
                   key={vacation.id}
                   style={[
                     styles.vacationRow,
-                    { flexDirection: rowDirection },
                     index < vacations.length - 1 && styles.methodRowBorder,
                   ]}
-                  onPress={() => {
-                    if (!selected) setActiveVacationId(vacation.id);
-                    navigation.goBack();
-                  }}
-                  activeOpacity={0.7}
-                  accessibilityRole="radio"
-                  accessibilityLabel={vacation.name}
-                  accessibilityState={{ selected }}
                 >
                   {hasImage && (
                     <>
@@ -137,29 +128,55 @@ export default function SettingsScreen() {
                         accessible={false}
                       />
                       <LinearGradient
-                        colors={['rgba(20, 12, 40, 0.35)', 'rgba(20, 12, 40, 0.7)']}
+                        colors={['rgba(24, 24, 27, 0.35)', 'rgba(24, 24, 27, 0.72)']}
                         style={StyleSheet.absoluteFillObject}
                       />
                     </>
                   )}
-                  <View
-                    style={[styles.vacationIconBadge, hasImage && styles.vacationIconBadgeOnImage]}
+                  <TouchableOpacity
+                    style={[styles.vacationSelectArea, { flexDirection: rowDirection }]}
+                    onPress={() => {
+                      if (!selected) setActiveVacationId(vacation.id);
+                      navigation.goBack();
+                    }}
+                    activeOpacity={0.7}
+                    accessibilityRole="radio"
+                    accessibilityLabel={vacation.name}
+                    accessibilityState={{ selected }}
                   >
                     <Ionicons
-                      name="location-outline"
-                      size={18}
-                      color={hasImage ? '#fff' : '#7C3AED'}
+                      name={selected ? 'radio-button-on' : 'radio-button-off'}
+                      size={21}
+                      color={hasImage ? '#fff' : colors.primary}
                     />
-                  </View>
-                  <Text
-                    style={[styles.rowLabel, { textAlign }, hasImage && styles.rowLabelOnImage]}
-                  >
-                    {vacation.name}
-                  </Text>
+                    <Text
+                      style={[styles.rowLabel, { textAlign }, hasImage && styles.rowLabelOnImage]}
+                    >
+                      {vacation.name}
+                    </Text>
+                  </TouchableOpacity>
                   {selected && (
-                    <Ionicons name="checkmark" size={19} color={hasImage ? '#fff' : colors.primary} />
+                    <TouchableOpacity
+                      style={[
+                        styles.vacationEditButton,
+                        hasImage && styles.vacationEditButtonOnImage,
+                        isRTL ? styles.vacationEditButtonRTL : styles.vacationEditButtonLTR,
+                      ]}
+                      onPress={() =>
+                        (navigation as any).replace('VacationForm', { vacationId: vacation.id })
+                      }
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t.vacations.editTitle}, ${vacation.name}`}
+                    >
+                      <Ionicons
+                        name="pencil-outline"
+                        size={17}
+                        color={hasImage ? '#fff' : colors.primary}
+                      />
+                    </TouchableOpacity>
                   )}
-                </TouchableOpacity>
+                </View>
               );
             })}
           </View>
@@ -440,7 +457,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F5F1FE',
+    backgroundColor: '#F0F0F1',
     flexShrink: 0,
   },
   headerTextBlock: { flex: 1, minWidth: 0, gap: 1 },
@@ -466,7 +483,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 20,
     marginHorizontal: 20,
-    shadowColor: '#18142D',
+    shadowColor: '#18181B',
     shadowOpacity: 0.05,
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
@@ -474,21 +491,30 @@ const styles = StyleSheet.create({
   },
   vacationsCardInner: { borderRadius: 20, overflow: 'hidden' },
   vacationRow: {
+    minHeight: 66,
+    justifyContent: 'center',
+  },
+  vacationSelectArea: {
+    minHeight: 66,
     alignItems: 'center',
     gap: 13,
     paddingHorizontal: 16,
     paddingVertical: 14,
+    paddingEnd: 64,
   },
-  vacationIconBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    backgroundColor: '#F1EAFE',
+  vacationEditButton: {
+    position: 'absolute',
+    top: 9,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#F0F0F1',
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
   },
-  vacationIconBadgeOnImage: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
+  vacationEditButtonLTR: { right: 8 },
+  vacationEditButtonRTL: { left: 8 },
+  vacationEditButtonOnImage: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
   rowLabelOnImage: { color: '#fff' },
   newVacationButton: {
     alignItems: 'center',
@@ -499,9 +525,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#DDD1FA',
+    borderColor: '#D4D4D8',
     borderStyle: 'dashed',
-    backgroundColor: '#FBF9FF',
+    backgroundColor: '#FAFAFA',
   },
   newVacationButtonText: { fontSize: 15, fontWeight: '700', color: colors.primary },
   languageRow: {
@@ -533,7 +559,7 @@ const styles = StyleSheet.create({
   methodRowName: { fontSize: 16, fontWeight: '600', color: colors.text },
   methodRowNameDisabled: { color: colors.textMuted },
   defaultPill: {
-    backgroundColor: '#F5F1FE',
+    backgroundColor: '#F0F0F1',
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 2,

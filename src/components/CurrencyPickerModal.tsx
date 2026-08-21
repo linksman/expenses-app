@@ -1,5 +1,5 @@
-import React from 'react';
-import { FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Dimensions, Easing, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { CURRENCIES } from '../types/currency';
@@ -27,12 +27,24 @@ export default function CurrencyPickerModal({
   const { t, isRTL } = useLanguage();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
+  const sheetTranslateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
+
+  useEffect(() => {
+    if (!visible) return;
+    sheetTranslateY.setValue(Dimensions.get('window').height);
+    Animated.timing(sheetTranslateY, {
+      toValue: 0,
+      duration: 140,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [sheetTranslateY, visible]);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} accessible={false} />
-        <View style={styles.sheet} accessibilityViewIsModal accessibilityRole="none">
+        <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]} accessibilityViewIsModal accessibilityRole="none">
           <View style={styles.grabberArea} accessible={false}>
             <View style={styles.grabber} />
           </View>
@@ -111,7 +123,7 @@ export default function CurrencyPickerModal({
               );
             }}
           />
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -119,7 +131,7 @@ export default function CurrencyPickerModal({
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(24, 20, 45, 0.42)' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(24, 24, 27, 0.42)' },
   sheet: {
     backgroundColor: colors.card,
     borderTopLeftRadius: 28,
@@ -128,7 +140,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     maxHeight: '75%',
-    shadowColor: '#18142D',
+    shadowColor: '#18181B',
     shadowOpacity: 0.25,
     shadowRadius: 30,
     shadowOffset: { width: 0, height: -10 },
@@ -166,7 +178,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 4,
   },
-  rowSelected: { backgroundColor: '#F9F6FE', borderRadius: 14 },
+  rowSelected: { backgroundColor: '#F4F4F5', borderRadius: 14 },
   iconBadge: {
     width: 36,
     height: 36,
@@ -176,9 +188,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  iconBadgeSelected: { backgroundColor: '#F1EAFE' },
+  iconBadgeSelected: { backgroundColor: '#E4E4E7' },
   symbol: { fontSize: 15, fontWeight: '700', color: '#8B8B96' },
-  symbolSelected: { color: '#7C3AED' },
+  symbolSelected: { color: '#27272A' },
   rowMiddle: { flex: 1, minWidth: 0 },
   code: { fontSize: 15, fontWeight: '600', color: colors.text },
   codeSelected: { fontWeight: '700' },

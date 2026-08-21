@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   AccessibilityInfo,
+  Animated,
+  Dimensions,
+  Easing,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -24,7 +27,7 @@ import { useExchangeRates } from '../storage/ExchangeRatesContext';
 import { usePaymentMethods } from '../storage/PaymentMethodsContext';
 import { currencyInfo } from '../types/currency';
 import { TravelCompanion } from '../types/companion';
-import { EXPENSE_GROUPINGS } from '../types/expenseGrouping';
+import { EXPENSE_GROUPINGS, ExpenseGrouping } from '../types/expenseGrouping';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
 import { companionAvatarColor } from '../utils/companionAvatar';
 import { scrollNodeIntoViewAboveKeyboard, scrollToFocusedInput } from '../utils/scrollToFocusedInput';
@@ -37,8 +40,17 @@ interface RouteParams {
   vacationId?: string;
 }
 
+const GROUPING_ICONS: Record<ExpenseGrouping, keyof typeof Ionicons.glyphMap> = {
+  date: 'calendar-outline',
+  paymentMethod: 'card-outline',
+  collaborators: 'people-outline',
+  category: 'grid-outline',
+  currency: 'cash-outline',
+};
+
 export default function VacationFormScreen() {
   const navigation = useNavigation();
+  const sheetTranslateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
   const insets = useSafeAreaInsets();
   const route = useRoute();
   const { vacationId } = (route.params ?? {}) as RouteParams;
@@ -296,8 +308,17 @@ export default function VacationFormScreen() {
     navigation.goBack();
   }, [navigation, saving]);
 
+  useEffect(() => {
+    Animated.timing(sheetTranslateY, {
+      toValue: 0,
+      duration: 140,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [sheetTranslateY]);
+
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={handleClose}>
+    <Modal visible transparent animationType="none" onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <TouchableOpacity
           style={styles.backdrop}
@@ -306,7 +327,10 @@ export default function VacationFormScreen() {
           disabled={saving}
           accessible={false}
         />
-        <View style={styles.sheet} accessibilityViewIsModal>
+        <Animated.View
+          style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}
+          accessibilityViewIsModal
+        >
           <TouchableOpacity
             style={styles.grabberArea}
             onPress={handleClose}
@@ -357,7 +381,7 @@ export default function VacationFormScreen() {
             ]}
           >
             <View style={styles.nameIconBadge}>
-              <Ionicons name="pencil" size={16} color="#7C3AED" />
+              <Ionicons name="pencil" size={16} color={colors.primary} />
             </View>
             <View style={styles.nameTextBlock}>
               <Text style={[styles.fieldLabel, { textAlign }]}>{t.vacations.nameLabel}</Text>
@@ -385,8 +409,8 @@ export default function VacationFormScreen() {
               accessibilityRole="button"
               accessibilityLabel={`${t.vacations.defaultCurrency}, ${defaultCurrency}`}
             >
-              <View style={[styles.currencyIconBadge, { backgroundColor: '#F1EAFE' }]}>
-                <Text style={[styles.currencyIconText, { color: '#7C3AED' }]}>
+              <View style={[styles.currencyIconBadge, { backgroundColor: '#F0F0F1' }]}>
+                <Text style={[styles.currencyIconText, { color: colors.primary }]}>
                   {currencyInfo(defaultCurrency).symbol}
                 </Text>
               </View>
@@ -492,6 +516,11 @@ export default function VacationFormScreen() {
                     accessibilityRole="radio"
                     accessibilityState={{ selected: vacation.groupBy === option }}
                   >
+                    <Ionicons
+                      name={GROUPING_ICONS[option]}
+                      size={19}
+                      color={colors.textMuted}
+                    />
                     <Text style={[styles.optionLabel, { textAlign }]}>
                       {t.settings.groupByOptions[option]}
                     </Text>
@@ -766,7 +795,7 @@ export default function VacationFormScreen() {
         noneLabel={t.vacations.leadCurrencyNone}
       />
           </SafeAreaView>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -774,7 +803,7 @@ export default function VacationFormScreen() {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(24, 20, 45, 0.42)' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(24, 24, 27, 0.42)' },
   sheet: {
     height: '92%',
     paddingTop: 14,
@@ -782,7 +811,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
-    shadowColor: '#18142D',
+    shadowColor: '#18181B',
     shadowOpacity: 0.25,
     shadowRadius: 30,
     shadowOffset: { width: 0, height: -10 },
@@ -806,7 +835,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F5F1FE',
+    backgroundColor: '#F0F0F1',
     flexShrink: 0,
   },
   deleteVacationButton: { minHeight: 48, justifyContent: 'center', marginTop: 4, marginBottom: 8 },
@@ -822,7 +851,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 24,
     gap: 13,
-    shadowColor: '#18142D',
+    shadowColor: '#18181B',
     shadowOpacity: 0.05,
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
@@ -833,7 +862,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 12,
-    backgroundColor: '#F1EAFE',
+    backgroundColor: '#F0F0F1',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -855,7 +884,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 12,
     overflow: 'hidden',
-    shadowColor: '#18142D',
+    shadowColor: '#18181B',
     shadowOpacity: 0.05,
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },

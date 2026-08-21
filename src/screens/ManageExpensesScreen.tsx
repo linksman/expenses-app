@@ -37,11 +37,10 @@ import { timeLabel } from '../utils/dateLabel';
 import { takePendingNewExpenseHighlight } from '../utils/pendingNewExpenseHighlight';
 import { convertForVacation } from '../utils/vacationExchangeRate';
 import { ExpenseSection, groupExpenses } from '../utils/groupExpenses';
-import { useReducedMotion } from '../utils/useReducedMotion';
 
-const HIGHLIGHT_DURATION_MS = 1000;
-const HIGHLIGHT_FADE_MS = 1000;
-const HIGHLIGHT_COLOR = '#DFF5E1';
+const HIGHLIGHT_DURATION_MS = 500;
+const HIGHLIGHT_FADE_MS = 500;
+const HIGHLIGHT_COLOR = '#E4E4E7';
 
 const PAGE_ACCENT = '#27272A';
 const PAGE_ACCENT_DARK = '#18181B';
@@ -68,11 +67,10 @@ export default function ManageExpensesScreen() {
   const [collapsedOverrides, setCollapsedOverrides] = useState<Record<string, boolean>>({});
   const [highlightedExpenseId, setHighlightedExpenseId] = useState<string | null>(null);
   const highlightAnim = useRef(new Animated.Value(0)).current;
-  const reduceMotion = useReducedMotion();
   const selectedVacation = vacations.find((v) => v.id === activeVacationId) ?? null;
   const groupBy = selectedVacation?.groupBy ?? 'date';
 
-  // After creating a new expense, briefly highlight its row so the user can
+  // After creating or editing an expense, briefly highlight its row so the user can
   // spot it in the list. Also force-expand its day section in case it isn't
   // today (and would otherwise be collapsed and invisible).
   useFocusEffect(
@@ -86,24 +84,19 @@ export default function ManageExpensesScreen() {
       }
       setHighlightedExpenseId(id);
       AccessibilityInfo.announceForAccessibility(t.add.saved);
-      if (reduceMotion) {
-        highlightAnim.setValue(0);
-        setHighlightedExpenseId(null);
-        return;
-      }
       highlightAnim.setValue(1);
       Animated.sequence([
         Animated.delay(HIGHLIGHT_DURATION_MS),
         Animated.timing(highlightAnim, {
           toValue: 0,
           duration: HIGHLIGHT_FADE_MS,
-          useNativeDriver: false,
+          useNativeDriver: true,
         }),
       ]).start(({ finished }) => {
         if (finished) setHighlightedExpenseId(null);
       });
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [expenses, groupBy, reduceMotion, t.add.saved])
+    }, [expenses, groupBy, t.add.saved])
   );
 
   const leadCurrency = selectedVacation?.leadCurrency ?? null;
@@ -261,7 +254,7 @@ export default function ManageExpensesScreen() {
           <LinearGradient
             colors={
               summaryImageUri
-                ? ['rgba(20, 12, 40, 0.30)', 'rgba(20, 12, 40, 0.78)']
+                ? ['rgba(24, 24, 27, 0.30)', 'rgba(24, 24, 27, 0.78)']
                 : summaryImagePending
                   ? LOADING_SUMMARY_GRADIENT
                 : TOTALS_CARD_GRADIENT
@@ -614,7 +607,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     borderWidth: 1,
     borderColor: '#D4D4D8',
-    shadowColor: '#18142D',
+    shadowColor: '#18181B',
     shadowOpacity: 0.12,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 6 },
@@ -698,7 +691,7 @@ const styles = StyleSheet.create({
   },
   summarySettingsButtonOnImage: {
     borderColor: 'rgba(255, 255, 255, 0.28)',
-    backgroundColor: '#241A38',
+    backgroundColor: '#27272A',
   },
   summaryTextOnImage: { color: '#fff' },
   summaryMutedTextOnImage: { color: 'rgba(255, 255, 255, 0.82)' },
@@ -788,7 +781,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     marginBottom: 10,
-    shadowColor: '#18142D',
+    shadowColor: '#18181B',
     shadowOpacity: 0.05,
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },

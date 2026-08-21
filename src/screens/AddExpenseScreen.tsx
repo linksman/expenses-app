@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
+  Dimensions,
+  Easing,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -42,13 +45,13 @@ interface RouteParams {
 }
 
 const FIELD_ICON_STYLES = {
-  description: { color: '#7C3AED', tint: '#F1EAFE' },
+  description: { color: '#3F3F46', tint: '#F0F0F1' },
   payment: { color: '#159C87', tint: '#E7F6F1' },
   date: { color: '#EA8C3A', tint: '#FFF4E8' },
   split: { color: '#3B82D6', tint: '#E9F1FF' },
 };
 
-const ME_AVATAR = { color: '#6D28D9', tint: '#F1EAFE' };
+const ME_AVATAR = { color: '#27272A', tint: '#F0F0F1' };
 
 // Vertical gap kept even between every section of the form (the amount card,
 // each field card, the payment-method/category chip rows, ...). Chip rows
@@ -59,6 +62,7 @@ const CHIP_ROW_GAP = SECTION_GAP - 12;
 
 export default function AddExpenseScreen() {
   const navigation = useNavigation();
+  const sheetTranslateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
   const insets = useSafeAreaInsets();
   const route = useRoute();
   const { vacationId, expenseId } = (route.params ?? {}) as RouteParams;
@@ -293,9 +297,12 @@ export default function AddExpenseScreen() {
   const handleClose = useCallback(() => {
     if (closingRef.current || !navigation.canGoBack()) return;
     closingRef.current = true;
-    if (isEditing && vacation) setActiveVacationId(vacation.id);
+    if (isEditing && vacation) {
+      setActiveVacationId(vacation.id);
+      if (expenseId) setPendingNewExpenseHighlight(expenseId);
+    }
     navigation.goBack();
-  }, [isEditing, navigation, setActiveVacationId, vacation]);
+  }, [expenseId, isEditing, navigation, setActiveVacationId, vacation]);
 
   const handleDelete = async () => {
     if (!expenseId) return;
@@ -305,6 +312,16 @@ export default function AddExpenseScreen() {
     if (vacation) setActiveVacationId(vacation.id);
     navigation.goBack();
   };
+
+  useEffect(() => {
+    Animated.timing(sheetTranslateY, {
+      toValue: 0,
+      duration: 140,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [sheetTranslateY]);
+
   if (!vacation) {
     return null;
   }
@@ -321,17 +338,30 @@ export default function AddExpenseScreen() {
     <Modal
       visible
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={handleClose}
       onShow={scheduleAmountFocus}
     >
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={handleClose} accessible={false} />
-        <View style={styles.sheet} accessibilityViewIsModal accessibilityLanguage={language.locale}>
+        <Animated.View
+          style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]}
+          accessibilityViewIsModal
+          accessibilityLanguage={language.locale}
+        >
           <TouchableOpacity style={styles.grabberArea} onPress={handleClose} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t.common.close}>
             <View style={styles.grabber} />
           </TouchableOpacity>
           <View style={[styles.header, { flexDirection: rowDirection }]}>
+            <TouchableOpacity
+              onPress={handleClose}
+              style={styles.closeButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={t.common.close}
+            >
+              <Ionicons name="close" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
             <Text
               style={[styles.headerTitle, { textAlign }]}
               onPress={handleClose}
@@ -340,15 +370,6 @@ export default function AddExpenseScreen() {
             >
               {isEditing ? t.add.editTitle : t.add.title}
             </Text>
-            <TouchableOpacity
-              onPress={handleClose}
-              style={styles.closeButton}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityRole="button"
-              accessibilityLabel={t.common.close}
-            >
-              <Ionicons name="close" size={14} color="#71717A" />
-            </TouchableOpacity>
           </View>
           <View style={{ flex: 1 }}>
           <KeyboardAvoidingView
@@ -446,7 +467,7 @@ export default function AddExpenseScreen() {
                     { backgroundColor: FIELD_ICON_STYLES.description.tint },
                   ]}
                 >
-                  <Ionicons name="pencil" size={18} color={FIELD_ICON_STYLES.description.color} />
+                  <Ionicons name="chatbox-outline" size={18} color={FIELD_ICON_STYLES.description.color} />
                 </View>
                 <View style={styles.fieldTextBlock}>
                   <TextInput
@@ -779,7 +800,7 @@ export default function AddExpenseScreen() {
             )}
           </KeyboardAvoidingView>
           </View>
-        </View>
+        </Animated.View>
       </View>
 
       <CurrencyPickerModal
@@ -844,14 +865,14 @@ export default function AddExpenseScreen() {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(24, 20, 45, 0.42)' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(24, 24, 27, 0.42)' },
   sheet: {
     backgroundColor: colors.background,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     paddingTop: 14,
     height: '92%',
-    shadowColor: '#18142D',
+    shadowColor: '#18181B',
     shadowOpacity: 0.25,
     shadowRadius: 30,
     shadowOffset: { width: 0, height: -10 },
@@ -861,24 +882,23 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     alignItems: 'center',
     paddingVertical: 10,
-    marginBottom: 4,
-    marginTop: -10,
   },
   grabber: {
-    width: 44,
+    width: 46,
     height: 5,
     borderRadius: 999,
-    backgroundColor: '#E4E4EA',
+    backgroundColor: '#D4D4D8',
   },
   header: {
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 12,
     paddingHorizontal: 20,
-    marginBottom: 8,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   headerTitle: {
     flex: 1,
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.text,
     letterSpacing: -0.2,
@@ -886,8 +906,8 @@ const styles = StyleSheet.create({
   closeButton: {
     width: 48,
     height: 48,
-    borderRadius: 11,
-    backgroundColor: '#F5F5F8',
+    borderRadius: 12,
+    backgroundColor: '#F0F0F1',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -916,7 +936,7 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     marginBottom: SECTION_GAP,
     minHeight: 132,
-    shadowColor: '#18142D',
+    shadowColor: '#18181B',
     shadowOpacity: 0.06,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 5 },
@@ -966,7 +986,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: SECTION_GAP,
-    shadowColor: '#18142D',
+    shadowColor: '#18181B',
     shadowOpacity: 0.05,
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
@@ -1077,7 +1097,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     marginBottom: 12,
     paddingHorizontal: 4,
-    shadowColor: '#18142D',
+    shadowColor: '#18181B',
     shadowOpacity: 0.05,
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 1 },
@@ -1098,8 +1118,8 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   categoryChipSelected: {
-    backgroundColor: '#F5F1FE',
-    borderColor: '#DDD1FA',
+    backgroundColor: '#F0F0F1',
+    borderColor: '#D4D4D8',
     shadowColor: colors.primary,
     shadowOpacity: 0.35,
     shadowRadius: 8,

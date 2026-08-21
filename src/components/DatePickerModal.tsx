@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Dimensions, Easing, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
 import { useLanguage } from '../storage/LanguageContext';
@@ -23,10 +23,22 @@ export default function DatePickerModal({ visible, selectedDate, onSelect, onClo
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
   const [viewDate, setViewDate] = useState(selectedDate);
+  const sheetTranslateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
 
   useEffect(() => {
     if (visible) setViewDate(selectedDate);
   }, [visible, selectedDate]);
+
+  useEffect(() => {
+    if (!visible) return;
+    sheetTranslateY.setValue(Dimensions.get('window').height);
+    Animated.timing(sheetTranslateY, {
+      toValue: 0,
+      duration: 140,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [sheetTranslateY, visible]);
 
   const year = viewDate.getFullYear();
   const month = viewDate.getMonth();
@@ -68,10 +80,10 @@ export default function DatePickerModal({ visible, selectedDate, onSelect, onClo
   const today = new Date();
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} accessible={false} />
-        <View style={styles.sheet} accessibilityViewIsModal accessibilityRole="none">
+        <Animated.View style={[styles.sheet, { transform: [{ translateY: sheetTranslateY }] }]} accessibilityViewIsModal accessibilityRole="none">
           <View style={styles.grabberArea} accessible={false}>
             <View style={styles.grabber} />
           </View>
@@ -145,7 +157,7 @@ export default function DatePickerModal({ visible, selectedDate, onSelect, onClo
           <TouchableOpacity style={styles.todayButton} onPress={selectToday} activeOpacity={0.8} accessibilityRole="button">
             <Text style={styles.todayButtonText}>{t.manage.today}</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
@@ -153,7 +165,7 @@ export default function DatePickerModal({ visible, selectedDate, onSelect, onClo
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(24, 20, 45, 0.42)' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(24, 24, 27, 0.42)' },
   sheet: {
     backgroundColor: colors.card,
     borderTopLeftRadius: 28,
@@ -161,7 +173,7 @@ const styles = StyleSheet.create({
     paddingTop: 14,
     paddingHorizontal: 20,
     paddingBottom: 24,
-    shadowColor: '#18142D',
+    shadowColor: '#18181B',
     shadowOpacity: 0.25,
     shadowRadius: 30,
     shadowOffset: { width: 0, height: -10 },

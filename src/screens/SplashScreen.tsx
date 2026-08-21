@@ -142,7 +142,7 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#4C1D95',
+    backgroundColor: '#18181B',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   backgroundImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   backgroundWash: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(24, 20, 35, 0.55)',
+    backgroundColor: 'rgba(24, 24, 27, 0.58)',
   },
   glow: { position: 'absolute', borderRadius: 999 },
   glowTop: {
@@ -158,14 +158,14 @@ const styles = StyleSheet.create({
     height: 620,
     top: -260,
     left: -220,
-    backgroundColor: 'rgba(167,139,250,0.16)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   glowBottom: {
     width: 520,
     height: 520,
     bottom: -260,
     right: -200,
-    backgroundColor: 'rgba(109,40,217,0.2)',
+    backgroundColor: 'rgba(161,161,170,0.12)',
   },
   iconAnchor: {
     position: 'absolute',
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F4F4F5',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#0C0420',
+    shadowColor: '#09090B',
     shadowOpacity: 0.5,
     shadowRadius: 22,
     shadowOffset: { width: 0, height: 12 },
