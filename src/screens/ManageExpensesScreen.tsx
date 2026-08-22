@@ -183,11 +183,17 @@ export default function ManageExpensesScreen() {
   );
 
   // All day-groups start collapsed except today's, until the user toggles one.
+  // If nothing was spent today, fall back to expanding the most recent date
+  // group instead (sections are already newest-first for groupBy === 'date')
+  // so the list never opens with every section collapsed.
   // Other grouping modes start expanded so changing the setting reveals the result immediately.
+  const hasExpenseToday = sections.some((s) => s.title === t.manage.today);
   const isSectionCollapsed = (key: string, title: string) =>
     collapsedOverrides[`${groupBy}:${key}`] !== undefined
       ? collapsedOverrides[`${groupBy}:${key}`]
-      : groupBy === 'date' && title !== t.manage.today;
+      : groupBy === 'date' &&
+        title !== t.manage.today &&
+        !(!hasExpenseToday && sections[0]?.key === key);
   const toggleSection = (key: string, title: string) =>
     setCollapsedOverrides((prev) => ({
       ...prev,
@@ -696,22 +702,19 @@ export default function ManageExpensesScreen() {
                   <Text style={[styles.rowDescription, { textAlign }]}>
                     {descriptionText}
                   </Text>
-                  <Text style={[styles.rowMethod, { textAlign }]}>
-                    {method ?? ''}
-                  </Text>
-                  {item.excludedFromStatistics ? (
-                    <View
-                      style={[
-                        styles.rowStatisticsExcluded,
-                        { flexDirection: rowDirection, alignSelf: isRTL ? 'flex-end' : 'flex-start' },
-                      ]}
-                    >
-                      <Ionicons name="stats-chart-outline" size={12} color={colors.textMuted} />
-                      <Text style={styles.rowStatisticsExcludedText}>
-                        {t.manage.statisticsExcluded}
-                      </Text>
-                    </View>
-                  ) : null}
+                  <View style={[styles.rowMethodLine, { flexDirection: rowDirection }]}>
+                    <Text style={[styles.rowMethod, { textAlign }]}>
+                      {method ?? ''}
+                    </Text>
+                    {item.excludedFromStatistics ? (
+                      <View style={[styles.rowStatisticsExcluded, { flexDirection: rowDirection }]}>
+                        <Ionicons name="stats-chart-outline" size={12} color={colors.textMuted} />
+                        <Text style={styles.rowStatisticsExcludedText}>
+                          {t.manage.statisticsExcluded}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
                   {splitLabel && (
                     <Text style={[styles.rowSplit, { textAlign }]}>
                       {splitLabel}
@@ -1310,12 +1313,12 @@ const styles = StyleSheet.create({
   },
   rowMiddle: { flex: 1 },
   rowDescription: { fontSize: 16, fontWeight: '600', color: colors.text },
-  rowMethod: { fontSize: 13, color: colors.textMuted, marginTop: 1 },
+  rowMethodLine: { alignItems: 'center', gap: 8, marginTop: 1 },
+  rowMethod: { fontSize: 13, color: colors.textMuted },
   rowSplit: { fontSize: 12, color: PAGE_ACCENT, marginTop: 2, fontWeight: '600' },
   rowStatisticsExcluded: {
     alignItems: 'center',
     gap: 5,
-    marginTop: 5,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 999,

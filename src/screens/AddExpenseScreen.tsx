@@ -97,6 +97,9 @@ export default function AddExpenseScreen() {
   const [paymentMethodId, setPaymentMethodId] = useState(
     () => existingExpense?.paymentMethodId ?? ''
   );
+  const [excludedFromStatistics, setExcludedFromStatistics] = useState(
+    () => existingExpense?.excludedFromStatistics ?? false
+  );
   const [currencyModalVisible, setCurrencyModalVisible] = useState(false);
   const [methodModalVisible, setMethodModalVisible] = useState(false);
   const [splitExpanded, setSplitExpanded] = useState(false);
@@ -190,6 +193,7 @@ export default function AddExpenseScreen() {
     leadCurrency && !Number.isNaN(parsedAmount) && parsedAmount > 0
       ? convert(parsedAmount, currencyCode)
       : null;
+  const exchangeRate = leadCurrency ? convert(1, currencyCode) : null;
   const hasSplit = split.length > 0;
 
   useEffect(() => {
@@ -270,7 +274,8 @@ export default function AddExpenseScreen() {
         paymentMethodId,
         vacation.id,
         createdAt,
-        split
+        split,
+        excludedFromStatistics
       );
       setActiveVacationId(vacation.id);
       setPendingNewExpenseHighlight(newExpenseId);
@@ -418,17 +423,24 @@ export default function AddExpenseScreen() {
                       accessibilityLabel={t.manage.amount}
                       accessibilityState={{ disabled: hasSplit }}
                     />
-                    <Text
+                    <View
                       style={[
-                        styles.convertedHint,
-                        { textAlign },
+                        styles.convertedHintRow,
+                        { flexDirection: rowDirection },
                         (convertedAmount === null || !leadCurrency) && styles.convertedHintHidden,
                       ]}
                     >
-                      {convertedAmount !== null && leadCurrency
-                        ? `≈ ${formatAmount(convertedAmount, leadCurrency)}`
-                        : ' '}
-                    </Text>
+                      <Text style={[styles.convertedHint, { textAlign }]}>
+                        {convertedAmount !== null && leadCurrency
+                          ? `≈ ${formatAmount(convertedAmount, leadCurrency)}`
+                          : ' '}
+                      </Text>
+                      {exchangeRate !== null && leadCurrency && (
+                        <Text style={styles.exchangeRateHint}>
+                          {`(1 ${currencyCode} = ${exchangeRate.toFixed(4)} ${leadCurrency})`}
+                        </Text>
+                      )}
+                    </View>
                   </View>
                   <TouchableOpacity
                     style={styles.currencyButton}
@@ -756,24 +768,26 @@ export default function AddExpenseScreen() {
                   );
                 })}
               </View>
-              {isEditing && (
-                <View style={{ alignSelf: isRTL ? 'flex-end' : 'flex-start' }}>
-                  <TouchableOpacity
-                    style={styles.statisticsToggleButton}
-                    onPress={() => {
-                      if (existingExpense) {
-                        setExpenseStatisticsExcluded(existingExpense.id, !existingExpense.excludedFromStatistics);
-                      }
-                    }}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.statisticsToggleText}>
-                      {existingExpense?.excludedFromStatistics
-                        ? t.add.includeInStatistics
-                        : t.add.excludeFromStatistics}
-                    </Text>
-                  </TouchableOpacity>
+              <View style={{ alignSelf: isRTL ? 'flex-end' : 'flex-start' }}>
+                <TouchableOpacity
+                  style={[styles.statisticsToggleButton, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
+                  onPress={() => {
+                    const next = !excludedFromStatistics;
+                    setExcludedFromStatistics(next);
+                    if (existingExpense) {
+                      setExpenseStatisticsExcluded(existingExpense.id, next);
+                    }
+                  }}
+                  activeOpacity={0.7}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: excludedFromStatistics }}
+                >
+                  <View style={[styles.checkbox, excludedFromStatistics && styles.checkboxChecked]}>
+                    {excludedFromStatistics && <Ionicons name="checkmark" size={12} color="#fff" />}
+                  </View>
+                  <Text style={styles.statisticsToggleText}>{t.add.excludeFromStatistics}</Text>
+                </TouchableOpacity>
+                {isEditing && (
                   <TouchableOpacity
                     style={styles.deleteExpenseButton}
                     onPress={() => setDeleteConfirmVisible(true)}
@@ -783,8 +797,8 @@ export default function AddExpenseScreen() {
                   >
                     <Text style={styles.deleteExpenseText}>{t.add.deleteExpense}</Text>
                   </TouchableOpacity>
-                </View>
-              )}
+                )}
+              </View>
             </ScrollView>
             {isEditing ? (
               <TouchableOpacity
@@ -933,10 +947,20 @@ const styles = StyleSheet.create({
   },
   container: { padding: 20, paddingBottom: 20 },
   containerWithFloatingSave: { paddingBottom: 104 },
+  convertedHintRow: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    alignSelf: 'stretch',
+    marginTop: 3,
+    gap: 8,
+  },
   convertedHint: {
     fontSize: 13,
     color: colors.textMuted,
-    marginTop: 3,
+  },
+  exchangeRateHint: {
+    fontSize: 12,
+    color: colors.textMuted,
   },
   convertedHintHidden: {
     opacity: 0,
@@ -1147,8 +1171,18 @@ const styles = StyleSheet.create({
   categoryChipLabelSelected: { color: colors.primaryDark, fontWeight: '700' },
   deleteExpenseButton: { minHeight: 48, justifyContent: 'center', marginBottom: 12 },
   deleteExpenseText: { fontSize: 13, fontWeight: '600', color: colors.danger },
-  statisticsToggleButton: { minHeight: 48, justifyContent: 'center' },
-  statisticsToggleText: { fontSize: 13, fontWeight: '600', color: colors.primary },
+  statisticsToggleButton: { minHeight: 48, alignItems: 'center', gap: 8 },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
+  statisticsToggleText: { fontSize: 13, fontWeight: '600', color: colors.text },
   confirmOverlay: {
     flex: 1,
     backgroundColor: 'rgba(24, 24, 27, 0.45)',

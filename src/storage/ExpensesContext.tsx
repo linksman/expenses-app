@@ -41,7 +41,8 @@ interface ExpensesContextValue {
     paymentMethodId: string,
     vacationId: string,
     createdAt: string,
-    split: ExpenseSplitShare[]
+    split: ExpenseSplitShare[],
+    excludedFromStatistics: boolean
   ) => Promise<string>;
   updateExpense: (
     id: string,
@@ -93,7 +94,8 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
       paymentMethodId: string,
       vacationId: string,
       createdAt: string,
-      split: ExpenseSplitShare[]
+      split: ExpenseSplitShare[],
+      excludedFromStatistics: boolean
     ) => {
       const expense: Expense = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -105,7 +107,7 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
         paymentMethodId,
         vacationId,
         split,
-        excludedFromStatistics: false,
+        excludedFromStatistics,
       };
       await persist([expense, ...expenses]);
       return expense.id;
