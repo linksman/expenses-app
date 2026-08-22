@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Category, Expense, ExpenseSplitShare } from '../types/expense';
+import { Category, Expense, ExpenseSplitShare, RateSnapshot } from '../types/expense';
 
 const STORAGE_KEY = 'vacation-expenses:v1';
 
@@ -42,7 +42,8 @@ interface ExpensesContextValue {
     vacationId: string,
     createdAt: string,
     split: ExpenseSplitShare[],
-    excludedFromStatistics: boolean
+    excludedFromStatistics: boolean,
+    rateSnapshot: RateSnapshot | null
   ) => Promise<string>;
   updateExpense: (
     id: string,
@@ -95,7 +96,8 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
       vacationId: string,
       createdAt: string,
       split: ExpenseSplitShare[],
-      excludedFromStatistics: boolean
+      excludedFromStatistics: boolean,
+      rateSnapshot: RateSnapshot | null
     ) => {
       const expense: Expense = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -108,6 +110,7 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
         vacationId,
         split,
         excludedFromStatistics,
+        rateSnapshot,
       };
       await persist([expense, ...expenses]);
       return expense.id;

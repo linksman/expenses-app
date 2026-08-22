@@ -41,6 +41,18 @@ export interface ExpenseSplitShare {
   amount: number;
 }
 
+// A frozen table of exchange rates captured at the moment an expense was
+// created, so a currency with no fixed rate configured still converts to a
+// stable historical value instead of drifting with the live market rate.
+// `rates[X]` means "1 unit of `base` equals rates[X] units of X" — storing
+// every supported currency (not just this expense's own) lets totals
+// re-triangulate correctly even if the vacation's lead currency changes later.
+export interface RateSnapshot {
+  base: string;
+  rates: Record<string, number>;
+  fetchedAt: number;
+}
+
 export interface Expense {
   id: string;
   amount: number;
@@ -52,4 +64,7 @@ export interface Expense {
   vacationId: string;
   split: ExpenseSplitShare[];
   excludedFromStatistics: boolean;
+  // Absent on expenses created before this feature, or if the rate fetch
+  // failed at creation time — such expenses fall back to a live conversion.
+  rateSnapshot?: RateSnapshot | null;
 }

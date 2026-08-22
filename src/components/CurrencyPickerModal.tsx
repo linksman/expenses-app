@@ -12,6 +12,11 @@ interface Props {
   onClose: () => void;
   allowNone?: boolean;
   noneLabel?: string;
+  // When provided, only these currency codes are offered — except the
+  // currently selected one, which always stays visible even if it's outside
+  // this list (e.g. an expense whose currency was since removed from its
+  // vacation's set still needs to render as the current selection).
+  restrictToCodes?: string[];
 }
 
 const NONE_CODE = '';
@@ -23,8 +28,12 @@ export default function CurrencyPickerModal({
   onClose,
   allowNone,
   noneLabel,
+  restrictToCodes,
 }: Props) {
   const { t, isRTL } = useLanguage();
+  const data = restrictToCodes
+    ? CURRENCIES.filter((c) => restrictToCodes.includes(c.code) || c.code === selectedCode)
+    : CURRENCIES;
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
   const sheetTranslateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
@@ -61,7 +70,7 @@ export default function CurrencyPickerModal({
             </TouchableOpacity>
           </View>
           <FlatList
-            data={CURRENCIES}
+            data={data}
             keyExtractor={(item) => item.code}
             style={styles.list}
             ListHeaderComponent={

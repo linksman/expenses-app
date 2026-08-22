@@ -27,14 +27,88 @@ import { useExchangeRates } from '../storage/ExchangeRatesContext';
 import { usePaymentMethods } from '../storage/PaymentMethodsContext';
 import { currencyInfo } from '../types/currency';
 import { TravelCompanion } from '../types/companion';
+import { VacationCurrency } from '../types/vacation';
 import { EXPENSE_GROUPINGS, ExpenseGrouping } from '../types/expenseGrouping';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
+import VacationCurrenciesPickerModal from '../components/VacationCurrenciesPickerModal';
 import { companionAvatarColor } from '../utils/companionAvatar';
 import { scrollNodeIntoViewAboveKeyboard, scrollToFocusedInput } from '../utils/scrollToFocusedInput';
 import { findDestinationImage } from '../utils/destinationImage';
 import { convertedTotal, formatTotalsWithLead, totalsByCurrencyFor } from '../utils/formatCurrency';
-import { convertForVacation } from '../utils/vacationExchangeRate';
+import { convertForVacationCurrency } from '../utils/vacationExchangeRate';
+import { Expense } from '../types/expense';
 import { buildExpensesCsv, buildExpensesHtml, exportCsvFile, exportPdfFile } from '../utils/exportExpenses';
+
+// One row of the per-currency fixed-rate list, shown per non-lead vacation
+// currency once a lead currency is set. Mirrors the single rate row this
+// screen used to have (auto/manual toggle + a debounced-commit effect), just
+// parameterized per currency instead of two flat scalars.
+function FixedRateRow({
+  fromCode,
+  leadCurrency,
+  rate,
+  automaticRate,
+  onChange,
+}: {
+  fromCode: string;
+  leadCurrency: string;
+  rate: number | null;
+  automaticRate: number | null;
+  onChange: (nextRate: number | null) => void;
+}) {
+  const { t, isRTL } = useLanguage();
+  const textAlign = isRTL ? 'right' : 'left';
+  const rowDirection = isRTL ? 'row-reverse' : 'row';
+  const [rateAuto, setRateAuto] = useState(rate == null);
+  const [fixedRateInput, setFixedRateInput] = useState(rate != null ? String(rate) : '');
+
+  useEffect(() => {
+    const trimmed = fixedRateInput.trim();
+    const parsed = parseFloat(trimmed.replace(',', '.'));
+    const nextRate = !rateAuto && trimmed && Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    if (nextRate === rate) return;
+    onChange(nextRate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rateAuto, fixedRateInput]);
+
+  return (
+    <View style={[styles.rateRow, { flexDirection: rowDirection }]}>
+      <Text style={[styles.rateEquation, { textAlign }]}>{`1 ${fromCode} =`}</Text>
+      <TextInput
+        style={[styles.rateInput, { textAlign }, !rateAuto && styles.rateInputEditable]}
+        value={rateAuto ? (automaticRate !== null ? automaticRate.toFixed(4) : '') : fixedRateInput}
+        onChangeText={setFixedRateInput}
+        editable={!rateAuto}
+        keyboardType="decimal-pad"
+        placeholderTextColor={colors.textMuted}
+        accessibilityLabel={`${fromCode} ${leadCurrency}`}
+        accessibilityState={{ disabled: rateAuto }}
+      />
+      <Text style={styles.rateCurrency}>{leadCurrency}</Text>
+      <TouchableOpacity
+        style={[styles.rateAutoToggle, { flexDirection: rowDirection }]}
+        onPress={() => {
+          setRateAuto((wasAuto) => {
+            const nextAuto = !wasAuto;
+            if (!nextAuto && !fixedRateInput && automaticRate !== null) {
+              setFixedRateInput(automaticRate.toFixed(4));
+            }
+            return nextAuto;
+          });
+        }}
+        activeOpacity={0.7}
+        accessibilityRole="checkbox"
+        accessibilityLabel={t.vacations.autoRateLabel}
+        accessibilityState={{ checked: rateAuto }}
+      >
+        <View style={[styles.checkbox, rateAuto && styles.checkboxChecked]}>
+          {rateAuto && <Ionicons name="checkmark" size={12} color="#fff" />}
+        </View>
+        <Text style={styles.rateAutoLabel}>{t.vacations.autoRateLabel}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 interface RouteParams {
   vacationId?: string;
@@ -62,7 +136,7 @@ export default function VacationFormScreen() {
     updateVacation,
     deleteVacation,
     setVacationSummaryImage,
-    setVacationFixedExchangeRate,
+    setVacationCurrencyFixedRate,
     setVacationGroupBy,
   } = useVacations();
   const { expenses, deleteExpensesByVacation } = useExpenses();
@@ -75,15 +149,13 @@ export default function VacationFormScreen() {
   const isEditing = !!vacation;
 
   const [name, setName] = useState(vacation?.name ?? '');
-  const [defaultCurrency, setDefaultCurrency] = useState(vacation?.defaultCurrency ?? 'USD');
-  const [leadCurrency, setLeadCurrency] = useState<string | null>(vacation?.leadCurrency ?? null);
-  const [rateAuto, setRateAuto] = useState(vacation?.fixedExchangeRate == null);
-  const [fixedRateInput, setFixedRateInput] = useState(
-    vacation?.fixedExchangeRate != null ? String(vacation.fixedExchangeRate) : ''
+  const [currencies, setCurrencies] = useState<VacationCurrency[]>(
+    vacation?.currencies ?? [{ code: 'USD', isDefault: true }]
   );
+  const [leadCurrency, setLeadCurrency] = useState<string | null>(vacation?.leadCurrency ?? null);
   const [companions, setCompanions] = useState<TravelCompanion[]>(vacation?.companions ?? []);
   const [newCompanionName, setNewCompanionName] = useState('');
-  const [defaultCurrencyModalVisible, setDefaultCurrencyModalVisible] = useState(false);
+  const [currenciesModalVisible, setCurrenciesModalVisible] = useState(false);
   const [leadCurrencyModalVisible, setLeadCurrencyModalVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -137,25 +209,16 @@ export default function VacationFormScreen() {
       return;
     }
     if (!isEditing || !vacation || !canSave) return;
-    updateVacation(vacation.id, name.trim(), defaultCurrency, leadCurrency, companions);
+    updateVacation(vacation.id, name.trim(), currencies, leadCurrency, companions);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, defaultCurrency, leadCurrency, companions]);
-
-  useEffect(() => {
-    if (!isEditing || !vacation) return;
-    const trimmed = fixedRateInput.trim();
-    const parsed = parseFloat(trimmed.replace(',', '.'));
-    const nextRate =
-      !rateAuto && trimmed && Number.isFinite(parsed) && parsed > 0 ? parsed : null;
-    if (nextRate === (vacation.fixedExchangeRate ?? null)) return;
-    setVacationFixedExchangeRate(vacation.id, nextRate);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rateAuto, fixedRateInput]);
+  }, [name, currencies, leadCurrency, companions]);
 
   useEffect(() => {
     if (leadCurrency) ensureRates(leadCurrency);
   }, [leadCurrency, ensureRates]);
-  const automaticRate = leadCurrency ? rawConvert(1, defaultCurrency, leadCurrency) : null;
+
+  const defaultCurrency = currencies.find((c) => c.isDefault)?.code ?? currencies[0]?.code ?? 'USD';
+  const nonLeadCurrencies = leadCurrency ? currencies.filter((c) => c.code !== leadCurrency) : [];
 
   const imageLookupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -194,22 +257,26 @@ export default function VacationFormScreen() {
     () => (vacation ? expenses.filter((expense) => expense.vacationId === vacation.id) : []),
     [expenses, vacation]
   );
+  const currencyCodesInUse = useMemo(
+    () => new Set(vacationExpenses.map((expense) => expense.currencyCode)),
+    [vacationExpenses]
+  );
 
   const exportTotalsLine = vacation
     ? `${t.manage.tripTotal} ${formatTotalsWithLead(
         totalsByCurrencyFor(vacationExpenses),
         vacation.leadCurrency,
         vacation.leadCurrency
-          ? convertedTotal(vacationExpenses, (amount, currencyCode) =>
-              convertForVacation(vacation, rawConvert, amount, currencyCode)
+          ? convertedTotal(vacationExpenses, (expense, amount) =>
+              convertForVacationCurrency(vacation, rawConvert, expense.currencyCode, expense.rateSnapshot, amount)
             )
           : null,
-        vacation.defaultCurrency
+        vacation.currencies.find((c) => c.isDefault)?.code
       )}`
     : '';
 
-  const exportConvert = (amount: number, currencyCode: string) =>
-    vacation ? convertForVacation(vacation, rawConvert, amount, currencyCode) : null;
+  const exportConvert = (expense: Expense, amount: number) =>
+    vacation ? convertForVacationCurrency(vacation, rawConvert, expense.currencyCode, expense.rateSnapshot, amount) : null;
 
   const handleExportCsv = async () => {
     if (!vacation || vacationExpenses.length === 0 || exporting) return;
@@ -275,7 +342,7 @@ export default function VacationFormScreen() {
     try {
       const createdVacation = await addVacation(
         name.trim(),
-        defaultCurrency,
+        currencies,
         leadCurrency,
         companions
       );
@@ -381,7 +448,7 @@ export default function VacationFormScreen() {
             ]}
           >
             <View style={styles.nameIconBadge}>
-              <Ionicons name="pencil" size={16} color={colors.primary} />
+              <Ionicons name="location-outline" size={16} color={colors.primary} />
             </View>
             <View style={styles.nameTextBlock}>
               <Text style={[styles.fieldLabel, { textAlign }]}>{t.vacations.nameLabel}</Text>
@@ -400,14 +467,15 @@ export default function VacationFormScreen() {
             </View>
           </View>
 
-          <Text style={[styles.sectionLabel, { textAlign }]}>{t.vacations.defaultCurrency}</Text>
+          <Text style={[styles.sectionLabel, { textAlign }]}>{t.vacations.currenciesLabel}</Text>
+          <Text style={[styles.sectionHint, { textAlign }]}>{t.vacations.currenciesHint}</Text>
           <View style={styles.card}>
             <TouchableOpacity
               style={[styles.row, styles.rowBorder, { flexDirection: rowDirection }]}
-              onPress={() => setDefaultCurrencyModalVisible(true)}
+              onPress={() => setCurrenciesModalVisible(true)}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={`${t.vacations.defaultCurrency}, ${defaultCurrency}`}
+              accessibilityLabel={`${t.vacations.currenciesLabel}, ${currencies.map((c) => c.code).join(', ')}`}
             >
               <View style={[styles.currencyIconBadge, { backgroundColor: '#F0F0F1' }]}>
                 <Text style={[styles.currencyIconText, { color: colors.primary }]}>
@@ -415,8 +483,10 @@ export default function VacationFormScreen() {
                 </Text>
               </View>
               <View style={styles.rowTextBlock}>
-                <Text style={[styles.fieldLabel, { textAlign }]}>{t.vacations.defaultCurrency}</Text>
-                <Text style={[styles.rowValue, { textAlign }]}>{defaultCurrency}</Text>
+                <Text style={[styles.fieldLabel, { textAlign }]}>{t.vacations.currenciesLabel}</Text>
+                <Text style={[styles.rowValue, { textAlign }]}>
+                  {currencies.map((c) => c.code).join('  ·  ')}
+                </Text>
               </View>
               <Ionicons
                 name={isRTL ? 'chevron-back' : 'chevron-forward'}
@@ -428,7 +498,7 @@ export default function VacationFormScreen() {
             <TouchableOpacity
               style={[
                 styles.row,
-                isEditing && leadCurrency && styles.rowBorder,
+                isEditing && leadCurrency && nonLeadCurrencies.length > 0 && styles.rowBorder,
                 { flexDirection: rowDirection },
               ]}
               onPress={() => setLeadCurrencyModalVisible(true)}
@@ -454,49 +524,25 @@ export default function VacationFormScreen() {
               />
             </TouchableOpacity>
 
-            {isEditing && leadCurrency && (
-              <View style={[styles.rateRow, { flexDirection: rowDirection }]}>
-                <Text style={[styles.rateEquation, { textAlign }]}>
-                  {`1 ${defaultCurrency} =`}
-                </Text>
-                <TextInput
-                  style={[
-                    styles.rateInput,
-                    { textAlign },
-                    !rateAuto && styles.rateInputEditable,
-                  ]}
-                  value={rateAuto ? (automaticRate !== null ? automaticRate.toFixed(4) : '') : fixedRateInput}
-                  onChangeText={setFixedRateInput}
-                  editable={!rateAuto}
-                  keyboardType="decimal-pad"
-                  placeholderTextColor={colors.textMuted}
-                  accessibilityLabel={`${t.vacations.defaultCurrency} ${t.vacations.leadCurrency}`}
-                  accessibilityState={{ disabled: rateAuto }}
-                />
-                <Text style={styles.rateCurrency}>{leadCurrency}</Text>
-                <TouchableOpacity
-                  style={[styles.rateAutoToggle, { flexDirection: rowDirection }]}
-                  onPress={() => {
-                    setRateAuto((wasAuto) => {
-                      const nextAuto = !wasAuto;
-                      if (!nextAuto && !fixedRateInput && automaticRate !== null) {
-                        setFixedRateInput(automaticRate.toFixed(4));
-                      }
-                      return nextAuto;
-                    });
-                  }}
-                  activeOpacity={0.7}
-                  accessibilityRole="checkbox"
-                  accessibilityLabel={t.vacations.autoRateLabel}
-                  accessibilityState={{ checked: rateAuto }}
-                >
-                  <View style={[styles.checkbox, rateAuto && styles.checkboxChecked]}>
-                    {rateAuto && <Ionicons name="checkmark" size={12} color="#fff" />}
-                  </View>
-                  <Text style={styles.rateAutoLabel}>{t.vacations.autoRateLabel}</Text>
-                </TouchableOpacity>
-              </View>
-            )}
+            {isEditing &&
+              leadCurrency &&
+              nonLeadCurrencies.map((vc, index) => (
+                <View key={vc.code} style={index < nonLeadCurrencies.length - 1 ? styles.rowBorder : undefined}>
+                  <FixedRateRow
+                    fromCode={vc.code}
+                    leadCurrency={leadCurrency}
+                    rate={vc.fixedRate ?? null}
+                    automaticRate={rawConvert(1, vc.code, leadCurrency)}
+                    onChange={(nextRate) => {
+                      if (!vacation) return;
+                      setVacationCurrencyFixedRate(vacation.id, vc.code, nextRate);
+                      setCurrencies((prev) =>
+                        prev.map((c) => (c.code === vc.code ? { ...c, fixedRate: nextRate } : c))
+                      );
+                    }}
+                  />
+                </View>
+              ))}
           </View>
 
           {isEditing && vacation && (
@@ -780,11 +826,12 @@ export default function VacationFormScreen() {
         </View>
       </Modal>
 
-      <CurrencyPickerModal
-        visible={defaultCurrencyModalVisible}
-        selectedCode={defaultCurrency}
-        onSelect={setDefaultCurrency}
-        onClose={() => setDefaultCurrencyModalVisible(false)}
+      <VacationCurrenciesPickerModal
+        visible={currenciesModalVisible}
+        currencies={currencies}
+        onChange={setCurrencies}
+        onClose={() => setCurrenciesModalVisible(false)}
+        currencyCodesInUse={currencyCodesInUse}
       />
       <CurrencyPickerModal
         visible={leadCurrencyModalVisible}

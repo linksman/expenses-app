@@ -34,7 +34,7 @@ import { dayLabel } from '../utils/dateLabel';
 import { scrollToFocusedInput } from '../utils/scrollToFocusedInput';
 import { companionAvatarColor } from '../utils/companionAvatar';
 import { guessCategory } from '../utils/categoryGuess';
-import { convertForVacation } from '../utils/vacationExchangeRate';
+import { convertForVacationCurrency } from '../utils/vacationExchangeRate';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
 import PaymentMethodPickerModal from '../components/PaymentMethodPickerModal';
 import DatePickerModal from '../components/DatePickerModal';
@@ -72,7 +72,7 @@ export default function AddExpenseScreen() {
   const { methods, effectiveDefaultMethodId } = usePaymentMethods();
   const { t, isRTL, language } = useLanguage();
   const { vacations, setActiveVacationId } = useVacations();
-  const { ensureRates, convert: rawConvert } = useExchangeRates();
+  const { ensureRates, convert: rawConvert, captureSnapshot } = useExchangeRates();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
 
@@ -92,7 +92,10 @@ export default function AddExpenseScreen() {
   );
   const [dateModalVisible, setDateModalVisible] = useState(false);
   const [currencyCode, setCurrencyCode] = useState(
-    () => existingExpense?.currencyCode ?? vacation?.defaultCurrency ?? 'USD'
+    () =>
+      existingExpense?.currencyCode ??
+      vacation?.currencies.find((c) => c.isDefault)?.code ??
+      'USD'
   );
   const [paymentMethodId, setPaymentMethodId] = useState(
     () => existingExpense?.paymentMethodId ?? ''
@@ -158,15 +161,26 @@ export default function AddExpenseScreen() {
     if (leadCurrency) ensureRates(leadCurrency);
   }, [leadCurrency, ensureRates]);
 
+  // Warms the snapshot-anchor cache so captureSnapshot() at submit time
+  // (see handleSubmit) usually resolves instantly instead of blocking on a
+  // fresh network round trip.
+  useEffect(() => {
+    if (!isEditing) ensureRates('USD');
+  }, [isEditing, ensureRates]);
+
   useEffect(() => {
     if (!paymentMethodId && effectiveDefaultMethodId) {
       setPaymentMethodId(effectiveDefaultMethodId);
     }
   }, [effectiveDefaultMethodId, paymentMethodId]);
 
+  // No rateSnapshot yet since the expense doesn't exist — always resolves via
+  // the vacation's current fixed rate (if set for this currency) or the live
+  // rate, same as the eventual saved expense would show before any snapshot
+  // exists for it.
   const convert = (amount: number, fromCode: string) =>
     vacation
-      ? convertForVacation(vacation, rawConvert, amount, fromCode)
+      ? convertForVacationCurrency(vacation, rawConvert, fromCode, undefined, amount)
       : rawConvert(amount, fromCode, leadCurrency);
 
   const parsedAmount = parseFloat(amount.replace(',', '.'));
@@ -266,6 +280,9 @@ export default function AddExpenseScreen() {
         if (!categoryManuallySetRef.current) setCategory(finalCategory);
       }
       const createdAt = expenseDate.toISOString();
+      // Frozen forever once set — never recaptured on a later edit, which is
+      // why this only runs on the create path.
+      const rateSnapshot = isEditing ? null : await captureSnapshot();
       const newExpenseId = await addExpense(
         parsedAmount,
         finalCategory,
@@ -275,7 +292,8 @@ export default function AddExpenseScreen() {
         vacation.id,
         createdAt,
         split,
-        excludedFromStatistics
+        excludedFromStatistics,
+        rateSnapshot
       );
       setActiveVacationId(vacation.id);
       setPendingNewExpenseHighlight(newExpenseId);
@@ -841,6 +859,7 @@ export default function AddExpenseScreen() {
         selectedCode={currencyCode}
         onSelect={setCurrencyCode}
         onClose={() => setCurrencyModalVisible(false)}
+        restrictToCodes={vacation?.currencies.map((c) => c.code)}
       />
       <PaymentMethodPickerModal
         visible={methodModalVisible}

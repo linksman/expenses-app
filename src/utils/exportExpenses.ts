@@ -14,7 +14,7 @@ import { groupExpenses } from './groupExpenses';
 export interface ExportViewOptions {
   groupBy: ExpenseGrouping;
   vacation: Vacation;
-  convert: (amount: number, currencyCode: string) => number | null;
+  convert: (expense: Expense, amount: number) => number | null;
 }
 
 interface ExportRow {
@@ -104,7 +104,7 @@ export function buildExpensesCsv(
       totals,
       view.vacation.leadCurrency,
       leadTotal,
-      view.vacation.defaultCurrency
+      view.vacation.currencies.find((c) => c.isDefault)?.code
     );
     lines.push(
       [`${section.title} — ${t.manage.tripTotal}`, '', '', '', '', '', summary, '']
@@ -164,7 +164,12 @@ export function buildExpensesHtml(
         ? companionConvertedTotal(section.data, section.key, view.convert)
         : convertedTotal(section.data, view.convert)
       : null;
-    const summary = formatTotalsWithLead(totals, view.vacation.leadCurrency, leadTotal, view.vacation.defaultCurrency);
+    const summary = formatTotalsWithLead(
+      totals,
+      view.vacation.leadCurrency,
+      leadTotal,
+      view.vacation.currencies.find((c) => c.isDefault)?.code
+    );
     return `<tr class="group"><td colspan="6">${escapeHtml(section.title)}</td></tr>${rows}
       <tr class="subtotal"><td colspan="5">${escapeHtml(t.manage.tripTotal)}</td><td class="amount">${escapeHtml(summary)}</td></tr>`;
   }).join('');

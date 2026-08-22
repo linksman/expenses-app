@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Vacation } from '../types/vacation';
+import { Vacation, VacationCurrency } from '../types/vacation';
 import { TravelCompanion } from '../types/companion';
 import { ExpenseGrouping, isExpenseGrouping } from '../types/expenseGrouping';
 import { type DestinationImageResult, findDestinationImage } from '../utils/destinationImage';
@@ -21,10 +21,31 @@ const LEGACY_VACATIONS_KEY = 'vacation-expenses:groups:v1';
 const LEGACY_ACTIVE_VACATION_KEY = 'vacation-expenses:active-group:v1';
 
 // Vacations persisted before travel companions existed lack the field entirely.
+// Vacations persisted before multi-currency support had a single
+// `defaultCurrency: string` and an optional vacation-level `fixedExchangeRate`
+// tied to it — migrate those into a one-entry `currencies` list.
 function normalizeVacation(raw: any, legacyGroupBy: unknown = 'date'): Vacation {
   const hasUnsplashImage = !!raw.summaryImageUrl && !!raw.summaryImagePhotographerName;
+  const rawCurrencies: VacationCurrency[] = Array.isArray(raw.currencies)
+    ? raw.currencies
+    : [
+        {
+          code: raw.defaultCurrency ?? 'USD',
+          isDefault: true,
+          fixedRate: raw.fixedExchangeRate ?? null,
+        },
+      ];
+  const currencies =
+    rawCurrencies.length > 0 && rawCurrencies.some((c) => c.isDefault)
+      ? rawCurrencies
+      : rawCurrencies.length > 0
+        ? rawCurrencies.map((c, i) => ({ ...c, isDefault: i === 0 }))
+        : [{ code: 'USD', isDefault: true }];
   return {
     ...raw,
+    currencies,
+    defaultCurrency: undefined,
+    fixedExchangeRate: undefined,
     companions: raw.companions ?? [],
     groupBy: isExpenseGrouping(raw.groupBy)
       ? raw.groupBy
@@ -43,6 +64,14 @@ function normalizeVacation(raw: any, legacyGroupBy: unknown = 'date'): Vacation 
   };
 }
 
+// Last-resort guard against ever persisting an invalid currency set (empty,
+// or with no/multiple entries marked default) from a caller mistake.
+function clampCurrencies(currencies: VacationCurrency[]): VacationCurrency[] {
+  if (currencies.length === 0) return [{ code: 'USD', isDefault: true }];
+  if (currencies.filter((c) => c.isDefault).length === 1) return currencies;
+  return currencies.map((c, i) => ({ ...c, isDefault: i === 0 }));
+}
+
 interface VacationsContextValue {
   vacations: Vacation[];
   activeVacationId: string | null;
@@ -50,20 +79,20 @@ interface VacationsContextValue {
   loading: boolean;
   addVacation: (
     name: string,
-    defaultCurrency: string,
+    currencies: VacationCurrency[],
     leadCurrency: string | null,
     companions: TravelCompanion[]
   ) => Promise<Vacation>;
   updateVacation: (
     id: string,
     name: string,
-    defaultCurrency: string,
+    currencies: VacationCurrency[],
     leadCurrency: string | null,
     companions: TravelCompanion[]
   ) => Promise<Vacation>;
   deleteVacation: (id: string) => Promise<void>;
   setVacationSummaryImage: (id: string, image: DestinationImageResult | null) => void;
-  setVacationFixedExchangeRate: (id: string, rate: number | null) => void;
+  setVacationCurrencyFixedRate: (id: string, currencyCode: string, rate: number | null) => void;
   setVacationGroupBy: (id: string, groupBy: ExpenseGrouping) => void;
   setActiveVacationId: (id: string) => void;
 }
@@ -93,15 +122,25 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const setVacationFixedExchangeRate = useCallback((id: string, rate: number | null) => {
-    setVacations((current) => {
-      const next = current.map((vacation) =>
-        vacation.id === id ? { ...vacation, fixedExchangeRate: rate } : vacation
-      );
-      void AsyncStorage.setItem(VACATIONS_KEY, JSON.stringify(next));
-      return next;
-    });
-  }, []);
+  const setVacationCurrencyFixedRate = useCallback(
+    (id: string, currencyCode: string, rate: number | null) => {
+      setVacations((current) => {
+        const next = current.map((vacation) =>
+          vacation.id === id
+            ? {
+                ...vacation,
+                currencies: vacation.currencies.map((c) =>
+                  c.code === currencyCode ? { ...c, fixedRate: rate } : c
+                ),
+              }
+            : vacation
+        );
+        void AsyncStorage.setItem(VACATIONS_KEY, JSON.stringify(next));
+        return next;
+      });
+    },
+    []
+  );
 
   const setVacationGroupBy = useCallback((id: string, groupBy: ExpenseGrouping) => {
     setVacations((current) => {
@@ -168,14 +207,14 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
   const addVacation = useCallback(
     async (
       name: string,
-      defaultCurrency: string,
+      currencies: VacationCurrency[],
       leadCurrency: string | null,
       companions: TravelCompanion[]
     ) => {
       const vacation: Vacation = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         name: name.trim(),
-        defaultCurrency,
+        currencies: clampCurrencies(currencies),
         leadCurrency,
         groupBy: 'date',
         companions,
@@ -199,14 +238,14 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
     async (
       id: string,
       name: string,
-      defaultCurrency: string,
+      currencies: VacationCurrency[],
       leadCurrency: string | null,
       companions: TravelCompanion[]
     ) => {
       let updated: Vacation | undefined;
       const next = vacations.map((v) => {
         if (v.id !== id) return v;
-        updated = { ...v, name: name.trim(), defaultCurrency, leadCurrency, companions };
+        updated = { ...v, name: name.trim(), currencies: clampCurrencies(currencies), leadCurrency, companions };
         return updated;
       });
       setVacations(next);
@@ -247,7 +286,7 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
       updateVacation,
       deleteVacation,
       setVacationSummaryImage,
-      setVacationFixedExchangeRate,
+      setVacationCurrencyFixedRate,
       setVacationGroupBy,
       setActiveVacationId,
     }),
@@ -260,7 +299,7 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
       updateVacation,
       deleteVacation,
       setVacationSummaryImage,
-      setVacationFixedExchangeRate,
+      setVacationCurrencyFixedRate,
       setVacationGroupBy,
       setActiveVacationId,
     ]

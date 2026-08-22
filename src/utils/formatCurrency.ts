@@ -47,14 +47,17 @@ export function totalsByCurrencyFor(list: Expense[]): CurrencyTotal[] {
 
 /** Sums a list of expenses into a single currency. Returns null if any expense
  * can't be converted (e.g. exchange rate unavailable), signaling the caller to
- * fall back to a per-currency breakdown instead. */
+ * fall back to a per-currency breakdown instead. `convert` takes the whole
+ * expense (not just its amount/currency) since each expense may carry its own
+ * frozen rate snapshot — two expenses in the same currency can convert
+ * differently depending on when they were created. */
 export function convertedTotal(
   list: Expense[],
-  convert: (amount: number, fromCode: string) => number | null
+  convert: (expense: Expense, amount: number) => number | null
 ): number | null {
   let sum = 0;
   for (const e of list) {
-    const converted = convert(e.amount, e.currencyCode);
+    const converted = convert(e, e.amount);
     if (converted === null) return null;
     sum += converted;
   }
@@ -87,13 +90,13 @@ export function companionCurrencyTotals(list: Expense[], companionId: string): C
 export function companionConvertedTotal(
   list: Expense[],
   companionId: string,
-  convert: (amount: number, fromCode: string) => number | null
+  convert: (expense: Expense, amount: number) => number | null
 ): number | null {
   let sum = 0;
   for (const e of list) {
     const share = companionShare(e, companionId);
     if (share === 0) continue;
-    const converted = convert(share, e.currencyCode);
+    const converted = convert(e, share);
     if (converted === null) return null;
     sum += converted;
   }

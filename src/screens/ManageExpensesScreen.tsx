@@ -26,7 +26,7 @@ import { usePaymentMethods } from '../storage/PaymentMethodsContext';
 import { useLanguage } from '../storage/LanguageContext';
 import { useVacations } from '../storage/VacationsContext';
 import { useExchangeRates } from '../storage/ExchangeRatesContext';
-import { categoryInfo } from '../types/expense';
+import { categoryInfo, Expense } from '../types/expense';
 import { DEFAULT_PAYMENT_METHOD_ICON } from '../types/paymentMethod';
 import { ME_COMPANION_ID } from '../types/companion';
 import {
@@ -41,7 +41,7 @@ import { paymentMethodName } from '../utils/paymentMethodName';
 import { companionName } from '../utils/companionName';
 import { timeLabel } from '../utils/dateLabel';
 import { takePendingNewExpenseHighlight } from '../utils/pendingNewExpenseHighlight';
-import { convertForVacation } from '../utils/vacationExchangeRate';
+import { convertForVacationCurrency } from '../utils/vacationExchangeRate';
 import { ExpenseSection, groupExpenses } from '../utils/groupExpenses';
 
 const HIGHLIGHT_DURATION_MS = 500;
@@ -144,15 +144,16 @@ export default function ManageExpensesScreen() {
   );
 
   const leadCurrency = selectedVacation?.leadCurrency ?? null;
+  const defaultCurrencyCode = selectedVacation?.currencies.find((c) => c.isDefault)?.code ?? 'USD';
 
   useEffect(() => {
     if (leadCurrency) ensureRates(leadCurrency);
   }, [leadCurrency, ensureRates]);
 
-  const convert = (amount: number, fromCode: string) =>
+  const convert = (expense: Expense, amount: number) =>
     selectedVacation
-      ? convertForVacation(selectedVacation, rawConvert, amount, fromCode)
-      : rawConvert(amount, fromCode, leadCurrency);
+      ? convertForVacationCurrency(selectedVacation, rawConvert, expense.currencyCode, expense.rateSnapshot, amount)
+      : rawConvert(amount, expense.currencyCode, leadCurrency);
 
   const filteredExpenses = useMemo(() => {
     const list = expenses.filter((e) => e.vacationId === activeVacationId);
@@ -257,12 +258,12 @@ export default function ManageExpensesScreen() {
   }
 
   const heroMainCurrency =
-    totalsByCurrency.find((t) => t.currencyCode === selectedVacation?.defaultCurrency) ??
+    totalsByCurrency.find((t) => t.currencyCode === defaultCurrencyCode) ??
     totalsByCurrency[0] ??
     null;
   const heroMainTotal = heroMainCurrency
     ? formatAmount(heroMainCurrency.amount, heroMainCurrency.currencyCode)
-    : formatAmount(0, selectedVacation?.defaultCurrency ?? 'USD');
+    : formatAmount(0, defaultCurrencyCode);
   const heroOtherText = totalsByCurrency
     .filter((t) => t !== heroMainCurrency)
     .map((t) => formatAmount(t.amount, t.currencyCode))
@@ -288,12 +289,12 @@ export default function ManageExpensesScreen() {
     amount: total.amount / Math.max(statisticsDayCount, 1),
   }));
   const dailyAverageMain =
-    dailyAverageTotals.find((total) => total.currencyCode === selectedVacation?.defaultCurrency) ??
+    dailyAverageTotals.find((total) => total.currencyCode === defaultCurrencyCode) ??
     dailyAverageTotals[0] ??
     null;
   const dailyAverageMainText = dailyAverageMain
     ? formatAmount(dailyAverageMain.amount, dailyAverageMain.currencyCode)
-    : formatAmount(0, selectedVacation?.defaultCurrency ?? 'USD');
+    : formatAmount(0, defaultCurrencyCode);
   const dailyAverageOtherText = dailyAverageTotals
     .filter((total) => total !== dailyAverageMain)
     .map((total) => formatAmount(total.amount, total.currencyCode))
@@ -318,7 +319,7 @@ export default function ManageExpensesScreen() {
       const date = new Date(expense.createdAt);
       date.setHours(0, 0, 0, 0);
       if (date < first || date > latest) continue;
-      const amount = leadCurrency ? convert(expense.amount, expense.currencyCode) ?? expense.amount : expense.amount;
+      const amount = leadCurrency ? convert(expense, expense.amount) ?? expense.amount : expense.amount;
       values.set(localDateKey(date.toISOString()), (values.get(localDateKey(date.toISOString())) ?? 0) + amount);
     }
     return Array.from({ length: dayCount }, (_, index) => {
@@ -331,48 +332,67 @@ export default function ManageExpensesScreen() {
     });
   })();
   const statisticsItems = (() => {
+    // Raw per-currency breakdown (for the unconverted text) stays grouped by
+    // label the same way as before. The *converted* total can no longer be
+    // "sum the raw amounts per currency, then convert the lump" — two
+    // expenses sharing a currency can carry different frozen rate snapshots,
+    // so each expense/share has to be converted individually and the
+    // already-converted amounts summed instead.
     const values = new Map<string, Map<string, number>>();
+    const convertedByLabel = new Map<string, number | null>();
     const add = (label: string, amount: number, currencyCode: string) => {
       const currencyValues = values.get(label) ?? new Map<string, number>();
       currencyValues.set(currencyCode, (currencyValues.get(currencyCode) ?? 0) + amount);
       values.set(label, currencyValues);
     };
+    const accumulateConverted = (label: string, amount: number, expense: Expense) => {
+      if (!leadCurrency || convertedByLabel.get(label) === null) {
+        if (!leadCurrency) convertedByLabel.set(label, null);
+        return;
+      }
+      const converted = convert(expense, amount);
+      convertedByLabel.set(label, converted === null ? null : (convertedByLabel.get(label) ?? 0) + converted);
+    };
 
     for (const expense of statisticsExpenses) {
       if (statisticsGroup === 'category') {
-        add(expense.category ? t.categories[expense.category] : t.categories.Other, expense.amount, expense.currencyCode);
+        const label = expense.category ? t.categories[expense.category] : t.categories.Other;
+        add(label, expense.amount, expense.currencyCode);
+        accumulateConverted(label, expense.amount, expense);
       } else if (statisticsGroup === 'paymentMethod') {
-        add(methodName(expense.paymentMethodId) ?? expense.paymentMethodId, expense.amount, expense.currencyCode);
+        const label = methodName(expense.paymentMethodId) ?? expense.paymentMethodId;
+        add(label, expense.amount, expense.currencyCode);
+        accumulateConverted(label, expense.amount, expense);
       } else if (statisticsGroup === 'currency') {
         add(expense.currencyCode, expense.amount, expense.currencyCode);
+        accumulateConverted(expense.currencyCode, expense.amount, expense);
       } else {
         const meAmount = companionShare(expense, ME_COMPANION_ID);
-        if (meAmount > 0) add(t.companions.me, meAmount, expense.currencyCode);
+        if (meAmount > 0) {
+          add(t.companions.me, meAmount, expense.currencyCode);
+          accumulateConverted(t.companions.me, meAmount, expense);
+        }
         for (const share of expense.split) {
-          add(
-            companionName(share.companionId, selectedVacation?.companions ?? [], t),
-            share.amount,
-            expense.currencyCode
-          );
+          const label = companionName(share.companionId, selectedVacation?.companions ?? [], t);
+          add(label, share.amount, expense.currencyCode);
+          accumulateConverted(label, share.amount, expense);
         }
       }
     }
     return [...values.entries()]
       .map(([label, currencyValues]) => {
         const totals = [...currencyValues.entries()].map(([currencyCode, amount]) => ({ currencyCode, amount }));
-        let converted = 0;
-        let conversionAvailable = !!leadCurrency;
-        for (const total of totals) {
-          const amount = leadCurrency ? convert(total.amount, total.currencyCode) : null;
-          if (amount === null) conversionAvailable = false;
-          else converted += amount;
-        }
-        const leadAmount = conversionAvailable ? converted : null;
+        const leadAmount = convertedByLabel.get(label) ?? null;
         const value = leadAmount ?? totals.reduce((sum, total) => sum + total.amount, 0);
         return {
           label,
           value,
-          amountLabel: formatTotalsWithLead(totals, leadCurrency, leadAmount, selectedVacation?.defaultCurrency ?? 'USD'),
+          amountLabel: formatTotalsWithLead(
+            totals,
+            leadCurrency,
+            leadAmount,
+            selectedVacation?.currencies.find((c) => c.isDefault)?.code ?? 'USD'
+          ),
         };
       })
       .filter((item) => item.value > 0)
@@ -634,7 +654,7 @@ export default function ManageExpensesScreen() {
                 onPress={() => toggleSection(section.key, section.title)}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel={`${section.title}, ${formatTotalsWithLead(sectionTotals, leadCurrency, sectionLeadTotal, selectedVacation?.defaultCurrency)}`}
+                accessibilityLabel={`${section.title}, ${formatTotalsWithLead(sectionTotals, leadCurrency, sectionLeadTotal, defaultCurrencyCode)}`}
                 accessibilityState={{ expanded: !collapsed }}
               >
                 <View style={[styles.sectionTitleRow, { flexDirection: rowDirection }]}>
@@ -650,7 +670,7 @@ export default function ManageExpensesScreen() {
                     sectionTotals,
                     leadCurrency,
                     sectionLeadTotal,
-                    selectedVacation?.defaultCurrency
+                    defaultCurrencyCode
                   )}
                 </Text>
               </TouchableOpacity>
@@ -731,7 +751,7 @@ export default function ManageExpensesScreen() {
                       : formatAmount(item.amount, item.currencyCode)}
                   </Text>
                   {leadCurrency && leadCurrency !== item.currencyCode && (() => {
-                    const converted = convert(item.amount, item.currencyCode);
+                    const converted = convert(item, item.amount);
                     return converted !== null ? (
                       <Text style={styles.rowConverted}>
                         ≈ {formatAmount(converted, leadCurrency)}

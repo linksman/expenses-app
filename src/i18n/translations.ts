@@ -125,8 +125,12 @@ export interface Translations {
     editTitle: string;
     nameLabel: string;
     namePlaceholder: string;
-    defaultCurrency: string;
-    defaultCurrencyHint: string;
+    currenciesLabel: string;
+    currenciesHint: string;
+    setAsDefaultLabel: string;
+    defaultBadgeLabel: string;
+    cannotRemoveLastCurrency: string;
+    cannotRemoveCurrencyInUse: string;
     leadCurrency: string;
     leadCurrencyHint: string;
     leadCurrencyNone: string;
@@ -247,8 +251,12 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       editTitle: 'Edit Vacation',
       nameLabel: 'Vacation name',
       namePlaceholder: 'e.g. Trip to Paris 2026',
-      defaultCurrency: 'Default Expenses Currency',
-      defaultCurrencyHint: 'Used when adding a new expense to this vacation',
+      currenciesLabel: 'Trip Currencies',
+      currenciesHint: 'Currencies you’ll log expenses in for this vacation',
+      setAsDefaultLabel: 'Set as default',
+      defaultBadgeLabel: 'Default',
+      cannotRemoveLastCurrency: 'A vacation needs at least one currency',
+      cannotRemoveCurrencyInUse: 'This currency is used by an expense and can’t be removed',
       leadCurrency: 'Show Totals Also In',
       leadCurrencyHint: 'Convert every expense and the vacation total into one currency',
       leadCurrencyNone: 'None',
@@ -386,8 +394,12 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       editTitle: 'Modifier le séjour',
       nameLabel: 'Nom du séjour',
       namePlaceholder: 'ex. Voyage à Paris 2026',
-      defaultCurrency: 'Devise par défaut des dépenses',
-      defaultCurrencyHint: "Utilisée lors de l'ajout d'une dépense à ce séjour",
+      currenciesLabel: 'Devises du séjour',
+      currenciesHint: 'Devises utilisées pour les dépenses de ce séjour',
+      setAsDefaultLabel: 'Définir par défaut',
+      defaultBadgeLabel: 'Par défaut',
+      cannotRemoveLastCurrency: 'Un séjour doit avoir au moins une devise',
+      cannotRemoveCurrencyInUse: 'Cette devise est utilisée par une dépense et ne peut pas être supprimée',
       leadCurrency: 'Afficher aussi les totaux en',
       leadCurrencyHint: 'Convertir chaque dépense et le total du séjour dans une seule devise',
       leadCurrencyNone: 'Aucune',
@@ -527,8 +539,12 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       editTitle: 'Urlaub bearbeiten',
       nameLabel: 'Urlaubsname',
       namePlaceholder: 'z. B. Reise nach Paris 2026',
-      defaultCurrency: 'Standardwährung für Ausgaben',
-      defaultCurrencyHint: 'Wird beim Hinzufügen einer Ausgabe zu diesem Urlaub verwendet',
+      currenciesLabel: 'Reisewährungen',
+      currenciesHint: 'Währungen, in denen du Ausgaben für diesen Urlaub erfasst',
+      setAsDefaultLabel: 'Als Standard festlegen',
+      defaultBadgeLabel: 'Standard',
+      cannotRemoveLastCurrency: 'Ein Urlaub benötigt mindestens eine Währung',
+      cannotRemoveCurrencyInUse: 'Diese Währung wird von einer Ausgabe verwendet und kann nicht entfernt werden',
       leadCurrency: 'Summen zusätzlich anzeigen in',
       leadCurrencyHint: 'Jede Ausgabe und die Urlaubssumme in eine Währung umrechnen',
       leadCurrencyNone: 'Keine',
@@ -668,8 +684,12 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       editTitle: 'Editar viaje',
       nameLabel: 'Nombre del viaje',
       namePlaceholder: 'p. ej. Viaje a París 2026',
-      defaultCurrency: 'Moneda predeterminada de gastos',
-      defaultCurrencyHint: 'Se usa al añadir un gasto a este viaje',
+      currenciesLabel: 'Monedas del viaje',
+      currenciesHint: 'Monedas en las que registrarás los gastos de este viaje',
+      setAsDefaultLabel: 'Establecer como predeterminada',
+      defaultBadgeLabel: 'Predeterminada',
+      cannotRemoveLastCurrency: 'Un viaje necesita al menos una moneda',
+      cannotRemoveCurrencyInUse: 'Esta moneda está en uso por un gasto y no se puede eliminar',
       leadCurrency: 'Mostrar también los totales en',
       leadCurrencyHint: 'Convertir cada gasto y el total del viaje a una sola moneda',
       leadCurrencyNone: 'Ninguna',
@@ -807,8 +827,12 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       editTitle: 'עריכת חופשה',
       nameLabel: 'שם החופשה',
       namePlaceholder: 'לדוגמה: טיול לפריז 2026',
-      defaultCurrency: 'מטבע ברירת מחדל להוצאות',
-      defaultCurrencyHint: 'בשימוש בעת הוספת הוצאה לחופשה זו',
+      currenciesLabel: 'מטבעות הטיול',
+      currenciesHint: 'המטבעות שבהם יירשמו ההוצאות בחופשה זו',
+      setAsDefaultLabel: 'הגדרה כברירת מחדל',
+      defaultBadgeLabel: 'ברירת מחדל',
+      cannotRemoveLastCurrency: 'בחופשה חייב להישאר לפחות מטבע אחד',
+      cannotRemoveCurrencyInUse: 'מטבע זה בשימוש בהוצאה קיימת ולא ניתן להסיר אותו',
       leadCurrency: 'הצגת הסכומים גם במטבע',
       leadCurrencyHint: 'המרת כל הוצאה וסך החופשה למטבע אחד',
       leadCurrencyNone: 'ללא',
