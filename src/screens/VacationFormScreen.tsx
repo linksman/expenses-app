@@ -15,7 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image as ExpoImage } from 'expo-image';
@@ -31,7 +31,7 @@ import { VacationCurrency } from '../types/vacation';
 import { EXPENSE_GROUPINGS, ExpenseGrouping } from '../types/expenseGrouping';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
 import { companionAvatarColor } from '../utils/companionAvatar';
-import { scrollNodeIntoViewAboveKeyboard, scrollToFocusedInput } from '../utils/scrollToFocusedInput';
+import { scrollToFocusedInput, scrollNodeIntoViewAboveKeyboard } from '../utils/scrollToFocusedInput';
 import { findDestinationImage } from '../utils/destinationImage';
 import { convertedTotal, formatTotalsWithLead, totalsByCurrencyFor } from '../utils/formatCurrency';
 import { convertForVacationCurrency } from '../utils/vacationExchangeRate';
@@ -124,7 +124,7 @@ const GROUPING_ICONS: Record<ExpenseGrouping, keyof typeof Ionicons.glyphMap> = 
 export default function VacationFormScreen() {
   const navigation = useNavigation();
   const sheetTranslateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
-  const insets = useSafeAreaInsets();
+  const currencyActionSheetTranslateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
   const route = useRoute();
   const { vacationId } = (route.params ?? {}) as RouteParams;
 
@@ -157,6 +157,7 @@ export default function VacationFormScreen() {
   const [newCompanionName, setNewCompanionName] = useState('');
   const [addCurrencyModalVisible, setAddCurrencyModalVisible] = useState(false);
   const [leadCurrencyModalVisible, setLeadCurrencyModalVisible] = useState(false);
+  const [actionSheetCurrency, setActionSheetCurrency] = useState<VacationCurrency | null>(null);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [saving, setSaving] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -217,6 +218,17 @@ export default function VacationFormScreen() {
     if (leadCurrency) ensureRates(leadCurrency);
   }, [leadCurrency, ensureRates]);
 
+  useEffect(() => {
+    if (!actionSheetCurrency) return;
+    currencyActionSheetTranslateY.setValue(Dimensions.get('window').height);
+    Animated.timing(currencyActionSheetTranslateY, {
+      toValue: 0,
+      duration: 140,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [actionSheetCurrency, currencyActionSheetTranslateY]);
+
   const nonLeadCurrencies = leadCurrency ? currencies.filter((c) => c.code !== leadCurrency) : [];
   const addableCurrencyCodes = CURRENCIES.map((c) => c.code).filter(
     (code) => !currencies.some((c) => c.code === code)
@@ -236,7 +248,12 @@ export default function VacationFormScreen() {
   };
 
   const setDefaultCurrency = (code: string) => {
-    setCurrencies((prev) => prev.map((c) => ({ ...c, isDefault: c.code === code })));
+    setCurrencies((prev) => {
+      const target = prev.find((c) => c.code === code);
+      if (!target) return prev;
+      const rest = prev.filter((c) => c.code !== code).map((c) => ({ ...c, isDefault: false }));
+      return [{ ...target, isDefault: true }, ...rest];
+    });
   };
 
   const addCurrency = (code: string) => {
@@ -244,11 +261,20 @@ export default function VacationFormScreen() {
     setCurrencies((prev) => [...prev, { code, isDefault: prev.length === 0 }]);
   };
 
+  const moveCurrency = (code: string, direction: 'up' | 'down') => {
+    setCurrencies((prev) => {
+      const index = prev.findIndex((c) => c.code === code);
+      if (index === -1) return prev;
+      const swapWith = direction === 'up' ? index - 1 : index + 1;
+      if (swapWith < 0 || swapWith >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[swapWith]] = [next[swapWith], next[index]];
+      return next;
+    });
+  };
+
   const removeCurrency = (code: string) => {
-    if (currencyCodesInUse.has(code)) {
-      flashCurrencyHint(t.vacations.cannotRemoveCurrencyInUse);
-      return;
-    }
+    if (currencyCodesInUse.has(code)) return;
     if (currencies.length <= 1) {
       flashCurrencyHint(t.vacations.cannotRemoveLastCurrency);
       return;
@@ -450,7 +476,7 @@ export default function VacationFormScreen() {
           >
             <View style={styles.grabber} />
           </TouchableOpacity>
-          <SafeAreaView style={styles.safe} edges={[]} accessibilityLanguage={language.locale}>
+          <SafeAreaView style={styles.safe} edges={['bottom']} accessibilityLanguage={language.locale}>
       <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
         <Text
           style={[styles.title, { textAlign }]}
@@ -515,14 +541,47 @@ export default function VacationFormScreen() {
             <Text style={[styles.blockedHint, { textAlign }]}>{currencyHint}</Text>
           )}
           <View style={styles.card}>
-            {currencies.map((c) => {
+            {currencies.map((c, index) => {
               const info = currencyInfo(c.code);
               const badgeColors = currencyColors(c.code);
+              const hasMenuOptions = !c.isDefault || (currencies.length > 1 && !currencyCodesInUse.has(c.code));
               return (
                 <View
                   key={c.code}
                   style={[styles.row, styles.rowBorder, { flexDirection: rowDirection }]}
                 >
+                  <View style={styles.reorderCol}>
+                    <TouchableOpacity
+                      style={styles.reorderButton}
+                      onPress={() => moveCurrency(c.code, 'up')}
+                      disabled={index === 0}
+                      hitSlop={{ top: 6, bottom: 6, left: 10, right: 10 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t.common.previous}, ${c.code}`}
+                      accessibilityState={{ disabled: index === 0 }}
+                    >
+                      <Ionicons
+                        name="chevron-up"
+                        size={14}
+                        color={index === 0 ? colors.border : colors.textMuted}
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.reorderButton}
+                      onPress={() => moveCurrency(c.code, 'down')}
+                      disabled={index === currencies.length - 1}
+                      hitSlop={{ top: 6, bottom: 6, left: 10, right: 10 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t.common.next}, ${c.code}`}
+                      accessibilityState={{ disabled: index === currencies.length - 1 }}
+                    >
+                      <Ionicons
+                        name="chevron-down"
+                        size={14}
+                        color={index === currencies.length - 1 ? colors.border : colors.textMuted}
+                      />
+                    </TouchableOpacity>
+                  </View>
                   <View
                     style={[
                       styles.currencyIconBadge,
@@ -533,56 +592,43 @@ export default function VacationFormScreen() {
                       {info.symbol}
                     </Text>
                   </View>
-                  <View style={styles.rowTextBlock}>
-                    <Text style={[styles.rowValue, { textAlign }]}>
+                  <View style={[styles.currencyNameLine, { flexDirection: rowDirection }]}>
+                    <Text style={[styles.rowValue, { textAlign }]} numberOfLines={1}>
                       {c.code} · {info.name}
                     </Text>
+                    {c.isDefault && (
+                      <View style={styles.defaultPill}>
+                        <Text style={styles.defaultPillText}>{t.vacations.defaultBadgeLabel}</Text>
+                      </View>
+                    )}
                   </View>
-                  <TouchableOpacity
-                    onPress={() => setDefaultCurrency(c.code)}
-                    disabled={c.isDefault}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${t.vacations.setAsDefaultLabel}, ${c.code}`}
-                    accessibilityState={{ disabled: c.isDefault }}
-                  >
-                    <Text style={c.isDefault ? styles.defaultText : styles.setDefaultText}>
-                      {c.isDefault ? t.vacations.defaultBadgeLabel : t.vacations.setAsDefaultLabel}
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => removeCurrency(c.code)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    style={styles.currencyRemoveButton}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${t.manage.delete}, ${c.code}`}
-                  >
-                    <Ionicons name="close" size={14} color={colors.textMuted} />
-                  </TouchableOpacity>
+                  {hasMenuOptions && (
+                    <TouchableOpacity
+                      style={styles.moreButton}
+                      onPress={() => setActionSheetCurrency(c)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${t.common.moreActions}, ${c.code}`}
+                    >
+                      <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               );
             })}
 
-            <TouchableOpacity
-              style={[styles.row, { flexDirection: rowDirection }]}
-              onPress={() => setAddCurrencyModalVisible(true)}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={t.vacations.addCurrencyLabel}
-            >
-              <View style={[styles.currencyIconBadge, { backgroundColor: '#F0F0F1' }]}>
-                <Ionicons name="add" size={18} color={colors.primary} />
-              </View>
-              <View style={styles.rowTextBlock}>
-                <Text style={[styles.rowValue, { textAlign }]}>{t.vacations.addCurrencyLabel}</Text>
-              </View>
-              <Ionicons
-                name={isRTL ? 'chevron-back' : 'chevron-forward'}
-                size={16}
-                color={colors.border}
-              />
-            </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            style={[styles.addCurrencyButton, { flexDirection: rowDirection }]}
+            onPress={() => setAddCurrencyModalVisible(true)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t.vacations.addCurrencyLabel}
+          >
+            <Ionicons name="add" size={16} color={colors.primary} />
+            <Text style={styles.addCurrencyButtonText}>{t.vacations.addCurrencyLabel}</Text>
+          </TouchableOpacity>
 
           <Text style={[styles.sectionLabel, { textAlign }]}>{t.vacations.leadCurrency}</Text>
           <View style={styles.card}>
@@ -686,47 +732,6 @@ export default function VacationFormScreen() {
             ))}
           </View>
 
-          {isEditing && vacation && (
-            <>
-              <Text style={[styles.sectionLabel, { textAlign }]}>
-                {t.settings.exportCurrentView}
-              </Text>
-              <View style={styles.card}>
-                <TouchableOpacity
-                  style={[
-                    styles.optionRow,
-                    styles.rowBorder,
-                    { flexDirection: rowDirection },
-                    (vacationExpenses.length === 0 || exporting) && styles.optionRowDisabled,
-                  ]}
-                  onPress={handleExportPdf}
-                  disabled={vacationExpenses.length === 0 || exporting}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: vacationExpenses.length === 0 || exporting, busy: exporting }}
-                >
-                  <Ionicons name="document-outline" size={20} color={colors.primary} />
-                  <Text style={[styles.optionLabel, { textAlign }]}>{t.settings.exportToPdf}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.optionRow,
-                    { flexDirection: rowDirection },
-                    (vacationExpenses.length === 0 || exporting) && styles.optionRowDisabled,
-                  ]}
-                  onPress={handleExportCsv}
-                  disabled={vacationExpenses.length === 0 || exporting}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: vacationExpenses.length === 0 || exporting, busy: exporting }}
-                >
-                  <Ionicons name="document-text-outline" size={20} color={colors.primary} />
-                  <Text style={[styles.optionLabel, { textAlign }]}>{t.settings.exportToCsv}</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-
           <Text style={[styles.sectionLabel, { textAlign }]}>{t.companions.title}</Text>
           <Text style={[styles.sectionHint, { textAlign }]}>{t.companions.hint}</Text>
           {companions.length > 0 && (
@@ -810,6 +815,47 @@ export default function VacationFormScreen() {
             </TouchableOpacity>
           </View>
 
+          {isEditing && vacation && (
+            <>
+              <Text style={[styles.sectionLabel, { textAlign }]}>
+                {t.settings.exportCurrentView}
+              </Text>
+              <View style={styles.card}>
+                <TouchableOpacity
+                  style={[
+                    styles.optionRow,
+                    styles.rowBorder,
+                    { flexDirection: rowDirection },
+                    (vacationExpenses.length === 0 || exporting) && styles.optionRowDisabled,
+                  ]}
+                  onPress={handleExportPdf}
+                  disabled={vacationExpenses.length === 0 || exporting}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: vacationExpenses.length === 0 || exporting, busy: exporting }}
+                >
+                  <Ionicons name="document-outline" size={20} color={colors.primary} />
+                  <Text style={[styles.optionLabel, { textAlign }]}>{t.settings.exportToPdf}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.optionRow,
+                    { flexDirection: rowDirection },
+                    (vacationExpenses.length === 0 || exporting) && styles.optionRowDisabled,
+                  ]}
+                  onPress={handleExportCsv}
+                  disabled={vacationExpenses.length === 0 || exporting}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: vacationExpenses.length === 0 || exporting, busy: exporting }}
+                >
+                  <Ionicons name="document-text-outline" size={20} color={colors.primary} />
+                  <Text style={[styles.optionLabel, { textAlign }]}>{t.settings.exportToCsv}</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
           {isEditing && (
             <TouchableOpacity
               style={[styles.deleteVacationButton, { alignSelf: isRTL ? 'flex-end' : 'flex-start' }]}
@@ -826,7 +872,7 @@ export default function VacationFormScreen() {
           <TouchableOpacity
             style={[
               styles.saveButton,
-              { flexDirection: rowDirection, bottom: Math.max(insets.bottom, 12) + 8 },
+              { flexDirection: rowDirection, bottom: 8 },
             ]}
             onPress={handleClose}
             activeOpacity={0.85}
@@ -839,7 +885,7 @@ export default function VacationFormScreen() {
           <TouchableOpacity
             style={[
               styles.saveButton,
-              { flexDirection: rowDirection, bottom: Math.max(insets.bottom, 12) + 8 },
+              { flexDirection: rowDirection, bottom: 8 },
               !canSave && styles.saveButtonDisabled,
             ]}
             onPress={handleSave}
@@ -935,6 +981,82 @@ export default function VacationFormScreen() {
         </View>
       </Modal>
 
+      <Modal
+        visible={actionSheetCurrency !== null}
+        transparent
+        animationType="none"
+        onRequestClose={() => setActionSheetCurrency(null)}
+      >
+        <View style={styles.actionSheetOverlay}>
+          <TouchableOpacity
+            style={styles.actionSheetBackdrop}
+            activeOpacity={1}
+            onPress={() => setActionSheetCurrency(null)}
+            accessible={false}
+          />
+          <Animated.View
+            style={[
+              styles.actionSheet,
+              { transform: [{ translateY: currencyActionSheetTranslateY }] },
+            ]}
+            accessibilityViewIsModal
+            accessibilityRole="none"
+          >
+            <View style={styles.actionSheetGrabberArea} accessible={false}>
+              <View style={styles.actionSheetGrabber} />
+            </View>
+            {actionSheetCurrency && (
+              <>
+                <Text style={[styles.actionSheetTitle, { textAlign }]} accessibilityRole="header">
+                  {actionSheetCurrency.code} · {currencyInfo(actionSheetCurrency.code).name}
+                </Text>
+
+                {!actionSheetCurrency.isDefault && (
+                  <TouchableOpacity
+                    style={[styles.actionSheetOption, { flexDirection: rowDirection }]}
+                    onPress={() => {
+                      setDefaultCurrency(actionSheetCurrency.code);
+                      setActionSheetCurrency(null);
+                    }}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                  >
+                    <Ionicons name="star-outline" size={19} color={colors.primary} />
+                    <Text style={[styles.actionSheetOptionText, { textAlign }]}>
+                      {t.vacations.setAsDefaultLabel}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {!currencyCodesInUse.has(actionSheetCurrency.code) && (
+                  <TouchableOpacity
+                    style={[styles.actionSheetOption, { flexDirection: rowDirection }]}
+                    onPress={() => {
+                      removeCurrency(actionSheetCurrency.code);
+                      setActionSheetCurrency(null);
+                    }}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t.manage.delete}, ${actionSheetCurrency.code}`}
+                  >
+                    <Ionicons name="trash-outline" size={19} color={colors.danger} />
+                    <Text
+                      style={[
+                        styles.actionSheetOptionText,
+                        styles.actionSheetOptionTextDanger,
+                        { textAlign },
+                      ]}
+                    >
+                      {t.manage.delete}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
+          </Animated.View>
+        </View>
+      </Modal>
+
       <CurrencyPickerModal
         visible={addCurrencyModalVisible}
         selectedCode=""
@@ -1003,10 +1125,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'transparent',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     marginBottom: 24,
-    gap: 13,
+    gap: 10,
     shadowColor: '#18181B',
     shadowOpacity: 0.05,
     shadowRadius: 3,
@@ -1015,9 +1137,9 @@ const styles = StyleSheet.create({
   },
   nameCardInvalid: { borderColor: '#F1C7D2' },
   nameIconBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     backgroundColor: '#F0F0F1',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1025,7 +1147,7 @@ const styles = StyleSheet.create({
   },
   nameTextBlock: { flex: 1, minWidth: 0 },
   fieldLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '500' },
-  nameInput: { fontSize: 16, fontWeight: '600', color: colors.text, padding: 0, marginTop: 1 },
+  nameInput: { fontSize: 15, fontWeight: '600', color: colors.text, padding: 0, marginTop: 1 },
   sectionLabel: {
     fontSize: 12,
     fontWeight: '700',
@@ -1047,11 +1169,26 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     elevation: 1,
   },
+  addCurrencyButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 48,
+    marginTop: -2,
+    marginBottom: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#D4D4D8',
+    borderStyle: 'dashed',
+    backgroundColor: '#FAFAFA',
+  },
+  addCurrencyButtonText: { fontSize: 15, fontWeight: '700', color: colors.primary },
   row: {
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
+    gap: 10,
+    minHeight: 52,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.divider },
   optionRow: {
@@ -1064,12 +1201,13 @@ const styles = StyleSheet.create({
   optionLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
   optionRowDisabled: { opacity: 0.4 },
   rowTextBlock: { flex: 1, minWidth: 0 },
-  rowValue: { fontSize: 16, fontWeight: '600', color: colors.text, marginTop: 1 },
+  rowValue: { fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 1 },
   rateRow: {
     alignItems: 'center',
     gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    minHeight: 52,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   rateEquation: { fontSize: 14, fontWeight: '600', color: colors.text, flexShrink: 0 },
   rateCurrency: { fontSize: 14, fontWeight: '600', color: colors.text, flexShrink: 0 },
@@ -1097,34 +1235,49 @@ const styles = StyleSheet.create({
   },
   checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
   rateAutoLabel: { fontSize: 13, fontWeight: '600', color: colors.text },
+  reorderCol: { gap: 0, flexShrink: 0 },
+  reorderButton: { width: 22, height: 20, alignItems: 'center', justifyContent: 'center' },
   currencyIconBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  currencyIconText: { fontSize: 16, fontWeight: '700' },
-  defaultText: { fontSize: 13, fontWeight: '700', color: colors.primary, flexShrink: 0 },
-  setDefaultText: { fontSize: 13, fontWeight: '600', color: colors.textMuted, flexShrink: 0 },
-  currencyRemoveButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
+  currencyIconText: { fontSize: 15, fontWeight: '700' },
+  currencyNameLine: { flex: 1, minWidth: 0, alignItems: 'center', gap: 8 },
+  defaultPill: {
+    backgroundColor: '#F0F0F1',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    flexShrink: 0,
+  },
+  defaultPillText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.6,
+    color: colors.primary,
+  },
+  moreButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   companionRow: {
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    gap: 10,
+    minHeight: 52,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   avatar: {
-    width: 34,
-    height: 34,
+    width: 32,
+    height: 32,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1132,12 +1285,12 @@ const styles = StyleSheet.create({
   },
   avatarText: { fontSize: 13, fontWeight: '700' },
   companionTextBlock: { flex: 1, minWidth: 0 },
-  companionName: { fontSize: 16, fontWeight: '600', color: colors.text },
+  companionName: { fontSize: 15, fontWeight: '600', color: colors.text },
   companionInUseHint: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
   companionDeleteButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 11,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1210,4 +1363,49 @@ const styles = StyleSheet.create({
   confirmCancelText: { color: colors.text, fontWeight: '600', fontSize: 15 },
   confirmDeleteButton: { backgroundColor: colors.danger },
   confirmDeleteText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  actionSheetOverlay: { flex: 1, justifyContent: 'flex-end' },
+  actionSheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(24, 24, 27, 0.42)' },
+  actionSheet: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 14,
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    shadowColor: '#18181B',
+    shadowOpacity: 0.25,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: -10 },
+    elevation: 8,
+  },
+  actionSheetGrabberArea: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginBottom: 4,
+    marginTop: -10,
+  },
+  actionSheetGrabber: {
+    width: 44,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#E4E4EA',
+  },
+  actionSheetTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  actionSheetOption: {
+    alignItems: 'center',
+    gap: 14,
+    minHeight: 52,
+    paddingHorizontal: 4,
+  },
+  actionSheetOptionText: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
+  actionSheetOptionTextDanger: { color: colors.danger },
 });

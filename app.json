@@ -17,6 +17,10 @@
       },
       "predictiveBackGestureEnabled": false
     },
+    "androidNavigationBar": {
+      "backgroundColor": "#FAFAFA",
+      "barStyle": "dark-content"
+    },
     "web": {
       "favicon": "./assets/icon-neutral.png"
     },

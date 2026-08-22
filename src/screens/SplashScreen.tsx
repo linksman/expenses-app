@@ -1,12 +1,13 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLanguage } from '../storage/LanguageContext';
 import { useReducedMotion } from '../utils/useReducedMotion';
 
 const WORLD_CAPITALS_COLLAGE = require('../../assets/world-capitals-collage.png');
+const LOGO_WORDMARK = require('../../assets/splash-logo-wordmark.png');
+const LOGO_ASPECT_RATIO = 919 / 458;
 
 function TaglineLine({
   text,
@@ -93,46 +94,26 @@ function LoadingDot({ delay, reduceMotion }: { delay: number; reduceMotion: bool
 export default function SplashScreen() {
   const { t } = useLanguage();
   const reduceMotion = useReducedMotion();
-  const halo = useRef(new Animated.Value(0)).current;
   const rise = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (reduceMotion) {
-      halo.setValue(0);
       rise.setValue(1);
       return;
     }
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(halo, {
-          toValue: 1,
-          duration: 2100,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(halo, {
-          toValue: 0,
-          duration: 2100,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
     Animated.timing(rise, {
       toValue: 1,
       duration: 700,
       easing: Easing.out(Easing.ease),
       useNativeDriver: true,
     }).start();
-  }, [halo, rise, reduceMotion]);
+  }, [rise, reduceMotion]);
 
-  const haloScale = halo.interpolate({ inputRange: [0, 1], outputRange: [1, 1.06] });
-  const haloOpacity = halo.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0.8] });
   const riseOpacity = rise;
   const riseTranslateY = rise.interpolate({ inputRange: [0, 1], outputRange: [10, 0] });
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <Image
         source={WORLD_CAPITALS_COLLAGE}
         style={styles.backgroundImage}
@@ -143,21 +124,6 @@ export default function SplashScreen() {
       <View style={[styles.glow, styles.glowTop]} />
       <View style={[styles.glow, styles.glowBottom]} />
 
-      <View style={styles.iconAnchor} accessible={false} importantForAccessibility="no-hide-descendants">
-        <View style={styles.markWrap}>
-          <Animated.View
-            style={[
-              styles.halo,
-              { opacity: haloOpacity, transform: [{ scale: haloScale }] },
-            ]}
-          />
-          <View style={styles.ring} />
-          <View style={styles.markTile}>
-            <Ionicons name="briefcase-outline" size={48} color="#27272A" />
-          </View>
-        </View>
-      </View>
-
       <View style={styles.center} accessibilityRole="header">
         <Animated.View
           style={[
@@ -165,7 +131,13 @@ export default function SplashScreen() {
             { opacity: riseOpacity, transform: [{ translateY: riseTranslateY }] },
           ]}
         >
-          <Text style={styles.title}>{t.splash.title}</Text>
+          <Image
+            source={LOGO_WORDMARK}
+            style={styles.logo}
+            contentFit="contain"
+            accessible
+            accessibilityLabel={t.splash.title}
+          />
           <View style={styles.taglineBlock}>
             <TaglineLine text={t.splash.taglineLines[0]} delay={1000} reduceMotion={reduceMotion} />
             <TaglineLine text={t.splash.taglineLines[1]} delay={2000} reduceMotion={reduceMotion} />
@@ -215,47 +187,9 @@ const styles = StyleSheet.create({
     right: -200,
     backgroundColor: 'rgba(161,161,170,0.12)',
   },
-  iconAnchor: {
-    position: 'absolute',
-    top: '22%',
-    left: 0,
-    right: 0,
-    height: 104,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   center: { alignItems: 'center' },
-  markWrap: { width: 104, height: 104, alignItems: 'center', justifyContent: 'center' },
-  halo: {
-    position: 'absolute',
-    width: 190,
-    height: 190,
-    borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.09)',
-  },
-  ring: {
-    position: 'absolute',
-    width: 138,
-    height: 138,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-  },
-  markTile: {
-    width: 104,
-    height: 104,
-    borderRadius: 34,
-    backgroundColor: '#F4F4F5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#09090B',
-    shadowOpacity: 0.5,
-    shadowRadius: 22,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 8,
-  },
   textBlock: { alignItems: 'center', gap: 9 },
-  title: { fontSize: 27, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
+  logo: { width: 220, height: 220 / LOGO_ASPECT_RATIO },
   taglineBlock: { alignItems: 'center', gap: 6 },
   tagline: { fontSize: 18, color: 'rgba(255,255,255,0.62)', letterSpacing: 0.2 },
   dots: {

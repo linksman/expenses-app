@@ -770,10 +770,15 @@ export default function ManageExpensesScreen() {
       )}
       </View>
 
+      <View
+        pointerEvents="none"
+        style={[styles.bottomSystemBarGuard, { height: insets.bottom }]}
+      />
+
       <TouchableOpacity
         style={[
           styles.floatingAddButton,
-          { flexDirection: rowDirection, bottom: Math.max(insets.bottom, 12) + 12 },
+          { flexDirection: rowDirection, bottom: Math.max(insets.bottom, 12) + 4 },
           !canAdd && styles.addButtonDisabled,
         ]}
         onPress={() => {
@@ -1000,7 +1005,7 @@ export default function ManageExpensesScreen() {
             <TouchableOpacity
               style={[
                 styles.statisticsDoneButton,
-                { flexDirection: rowDirection, bottom: Math.max(insets.bottom, 12) + 8 },
+                { flexDirection: rowDirection, bottom: 8 },
               ]}
               onPress={() => setStatisticsVisible(false)}
               activeOpacity={0.85}
@@ -1019,6 +1024,14 @@ export default function ManageExpensesScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  bottomSystemBarGuard: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.background,
+    zIndex: 9,
+  },
   appBackgroundImage: { ...StyleSheet.absoluteFillObject, width: '100%', height: '100%' },
   appBackgroundWash: {
     ...StyleSheet.absoluteFillObject,
@@ -1309,12 +1322,13 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 10,
     backgroundColor: colors.card,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 10,
+    borderRadius: 16,
+    minHeight: 52,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 8,
     shadowColor: '#18181B',
     shadowOpacity: 0.05,
     shadowRadius: 3,
@@ -1327,16 +1341,16 @@ const styles = StyleSheet.create({
     backgroundColor: HIGHLIGHT_COLOR,
   },
   iconBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.background,
     flexShrink: 0,
   },
   rowMiddle: { flex: 1 },
-  rowDescription: { fontSize: 16, fontWeight: '600', color: colors.text },
+  rowDescription: { fontSize: 15, fontWeight: '600', color: colors.text },
   rowMethodLine: { alignItems: 'center', gap: 8, marginTop: 1 },
   rowMethod: { fontSize: 13, color: colors.textMuted },
   rowSplit: { fontSize: 12, color: PAGE_ACCENT, marginTop: 2, fontWeight: '600' },
@@ -1350,7 +1364,7 @@ const styles = StyleSheet.create({
   },
   rowStatisticsExcludedText: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
   rowRight: { alignItems: 'flex-end' },
-  rowAmount: { fontSize: 16, fontWeight: '700', color: colors.text },
+  rowAmount: { fontSize: 15, fontWeight: '700', color: colors.text },
   rowConverted: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 34 },
   emptyIconTile: {

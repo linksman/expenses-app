@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Dimensions, Easing, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { CURRENCIES, currencyColors } from '../types/currency';
+import { CURRENCIES, Currency, currencyColors } from '../types/currency';
 import { useLanguage } from '../storage/LanguageContext';
 
 interface Props {
@@ -32,7 +32,14 @@ export default function CurrencyPickerModal({
 }: Props) {
   const { t, isRTL } = useLanguage();
   const data = restrictToCodes
-    ? CURRENCIES.filter((c) => restrictToCodes.includes(c.code) || c.code === selectedCode)
+    ? [
+        ...restrictToCodes
+          .map((code) => CURRENCIES.find((c) => c.code === code))
+          .filter((c): c is Currency => !!c),
+        ...(selectedCode && !restrictToCodes.includes(selectedCode)
+          ? CURRENCIES.filter((c) => c.code === selectedCode)
+          : []),
+      ]
     : CURRENCIES;
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';

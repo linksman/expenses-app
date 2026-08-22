@@ -2,7 +2,7 @@ import { LanguageCode } from './languages';
 
 export interface Translations {
   tabs: { expenses: string; settings: string };
-  common: { back: string; save: string; done: string; close: string; previous: string; next: string };
+  common: { back: string; save: string; done: string; close: string; previous: string; next: string; moreActions: string };
   splash: { title: string; taglineLines: [string, string, string] };
   add: {
     title: string;
@@ -94,7 +94,6 @@ export interface Translations {
   currency: { pickerTitle: string };
   settings: {
     title: string;
-    subtitle: string;
     language: string;
     paymentMethods: string;
     paymentMethodsHint: string;
@@ -131,7 +130,6 @@ export interface Translations {
     setAsDefaultLabel: string;
     defaultBadgeLabel: string;
     cannotRemoveLastCurrency: string;
-    cannotRemoveCurrencyInUse: string;
     leadCurrency: string;
     leadCurrencyHint: string;
     leadCurrencyNone: string;
@@ -156,7 +154,7 @@ export interface Translations {
 export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   en: {
     tabs: { expenses: 'Expenses', settings: 'Settings' },
-    common: { back: 'Back', save: 'Save', done: 'Done', close: 'Close', previous: 'Previous', next: 'Next' },
+    common: { back: 'Back', save: 'Save', done: 'Done', close: 'Close', previous: 'Previous', next: 'Next', moreActions: 'More actions' },
     splash: { title: 'Vacation Expenses', taglineLines: ['every vacation', 'every expense', 'every currency'] },
     add: {
       title: 'Add Expense',
@@ -226,7 +224,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
     currency: { pickerTitle: 'Currency' },
     settings: {
       title: 'Settings',
-      subtitle: 'Customize your app',
       language: 'Language',
       paymentMethods: 'Payment Methods',
       paymentMethodsHint:
@@ -258,7 +255,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       setAsDefaultLabel: 'Set as default',
       defaultBadgeLabel: 'Default',
       cannotRemoveLastCurrency: 'A vacation needs at least one currency',
-      cannotRemoveCurrencyInUse: 'This currency is used by an expense and can’t be removed',
       leadCurrency: 'Show Amounts Also In',
       leadCurrencyHint: 'Convert every expense and the vacation total into one currency',
       leadCurrencyNone: 'None',
@@ -299,7 +295,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   },
   fr: {
     tabs: { expenses: 'Dépenses', settings: 'Réglages' },
-    common: { back: 'Retour', save: 'Enregistrer', done: 'Terminé', close: 'Fermer', previous: 'Précédent', next: 'Suivant' },
+    common: { back: 'Retour', save: 'Enregistrer', done: 'Terminé', close: 'Fermer', previous: 'Précédent', next: 'Suivant', moreActions: 'Plus d’actions' },
     splash: { title: 'Dépenses de séjour', taglineLines: ['chaque séjour', 'chaque dépense', 'chaque devise'] },
     add: {
       title: 'Ajouter une dépense',
@@ -370,7 +366,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
     currency: { pickerTitle: 'Devise' },
     settings: {
       title: 'Réglages',
-      subtitle: 'Personnalisez votre application',
       language: 'Langue',
       paymentMethods: 'Moyens de paiement',
       paymentMethodsHint:
@@ -402,7 +397,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       setAsDefaultLabel: 'Définir par défaut',
       defaultBadgeLabel: 'Par défaut',
       cannotRemoveLastCurrency: 'Un séjour doit avoir au moins une devise',
-      cannotRemoveCurrencyInUse: 'Cette devise est utilisée par une dépense et ne peut pas être supprimée',
       leadCurrency: 'Afficher aussi les totaux en',
       leadCurrencyHint: 'Convertir chaque dépense et le total du séjour dans une seule devise',
       leadCurrencyNone: 'Aucune',
@@ -445,7 +439,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   },
   de: {
     tabs: { expenses: 'Ausgaben', settings: 'Einstellungen' },
-    common: { back: 'Zurück', save: 'Speichern', done: 'Fertig', close: 'Schließen', previous: 'Zurück', next: 'Weiter' },
+    common: { back: 'Zurück', save: 'Speichern', done: 'Fertig', close: 'Schließen', previous: 'Zurück', next: 'Weiter', moreActions: 'Weitere Aktionen' },
     splash: { title: 'Urlaubsausgaben', taglineLines: ['jeder urlaub', 'jede ausgabe', 'jede währung'] },
     add: {
       title: 'Ausgabe hinzufügen',
@@ -516,7 +510,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
     currency: { pickerTitle: 'Währung' },
     settings: {
       title: 'Einstellungen',
-      subtitle: 'Passe deine App an',
       language: 'Sprache',
       paymentMethods: 'Zahlungsmethoden',
       paymentMethodsHint:
@@ -548,7 +541,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       setAsDefaultLabel: 'Als Standard festlegen',
       defaultBadgeLabel: 'Standard',
       cannotRemoveLastCurrency: 'Ein Urlaub benötigt mindestens eine Währung',
-      cannotRemoveCurrencyInUse: 'Diese Währung wird von einer Ausgabe verwendet und kann nicht entfernt werden',
       leadCurrency: 'Summen zusätzlich anzeigen in',
       leadCurrencyHint: 'Jede Ausgabe und die Urlaubssumme in eine Währung umrechnen',
       leadCurrencyNone: 'Keine',
@@ -591,7 +583,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   },
   es: {
     tabs: { expenses: 'Gastos', settings: 'Ajustes' },
-    common: { back: 'Atrás', save: 'Guardar', done: 'Listo', close: 'Cerrar', previous: 'Anterior', next: 'Siguiente' },
+    common: { back: 'Atrás', save: 'Guardar', done: 'Listo', close: 'Cerrar', previous: 'Anterior', next: 'Siguiente', moreActions: 'Más acciones' },
     splash: { title: 'Gastos de viaje', taglineLines: ['Cada viaje', 'cada gasto', 'cada moneda'] },
     add: {
       title: 'Añadir gasto',
@@ -662,7 +654,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
     currency: { pickerTitle: 'Moneda' },
     settings: {
       title: 'Ajustes',
-      subtitle: 'Personaliza tu app',
       language: 'Idioma',
       paymentMethods: 'Métodos de pago',
       paymentMethodsHint:
@@ -694,7 +685,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       setAsDefaultLabel: 'Establecer como predeterminada',
       defaultBadgeLabel: 'Predeterminada',
       cannotRemoveLastCurrency: 'Un viaje necesita al menos una moneda',
-      cannotRemoveCurrencyInUse: 'Esta moneda está en uso por un gasto y no se puede eliminar',
       leadCurrency: 'Mostrar también los totales en',
       leadCurrencyHint: 'Convertir cada gasto y el total del viaje a una sola moneda',
       leadCurrencyNone: 'Ninguna',
@@ -736,7 +726,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   },
   he: {
     tabs: { expenses: 'הוצאות', settings: 'הגדרות' },
-    common: { back: 'חזרה', save: 'שמירה', done: 'סיום', close: 'סגירה', previous: 'הקודם', next: 'הבא' },
+    common: { back: 'חזרה', save: 'שמירה', done: 'סיום', close: 'סגירה', previous: 'הקודם', next: 'הבא', moreActions: 'פעולות נוספות' },
     splash: { title: 'הוצאות חופשה', taglineLines: ['כל חופשה', 'כל הוצאה', 'כל מטבע'] },
     add: {
       title: 'הוספת הוצאה',
@@ -806,7 +796,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
     currency: { pickerTitle: 'מטבע' },
     settings: {
       title: 'הגדרות',
-      subtitle: 'התאימו אישית את האפליקציה',
       language: 'שפה',
       paymentMethods: 'אמצעי תשלום',
       paymentMethodsHint:
@@ -838,7 +827,6 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       setAsDefaultLabel: 'הגדרה כברירת מחדל',
       defaultBadgeLabel: 'ברירת מחדל',
       cannotRemoveLastCurrency: 'בחופשה חייב להישאר לפחות מטבע אחד',
-      cannotRemoveCurrencyInUse: 'מטבע זה בשימוש בהוצאה קיימת ולא ניתן להסיר אותו',
       leadCurrency: 'הצגת הסכומים גם במטבע',
       leadCurrencyHint: 'המרת כל הוצאה וסך החופשה למטבע אחד',
       leadCurrencyNone: 'ללא',

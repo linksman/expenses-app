@@ -123,10 +123,20 @@ export function PaymentMethodsProvider({ children }: { children: React.ReactNode
     [methods, persist]
   );
 
-  const setDefaultMethodId = useCallback(async (id: string) => {
-    setDefaultMethodIdState(id);
-    await AsyncStorage.setItem(DEFAULT_METHOD_STORAGE_KEY, id);
-  }, []);
+  const setDefaultMethodId = useCallback(
+    async (id: string) => {
+      setDefaultMethodIdState(id);
+      await AsyncStorage.setItem(DEFAULT_METHOD_STORAGE_KEY, id);
+      const index = methods.findIndex((m) => m.id === id);
+      if (index > 0) {
+        const next = [...methods];
+        const [item] = next.splice(index, 1);
+        next.unshift(item);
+        await persist(next);
+      }
+    },
+    [methods, persist]
+  );
 
   const effectiveDefaultMethodId = useMemo(() => {
     const enabledMethods = methods.filter((m) => m.enabled);

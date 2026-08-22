@@ -15,7 +15,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
@@ -63,7 +62,6 @@ const CHIP_ROW_GAP = SECTION_GAP - 12;
 export default function AddExpenseScreen() {
   const navigation = useNavigation();
   const sheetTranslateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
-  const insets = useSafeAreaInsets();
   const route = useRoute();
   const { vacationId, expenseId } = (route.params ?? {}) as RouteParams;
   const isEditing = !!expenseId;
@@ -375,25 +373,6 @@ export default function AddExpenseScreen() {
           <TouchableOpacity style={styles.grabberArea} onPress={handleClose} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel={t.common.close}>
             <View style={styles.grabber} />
           </TouchableOpacity>
-          <View style={[styles.header, { flexDirection: rowDirection }]}>
-            <Text
-              style={[styles.headerTitle, { textAlign }]}
-              onPress={handleClose}
-              accessibilityRole="button"
-              accessibilityLabel={`${isEditing ? t.add.editTitle : t.add.title}, ${t.common.close}`}
-            >
-              {isEditing ? t.add.editTitle : t.add.title}
-            </Text>
-            <TouchableOpacity
-              onPress={handleClose}
-              style={styles.closeButton}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityRole="button"
-              accessibilityLabel={t.common.close}
-            >
-              <Ionicons name="close" size={16} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
           <View style={{ flex: 1 }}>
           <KeyboardAvoidingView
             style={{ flex: 1 }}
@@ -786,7 +765,7 @@ export default function AddExpenseScreen() {
                   );
                 })}
               </View>
-              <View style={{ alignSelf: isRTL ? 'flex-end' : 'flex-start' }}>
+              <View style={[styles.expenseActionsRow, { flexDirection: rowDirection }]}>
                 <TouchableOpacity
                   style={[styles.statisticsToggleButton, { flexDirection: isRTL ? 'row-reverse' : 'row' }]}
                   onPress={() => {
@@ -796,6 +775,7 @@ export default function AddExpenseScreen() {
                       setExpenseStatisticsExcluded(existingExpense.id, next);
                     }
                   }}
+                  hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }}
                   activeOpacity={0.7}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: excludedFromStatistics }}
@@ -822,7 +802,7 @@ export default function AddExpenseScreen() {
               <TouchableOpacity
                 style={[
                   styles.floatingSaveButton,
-                  { flexDirection: rowDirection, bottom: Math.max(insets.bottom, 12) + 8 },
+                  { flexDirection: rowDirection, bottom: 8 },
                 ]}
                 onPress={handleClose}
                 activeOpacity={0.85}
@@ -836,7 +816,7 @@ export default function AddExpenseScreen() {
                 ref={saveButtonRef}
                 style={[
                   styles.floatingSaveButton,
-                  { flexDirection: rowDirection, bottom: Math.max(insets.bottom, 12) + 8 },
+                  { flexDirection: rowDirection, bottom: 8 },
                   !canSave && styles.saveButtonDisabled,
                 ]}
                 onPress={handleSubmit}
@@ -941,29 +921,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#D4D4D8',
   },
-  header: {
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  headerTitle: {
-    flex: 1,
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    letterSpacing: -0.2,
-  },
-  closeButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#F0F0F1',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
   container: { padding: 20, paddingBottom: 20 },
   containerWithFloatingSave: { paddingBottom: 104 },
   convertedHintRow: {
@@ -991,34 +948,34 @@ const styles = StyleSheet.create({
   },
   amountBlock: {
     backgroundColor: colors.card,
-    borderRadius: 24,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: 'transparent',
-    padding: 18,
-    paddingBottom: 14,
+    padding: 14,
+    paddingBottom: 12,
     marginBottom: SECTION_GAP,
-    minHeight: 132,
+    minHeight: 112,
     shadowColor: '#18181B',
     shadowOpacity: 0.06,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 5 },
     elevation: 2,
   },
-  amountRow: { flex: 1, alignItems: 'stretch', gap: 14 },
+  amountRow: { flex: 1, alignItems: 'stretch', gap: 10 },
   amountColumn: { flex: 1, minWidth: 0, justifyContent: 'center', alignItems: 'flex-start' },
   currencyButton: {
     flexShrink: 0,
-    width: 74,
-    paddingVertical: 10,
+    width: 64,
+    paddingVertical: 8,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 1,
-    borderRadius: 16,
+    borderRadius: 12,
     backgroundColor: colors.background,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  currencySign: { fontSize: 20, fontWeight: '800', color: colors.primary, lineHeight: 22 },
+  currencySign: { fontSize: 18, fontWeight: '800', color: colors.primary, lineHeight: 20 },
   currencyCodeRow: { alignItems: 'center', gap: 3 },
   currencyCode: {
     fontSize: 12,
@@ -1032,7 +989,7 @@ const styles = StyleSheet.create({
   },
   amountInput: {
     width: '100%',
-    fontSize: 48,
+    fontSize: 40,
     fontWeight: '700',
     color: colors.text,
   },
@@ -1045,8 +1002,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: 'transparent',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    minHeight: 52,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     marginBottom: SECTION_GAP,
     shadowColor: '#18181B',
     shadowOpacity: 0.05,
@@ -1055,21 +1013,21 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   fieldIconBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
-  fieldIconBadgeLTR: { marginRight: 12 },
-  fieldIconBadgeRTL: { marginLeft: 18 },
+  fieldIconBadgeLTR: { marginRight: 10 },
+  fieldIconBadgeRTL: { marginLeft: 10 },
   fieldTextBlock: { flex: 1 },
   fieldLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '500' },
-  fieldValue: { fontSize: 16, fontWeight: '600', color: colors.text, marginTop: 1 },
+  fieldValue: { fontSize: 15, fontWeight: '600', color: colors.text, marginTop: 1 },
   fieldValueAlone: { marginTop: 0 },
   fieldValueInput: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: colors.text,
     marginTop: 1,
@@ -1087,18 +1045,19 @@ const styles = StyleSheet.create({
   splitTotalText: { width: 100, fontSize: 13, fontWeight: '700', color: colors.text },
   participantRow: {
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     backgroundColor: colors.card,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: 16,
+    minHeight: 52,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: colors.border,
   },
   avatar: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1146,7 +1105,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: CHIP_ROW_GAP,
+    marginBottom: -12,
   },
   categoryChip: {
     width: '22%',
@@ -1171,7 +1130,7 @@ const styles = StyleSheet.create({
   // space above/below the icon — this trims it back down to content height.
   paymentMethodChip: {
     aspectRatio: undefined,
-    height: 72,
+    height: 64,
   },
   categoryChipLabel: {
     fontSize: 11,
@@ -1189,9 +1148,14 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
   },
   categoryChipLabelSelected: { color: colors.primaryDark, fontWeight: '700' },
-  deleteExpenseButton: { minHeight: 48, justifyContent: 'center', marginBottom: 12 },
+  expenseActionsRow: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  deleteExpenseButton: { minHeight: 20, justifyContent: 'center' },
   deleteExpenseText: { fontSize: 13, fontWeight: '600', color: colors.danger },
-  statisticsToggleButton: { minHeight: 48, alignItems: 'center', gap: 8 },
+  statisticsToggleButton: { minHeight: 20, alignItems: 'center', gap: 8 },
   checkbox: {
     width: 20,
     height: 20,
