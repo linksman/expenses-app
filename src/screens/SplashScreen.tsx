@@ -191,7 +191,12 @@ const styles = StyleSheet.create({
   textBlock: { alignItems: 'center', gap: 9 },
   logo: { width: 220, height: 220 / LOGO_ASPECT_RATIO },
   taglineBlock: { alignItems: 'center', gap: 6 },
-  tagline: { fontSize: 18, color: 'rgba(255,255,255,0.62)', letterSpacing: 0.2 },
+  tagline: {
+    fontSize: 22,
+    lineHeight: 28,
+    color: 'rgba(255,255,255,0.62)',
+    letterSpacing: 0.2,
+  },
   dots: {
     position: 'absolute',
     bottom: 58,

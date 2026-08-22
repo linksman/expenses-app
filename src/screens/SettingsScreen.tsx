@@ -43,6 +43,7 @@ const KOFI_URL = `https://ko-fi.com/${KOFI_ID}`;
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const settingsSheetTranslateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
   const { languageCode, language, t, isRTL, setLanguage } = useLanguage();
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
@@ -63,6 +64,15 @@ export default function SettingsScreen() {
   const [pendingDeleteMethod, setPendingDeleteMethod] = useState<PaymentMethod | null>(null);
   const [actionSheetMethod, setActionSheetMethod] = useState<PaymentMethod | null>(null);
   const actionSheetTranslateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
+
+  useEffect(() => {
+    Animated.timing(settingsSheetTranslateY, {
+      toValue: 0,
+      duration: 180,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [settingsSheetTranslateY]);
 
   useEffect(() => {
     if (!actionSheetMethod) return;
@@ -95,7 +105,27 @@ export default function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']} accessibilityLanguage={language.locale}>
+    <View style={styles.overlay}>
+      <TouchableOpacity
+        style={styles.backdrop}
+        activeOpacity={1}
+        onPress={() => navigation.goBack()}
+        accessible={false}
+      />
+      <Animated.View
+        style={[styles.settingsSheet, { transform: [{ translateY: settingsSheetTranslateY }] }]}
+        accessibilityViewIsModal
+      >
+      <TouchableOpacity
+        style={styles.settingsGrabberArea}
+        onPress={() => navigation.goBack()}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={t.common.close}
+      >
+        <View style={styles.settingsGrabber} />
+      </TouchableOpacity>
+      <SafeAreaView style={styles.safe} edges={['bottom']} accessibilityLanguage={language.locale}>
       <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
         <View style={styles.headerTextBlock}>
           <Text style={[styles.title, { textAlign }]} accessibilityRole="header">
@@ -383,6 +413,8 @@ export default function SettingsScreen() {
         <Ionicons name="checkmark-circle-outline" size={19} color="#fff" />
         <Text style={styles.floatingDoneButtonText}>{t.common.done}</Text>
       </TouchableOpacity>
+      </SafeAreaView>
+      </Animated.View>
 
       <Modal
         visible={pendingDeleteMethod !== null}
@@ -521,11 +553,28 @@ export default function SettingsScreen() {
           </Animated.View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  overlay: { flex: 1, justifyContent: 'flex-end' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(24, 24, 27, 0.42)' },
+  settingsSheet: {
+    height: '92%',
+    paddingTop: 14,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    overflow: 'hidden',
+    shadowColor: '#18181B',
+    shadowOpacity: 0.25,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: -10 },
+    elevation: 8,
+  },
+  settingsGrabberArea: { alignSelf: 'stretch', alignItems: 'center', paddingVertical: 10 },
+  settingsGrabber: { width: 46, height: 5, borderRadius: 999, backgroundColor: '#D4D4D8' },
   safe: { flex: 1, backgroundColor: colors.background },
   scrollContent: { paddingBottom: 96 },
   headerRow: {

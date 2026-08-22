@@ -614,7 +614,7 @@ export default function ManageExpensesScreen() {
         <View
           style={[
             styles.empty,
-            { paddingBottom: Math.max(insets.bottom, 12) + 66 },
+            { paddingBottom: Math.max(insets.bottom, 12) + 142 },
           ]}
         >
           <View style={styles.emptyIconTile}>

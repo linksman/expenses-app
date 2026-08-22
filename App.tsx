@@ -48,7 +48,15 @@ function AppNavigator() {
       <StatusBar style="dark" />
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         <RootStack.Screen name="Expenses" component={ManageExpensesScreen} />
-        <RootStack.Screen name="Settings" component={SettingsScreen} />
+        <RootStack.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{
+            presentation: 'transparentModal',
+            animation: 'none',
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
+        />
         <RootStack.Screen
           name="AddExpense"
           component={AddExpenseScreen}
