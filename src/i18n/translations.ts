@@ -54,6 +54,7 @@ export interface Translations {
     statisticsGroups: { category: string; paymentMethod: string; collaborators: string; currency: string };
     expensesOverTime: string;
     statisticsPeriods: { '7': string; '14': string; all: string };
+    statisticsExcluded: string;
   };
   companions: {
     me: string;
@@ -199,6 +200,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       dailyAverage: 'Daily average', days: 'days', distribution: 'Expense distribution', noStatistics: 'No expense data yet.',
       statisticsGroups: { category: 'Category', paymentMethod: 'Payment method', collaborators: 'Collaborators', currency: 'Currency' },
       expensesOverTime: 'Expenses over the last days', statisticsPeriods: { '7': '7 days', '14': '14 days', all: 'All' },
+      statisticsExcluded: 'Statistics off',
     },
     categories: {
       Food: 'Food',
@@ -338,6 +340,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       dailyAverage: 'Moyenne quotidienne', days: 'jours', distribution: 'Répartition des dépenses', noStatistics: 'Aucune donnée de dépense.',
       statisticsGroups: { category: 'Catégorie', paymentMethod: 'Paiement', collaborators: 'Participants', currency: 'Devise' },
       expensesOverTime: 'Dépenses des derniers jours', statisticsPeriods: { '7': '7 jours', '14': '14 jours', all: 'Tout' },
+      statisticsExcluded: 'Statistiques désactivées',
     },
     categories: {
       Food: 'Nourriture',
@@ -479,6 +482,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       dailyAverage: 'Tagesdurchschnitt', days: 'Tage', distribution: 'Ausgabenverteilung', noStatistics: 'Noch keine Ausgabendaten.',
       statisticsGroups: { category: 'Kategorie', paymentMethod: 'Zahlungsart', collaborators: 'Mitreisende', currency: 'Währung' },
       expensesOverTime: 'Ausgaben der letzten Tage', statisticsPeriods: { '7': '7 Tage', '14': '14 Tage', all: 'Alle' },
+      statisticsExcluded: 'Statistik aus',
     },
     categories: {
       Food: 'Essen',
@@ -620,6 +624,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       dailyAverage: 'Promedio diario', days: 'días', distribution: 'Distribución de gastos', noStatistics: 'Aún no hay datos de gastos.',
       statisticsGroups: { category: 'Categoría', paymentMethod: 'Método de pago', collaborators: 'Colaboradores', currency: 'Moneda' },
       expensesOverTime: 'Gastos de los últimos días', statisticsPeriods: { '7': '7 días', '14': '14 días', all: 'Todo' },
+      statisticsExcluded: 'Estadísticas desactivadas',
     },
     categories: {
       Food: 'Comida',
@@ -759,6 +764,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       dailyAverage: 'ממוצע יומי', days: 'ימים', distribution: 'התפלגות הוצאות', noStatistics: 'אין עדיין נתוני הוצאות.',
       statisticsGroups: { category: 'קטגוריה', paymentMethod: 'אמצעי תשלום', collaborators: 'שותפים', currency: 'מטבע' },
       expensesOverTime: 'הוצאות בימים האחרונים', statisticsPeriods: { '7': '7 ימים', '14': '14 ימים', all: 'הכול' },
+      statisticsExcluded: 'לא בסטטיסטיקה',
     },
     categories: {
       Food: 'אוכל',

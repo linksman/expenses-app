@@ -699,6 +699,19 @@ export default function ManageExpensesScreen() {
                   <Text style={[styles.rowMethod, { textAlign }]}>
                     {method ?? ''}
                   </Text>
+                  {item.excludedFromStatistics ? (
+                    <View
+                      style={[
+                        styles.rowStatisticsExcluded,
+                        { flexDirection: rowDirection, alignSelf: isRTL ? 'flex-end' : 'flex-start' },
+                      ]}
+                    >
+                      <Ionicons name="stats-chart-outline" size={12} color={colors.textMuted} />
+                      <Text style={styles.rowStatisticsExcludedText}>
+                        {t.manage.statisticsExcluded}
+                      </Text>
+                    </View>
+                  ) : null}
                   {splitLabel && (
                     <Text style={[styles.rowSplit, { textAlign }]}>
                       {splitLabel}
@@ -1299,6 +1312,16 @@ const styles = StyleSheet.create({
   rowDescription: { fontSize: 16, fontWeight: '600', color: colors.text },
   rowMethod: { fontSize: 13, color: colors.textMuted, marginTop: 1 },
   rowSplit: { fontSize: 12, color: PAGE_ACCENT, marginTop: 2, fontWeight: '600' },
+  rowStatisticsExcluded: {
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#F0F0F1',
+  },
+  rowStatisticsExcludedText: { fontSize: 11, fontWeight: '600', color: colors.textMuted },
   rowRight: { alignItems: 'flex-end' },
   rowAmount: { fontSize: 16, fontWeight: '700', color: colors.text },
   rowConverted: { fontSize: 12, color: colors.textMuted, marginTop: 1 },

@@ -204,9 +204,9 @@ export default function AddExpenseScreen() {
 
   // Re-guess on every description change, not just on blur/submit, so the
   // category chip updates live as the user types. Debounced so it settles
-  // once typing pauses rather than firing a translate/classify call per
-  // keystroke — cleared on unmount since, unlike e.g. the vacation image
-  // lookup, there's nothing to finish in the background for a closed screen
+  // once typing pauses rather than firing a classify call per keystroke —
+  // cleared on unmount since, unlike e.g. the vacation image lookup,
+  // there's nothing to finish in the background for a closed screen
   // (setCategory is local state, not something persisted elsewhere).
   useEffect(() => {
     if (categoryManuallySetRef.current) return;
@@ -216,7 +216,7 @@ export default function AddExpenseScreen() {
       const requestId = ++categoryGuessRequestRef.current;
       guessCategory(trimmed).then((guessed) => {
         // Bail if superseded by a newer guess, or the user picked a category
-        // manually while this (network) request was still in flight.
+        // manually while this request was still in flight.
         if (categoryGuessRequestRef.current !== requestId || categoryManuallySetRef.current) return;
         setCategory(guessed);
       });
@@ -252,10 +252,10 @@ export default function AddExpenseScreen() {
     submittingRef.current = true;
     try {
       // The description-blur guess is fire-and-forget for a snappy UI, but
-      // its translate/classify round trip easily loses the race against a
-      // save tapped right after typing — the most common flow for a
-      // brand-new expense. Await a fresh guess here as a correctness safety
-      // net so the saved expense never just misses out on it.
+      // its debounce easily loses the race against a save tapped right
+      // after typing — the most common flow for a brand-new expense. Await
+      // a fresh guess here as a correctness safety net so the saved expense
+      // never just misses out on it.
       let finalCategory = category;
       if (!categoryManuallySetRef.current && !finalCategory && description.trim()) {
         finalCategory = await guessCategory(description);
@@ -472,7 +472,11 @@ export default function AddExpenseScreen() {
                 <View style={styles.fieldTextBlock}>
                   <TextInput
                     ref={descriptionInputRef}
-                    style={[styles.fieldValueInput, styles.fieldValueInputAlone, { textAlign }]}
+                    style={[
+                      styles.fieldValueInput,
+                      styles.fieldValueInputAlone,
+                      { textAlign, writingDirection: isRTL ? 'rtl' : 'ltr' },
+                    ]}
                     value={description}
                     onChangeText={setDescription}
                     placeholder={t.add.descriptionPlaceholder}
