@@ -22,6 +22,8 @@ export interface Translations {
     splitWith: string;
     splitLockedHint: string;
     deleteExpense: string;
+    excludeFromStatistics: string;
+    includeInStatistics: string;
   };
   manage: {
     title: string;
@@ -44,6 +46,14 @@ export interface Translations {
     splitTotalsTitle: string;
     splitBadge: string;
     of: string;
+    statistics: string;
+    dailyAverage: string;
+    days: string;
+    distribution: string;
+    noStatistics: string;
+    statisticsGroups: { category: string; paymentMethod: string; collaborators: string; currency: string };
+    expensesOverTime: string;
+    statisticsPeriods: { '7': string; '14': string; all: string };
   };
   companions: {
     me: string;
@@ -161,6 +171,8 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       splitWith: 'Split with:',
       splitLockedHint: "Split expense total can't be changed here — edit the split instead.",
       deleteExpense: 'Delete Expense',
+      excludeFromStatistics: 'Exclude from statistics',
+      includeInStatistics: 'Include in statistics',
     },
     manage: {
       title: 'Your Expenses',
@@ -183,6 +195,10 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       splitTotalsTitle: 'Split totals',
       splitBadge: 'Split',
       of: 'of',
+      statistics: 'Statistics',
+      dailyAverage: 'Daily average', days: 'days', distribution: 'Expense distribution', noStatistics: 'No expense data yet.',
+      statisticsGroups: { category: 'Category', paymentMethod: 'Payment method', collaborators: 'Collaborators', currency: 'Currency' },
+      expensesOverTime: 'Expenses over the last days', statisticsPeriods: { '7': '7 days', '14': '14 days', all: 'All' },
     },
     categories: {
       Food: 'Food',
@@ -294,6 +310,8 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       splitLockedHint:
         "Le total d'une dépense partagée ne peut pas être modifié ici — modifiez le partage à la place.",
       deleteExpense: 'Supprimer la dépense',
+      excludeFromStatistics: 'Exclure des statistiques',
+      includeInStatistics: 'Inclure dans les statistiques',
     },
     manage: {
       title: 'Vos dépenses',
@@ -316,6 +334,10 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       splitTotalsTitle: 'Totaux partagés',
       splitBadge: 'Partagée',
       of: 'sur',
+      statistics: 'Statistiques',
+      dailyAverage: 'Moyenne quotidienne', days: 'jours', distribution: 'Répartition des dépenses', noStatistics: 'Aucune donnée de dépense.',
+      statisticsGroups: { category: 'Catégorie', paymentMethod: 'Paiement', collaborators: 'Participants', currency: 'Devise' },
+      expensesOverTime: 'Dépenses des derniers jours', statisticsPeriods: { '7': '7 jours', '14': '14 jours', all: 'Tout' },
     },
     categories: {
       Food: 'Nourriture',
@@ -429,6 +451,8 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       splitLockedHint:
         'Der Gesamtbetrag einer aufgeteilten Ausgabe kann hier nicht geändert werden — bearbeite stattdessen die Aufteilung.',
       deleteExpense: 'Ausgabe löschen',
+      excludeFromStatistics: 'Aus Statistiken ausschließen',
+      includeInStatistics: 'In Statistiken einbeziehen',
     },
     manage: {
       title: 'Deine Ausgaben',
@@ -451,6 +475,10 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       splitTotalsTitle: 'Aufgeteilte Summen',
       splitBadge: 'Aufgeteilt',
       of: 'von',
+      statistics: 'Statistiken',
+      dailyAverage: 'Tagesdurchschnitt', days: 'Tage', distribution: 'Ausgabenverteilung', noStatistics: 'Noch keine Ausgabendaten.',
+      statisticsGroups: { category: 'Kategorie', paymentMethod: 'Zahlungsart', collaborators: 'Mitreisende', currency: 'Währung' },
+      expensesOverTime: 'Ausgaben der letzten Tage', statisticsPeriods: { '7': '7 Tage', '14': '14 Tage', all: 'Alle' },
     },
     categories: {
       Food: 'Essen',
@@ -564,6 +592,8 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       splitLockedHint:
         'El total de un gasto dividido no se puede cambiar aquí — edita la división en su lugar.',
       deleteExpense: 'Eliminar gasto',
+      excludeFromStatistics: 'Excluir de las estadísticas',
+      includeInStatistics: 'Incluir en las estadísticas',
     },
     manage: {
       title: 'Tus gastos',
@@ -586,6 +616,10 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       splitTotalsTitle: 'Totales divididos',
       splitBadge: 'Dividido',
       of: 'de',
+      statistics: 'Estadísticas',
+      dailyAverage: 'Promedio diario', days: 'días', distribution: 'Distribución de gastos', noStatistics: 'Aún no hay datos de gastos.',
+      statisticsGroups: { category: 'Categoría', paymentMethod: 'Método de pago', collaborators: 'Colaboradores', currency: 'Moneda' },
+      expensesOverTime: 'Gastos de los últimos días', statisticsPeriods: { '7': '7 días', '14': '14 días', all: 'Todo' },
     },
     categories: {
       Food: 'Comida',
@@ -697,6 +731,8 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       splitWith: 'מפוצלת עם:',
       splitLockedHint: 'לא ניתן לשנות כאן את סכום ההוצאה המפוצלת — יש לערוך את הפיצול במקום זאת.',
       deleteExpense: 'מחיקת הוצאה',
+      excludeFromStatistics: 'החרגה מהסטטיסטיקה',
+      includeInStatistics: 'הכללה בסטטיסטיקה',
     },
     manage: {
       title: 'ההוצאות שלך',
@@ -719,6 +755,10 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       splitTotalsTitle: 'סיכומי פיצול',
       splitBadge: 'מפוצלת',
       of: 'מתוך',
+      statistics: 'סטטיסטיקה',
+      dailyAverage: 'ממוצע יומי', days: 'ימים', distribution: 'התפלגות הוצאות', noStatistics: 'אין עדיין נתוני הוצאות.',
+      statisticsGroups: { category: 'קטגוריה', paymentMethod: 'אמצעי תשלום', collaborators: 'שותפים', currency: 'מטבע' },
+      expensesOverTime: 'הוצאות בימים האחרונים', statisticsPeriods: { '7': '7 ימים', '14': '14 ימים', all: 'הכול' },
     },
     categories: {
       Food: 'אוכל',

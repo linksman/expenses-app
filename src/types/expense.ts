@@ -51,4 +51,5 @@ export interface Expense {
   paymentMethodId: string;
   vacationId: string;
   split: ExpenseSplitShare[];
+  excludedFromStatistics: boolean;
 }

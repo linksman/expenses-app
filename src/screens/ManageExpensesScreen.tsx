@@ -2,7 +2,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Animated,
   AccessibilityInfo,
+  Dimensions,
+  Easing,
   Linking,
+  Modal,
+  Platform,
+  ScrollView,
   SectionList,
   StyleSheet,
   Text,
@@ -14,6 +19,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
+import Svg, { G, Line, Path, Rect, Text as SvgText } from 'react-native-svg';
 import { colors } from '../theme/colors';
 import { useExpenses } from '../storage/ExpensesContext';
 import { usePaymentMethods } from '../storage/PaymentMethodsContext';
@@ -48,6 +54,29 @@ const PAGE_ACCENT_SOFT = '#F4F4F5';
 const TOTALS_CARD_GRADIENT = [PAGE_ACCENT, '#FFFFFF'] as const;
 const LOADING_SUMMARY_GRADIENT = ['#D4D4D8', '#F4F4F5'] as const;
 const WORLD_CAPITALS_COLLAGE = require('../../assets/world-capitals-collage.png');
+const APP_FONT_FAMILY = Platform.select({ ios: 'System', android: 'sans-serif', default: 'system-ui' });
+const CHART_COLORS = ['#3B82F6', '#F97316', '#10B981', '#A855F7', '#EAB308', '#EC4899', '#64748B', '#06B6D4'];
+type StatisticsGroup = 'category' | 'paymentMethod' | 'collaborators' | 'currency';
+type StatisticsPeriod = '7' | '14' | 'all';
+const DISTRIBUTION_COLORS: Record<StatisticsGroup, string[]> = {
+  category: CHART_COLORS,
+  paymentMethod: ['#10B981', '#A855F7', '#EAB308', '#3B82F6', '#EC4899', '#F97316', '#06B6D4', '#64748B'],
+  collaborators: ['#EC4899', '#06B6D4', '#F97316', '#64748B', '#A855F7', '#10B981', '#3B82F6', '#EAB308'],
+  currency: ['#F97316', '#3B82F6', '#A855F7', '#10B981', '#06B6D4', '#EAB308', '#64748B', '#EC4899'],
+};
+
+function pieSlicePath(start: number, end: number, size: number): string {
+  const safeEnd = end - start >= Math.PI * 2 ? end - 0.000001 : end;
+  const radius = size / 2;
+  const point = (angle: number) => ({
+    x: radius + radius * Math.cos(angle - Math.PI / 2),
+    y: radius + radius * Math.sin(angle - Math.PI / 2),
+  });
+  const startPoint = point(start);
+  const endPoint = point(safeEnd);
+  const largeArc = safeEnd - start > Math.PI ? 1 : 0;
+  return `M ${radius} ${radius} L ${startPoint.x} ${startPoint.y} A ${radius} ${radius} 0 ${largeArc} 1 ${endPoint.x} ${endPoint.y} Z`;
+}
 
 function localDateKey(iso: string): string {
   const date = new Date(iso);
@@ -66,9 +95,24 @@ export default function ManageExpensesScreen() {
   const textAlign = isRTL ? 'right' : 'left';
   const [collapsedOverrides, setCollapsedOverrides] = useState<Record<string, boolean>>({});
   const [highlightedExpenseId, setHighlightedExpenseId] = useState<string | null>(null);
+  const [statisticsVisible, setStatisticsVisible] = useState(false);
+  const [statisticsGroup, setStatisticsGroup] = useState<StatisticsGroup>('category');
+  const [statisticsPeriod, setStatisticsPeriod] = useState<StatisticsPeriod>('7');
+  const statisticsTranslateY = useRef(new Animated.Value(Dimensions.get('window').height)).current;
   const highlightAnim = useRef(new Animated.Value(0)).current;
   const selectedVacation = vacations.find((v) => v.id === activeVacationId) ?? null;
   const groupBy = selectedVacation?.groupBy ?? 'date';
+
+  useEffect(() => {
+    if (!statisticsVisible) return;
+    statisticsTranslateY.setValue(Dimensions.get('window').height);
+    Animated.timing(statisticsTranslateY, {
+      toValue: 0,
+      duration: 320,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [statisticsTranslateY, statisticsVisible]);
 
   // After creating or editing an expense, briefly highlight its row so the user can
   // spot it in the list. Also force-expand its day section in case it isn't
@@ -116,12 +160,18 @@ export default function ManageExpensesScreen() {
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }, [expenses, activeVacationId]);
+  const statisticsExpenses = useMemo(
+    () => filteredExpenses.filter((expense) => !expense.excludedFromStatistics),
+    [filteredExpenses]
+  );
 
   const totalsByCurrency = useMemo(
     () => totalsByCurrencyFor(filteredExpenses),
     [filteredExpenses]
   );
   const leadTotal = leadCurrency ? convertedTotal(filteredExpenses, convert) : null;
+  const statisticsTotalsByCurrency = totalsByCurrencyFor(statisticsExpenses);
+  const statisticsLeadTotal = leadCurrency ? convertedTotal(statisticsExpenses, convert) : null;
   const methodName = (id: string): string | null => {
     const method = methods.find((m) => m.id === id);
     return method ? paymentMethodName(method, t) : null;
@@ -217,6 +267,112 @@ export default function ManageExpensesScreen() {
     leadCurrency && leadTotal !== null && !heroLeadIsRedundant
       ? `(${formatAmount(leadTotal, leadCurrency)})`
       : '';
+  const statisticsDayCount = statisticsExpenses.length
+    ? Math.max(
+        1,
+        Math.floor(
+          (new Date(statisticsExpenses[0].createdAt).setHours(0, 0, 0, 0) -
+            new Date(statisticsExpenses[statisticsExpenses.length - 1].createdAt).setHours(0, 0, 0, 0)) /
+            86_400_000
+        ) + 1
+      )
+    : 0;
+  const dailyAverageTotals = statisticsTotalsByCurrency.map((total) => ({
+    ...total,
+    amount: total.amount / Math.max(statisticsDayCount, 1),
+  }));
+  const dailyAverageMain =
+    dailyAverageTotals.find((total) => total.currencyCode === selectedVacation?.defaultCurrency) ??
+    dailyAverageTotals[0] ??
+    null;
+  const dailyAverageMainText = dailyAverageMain
+    ? formatAmount(dailyAverageMain.amount, dailyAverageMain.currencyCode)
+    : formatAmount(0, selectedVacation?.defaultCurrency ?? 'USD');
+  const dailyAverageOtherText = dailyAverageTotals
+    .filter((total) => total !== dailyAverageMain)
+    .map((total) => formatAmount(total.amount, total.currencyCode))
+    .join(' · ');
+  const dailyAverageLeadIsRedundant =
+    dailyAverageTotals.length === 1 && dailyAverageTotals[0].currencyCode === leadCurrency;
+  const dailyAverageLeadText =
+    leadCurrency && statisticsLeadTotal !== null && !dailyAverageLeadIsRedundant
+      ? `(${formatAmount(statisticsLeadTotal / Math.max(statisticsDayCount, 1), leadCurrency)})`
+      : '';
+  const dailyChartData = (() => {
+    if (!statisticsExpenses.length) return [];
+    const latest = new Date(statisticsExpenses[0].createdAt);
+    latest.setHours(0, 0, 0, 0);
+    const dayCount = statisticsPeriod === 'all'
+      ? statisticsDayCount
+      : Number(statisticsPeriod);
+    const first = new Date(latest);
+    first.setDate(first.getDate() - dayCount + 1);
+    const values = new Map<string, number>();
+    for (const expense of statisticsExpenses) {
+      const date = new Date(expense.createdAt);
+      date.setHours(0, 0, 0, 0);
+      if (date < first || date > latest) continue;
+      const amount = leadCurrency ? convert(expense.amount, expense.currencyCode) ?? expense.amount : expense.amount;
+      values.set(localDateKey(date.toISOString()), (values.get(localDateKey(date.toISOString())) ?? 0) + amount);
+    }
+    return Array.from({ length: dayCount }, (_, index) => {
+      const date = new Date(first);
+      date.setDate(first.getDate() + index);
+      return {
+        date,
+        value: values.get(localDateKey(date.toISOString())) ?? 0,
+      };
+    });
+  })();
+  const statisticsItems = (() => {
+    const values = new Map<string, Map<string, number>>();
+    const add = (label: string, amount: number, currencyCode: string) => {
+      const currencyValues = values.get(label) ?? new Map<string, number>();
+      currencyValues.set(currencyCode, (currencyValues.get(currencyCode) ?? 0) + amount);
+      values.set(label, currencyValues);
+    };
+
+    for (const expense of statisticsExpenses) {
+      if (statisticsGroup === 'category') {
+        add(expense.category ? t.categories[expense.category] : t.categories.Other, expense.amount, expense.currencyCode);
+      } else if (statisticsGroup === 'paymentMethod') {
+        add(methodName(expense.paymentMethodId) ?? expense.paymentMethodId, expense.amount, expense.currencyCode);
+      } else if (statisticsGroup === 'currency') {
+        add(expense.currencyCode, expense.amount, expense.currencyCode);
+      } else {
+        const meAmount = companionShare(expense, ME_COMPANION_ID);
+        if (meAmount > 0) add(t.companions.me, meAmount, expense.currencyCode);
+        for (const share of expense.split) {
+          add(
+            companionName(share.companionId, selectedVacation?.companions ?? [], t),
+            share.amount,
+            expense.currencyCode
+          );
+        }
+      }
+    }
+    return [...values.entries()]
+      .map(([label, currencyValues]) => {
+        const totals = [...currencyValues.entries()].map(([currencyCode, amount]) => ({ currencyCode, amount }));
+        let converted = 0;
+        let conversionAvailable = !!leadCurrency;
+        for (const total of totals) {
+          const amount = leadCurrency ? convert(total.amount, total.currencyCode) : null;
+          if (amount === null) conversionAvailable = false;
+          else converted += amount;
+        }
+        const leadAmount = conversionAvailable ? converted : null;
+        const value = leadAmount ?? totals.reduce((sum, total) => sum + total.amount, 0);
+        return {
+          label,
+          value,
+          amountLabel: formatTotalsWithLead(totals, leadCurrency, leadAmount, selectedVacation?.defaultCurrency ?? 'USD'),
+        };
+      })
+      .filter((item) => item.value > 0)
+      .sort((a, b) => b.value - a.value);
+  })();
+  const statisticsTotal = statisticsItems.reduce((sum, item) => sum + item.value, 0);
   const summaryImageUri =
     selectedVacation?.summaryImageUrl && selectedVacation.summaryImagePhotographerName
       ? selectedVacation.summaryImageUrl
@@ -268,8 +424,8 @@ export default function ManageExpensesScreen() {
                 styles.cardTitleRow,
                 {
                   flexDirection: rowDirection,
-                  paddingLeft: isRTL ? 42 : 0,
-                  paddingRight: isRTL ? 0 : 42,
+                  paddingLeft: isRTL ? 98 : 0,
+                  paddingRight: isRTL ? 0 : 98,
                 },
               ]}
             >
@@ -401,6 +557,23 @@ export default function ManageExpensesScreen() {
           >
             <Ionicons
               name="settings-outline"
+              size={17}
+              color={summaryImageUri ? '#fff' : '#52525B'}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.summarySettingsButton,
+              summaryImageUri && styles.summarySettingsButtonOnImage,
+              { left: isRTL ? 70 : undefined, right: isRTL ? undefined : 70 },
+            ]}
+            onPress={() => setStatisticsVisible(true)}
+            activeOpacity={0.7}
+            accessibilityLabel={t.manage.statistics}
+            accessibilityRole="button"
+          >
+            <Ionicons
+              name="stats-chart-outline"
               size={17}
               color={summaryImageUri ? '#fff' : '#52525B'}
             />
@@ -577,6 +750,229 @@ export default function ManageExpensesScreen() {
         <Text style={styles.addButtonText}>{t.add.save}</Text>
       </TouchableOpacity>
 
+      <Modal
+        visible={statisticsVisible}
+        transparent
+        animationType="none"
+        onRequestClose={() => setStatisticsVisible(false)}
+      >
+        <View style={styles.statisticsOverlay}>
+          <TouchableOpacity
+            style={styles.statisticsBackdrop}
+            activeOpacity={1}
+            onPress={() => setStatisticsVisible(false)}
+            accessible={false}
+          />
+          <Animated.View
+            style={[
+              styles.statisticsSheet,
+              { transform: [{ translateY: statisticsTranslateY }] },
+            ]}
+            accessibilityViewIsModal
+            accessibilityLanguage={language.locale}
+          >
+            <TouchableOpacity
+              style={styles.statisticsGrabberArea}
+              onPress={() => setStatisticsVisible(false)}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={t.common.close}
+            >
+              <View style={styles.statisticsGrabber} />
+            </TouchableOpacity>
+            <View style={[styles.statisticsHeader, { flexDirection: rowDirection }]}>
+              <TouchableOpacity
+                onPress={() => setStatisticsVisible(false)}
+                style={styles.statisticsCloseButton}
+                accessibilityRole="button"
+                accessibilityLabel={t.common.close}
+              >
+                <Ionicons name="close" size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+              <Text
+                style={[styles.statisticsTitle, { textAlign }]}
+                accessibilityRole="header"
+              >
+                {t.manage.statistics}
+              </Text>
+            </View>
+            <ScrollView contentContainerStyle={styles.statisticsContent}>
+              <View style={styles.statisticsSection}>
+                <Text style={[styles.statisticsSectionTitle, { textAlign }]}>
+                  {t.manage.dailyAverage}
+                </Text>
+                <Text style={[styles.statisticsAverageMain, { textAlign }]}>
+                  {dailyAverageMainText}
+                </Text>
+                {dailyAverageOtherText ? (
+                  <Text style={[styles.statisticsAverageOther, { textAlign }]}>
+                    {dailyAverageOtherText}
+                  </Text>
+                ) : null}
+                {dailyAverageLeadText ? (
+                  <Text style={[styles.statisticsAverageLead, { textAlign }]}>
+                    {dailyAverageLeadText}
+                  </Text>
+                ) : null}
+                <Text style={[styles.statisticsHint, { textAlign }]}>
+                  {statisticsDayCount} {t.manage.days}
+                </Text>
+                <View style={styles.dailyChartHeader}>
+                  <Text style={[styles.dailyChartTitle, { textAlign }]}>
+                    {t.manage.expensesOverTime}
+                  </Text>
+                  <View style={[styles.dailyChartPeriods, { flexDirection: rowDirection }]}>
+                    {(['7', '14', 'all'] as StatisticsPeriod[]).map((period) => (
+                      <TouchableOpacity
+                        key={period}
+                        style={[styles.dailyChartPeriod, statisticsPeriod === period && styles.dailyChartPeriodActive]}
+                        onPress={() => setStatisticsPeriod(period)}
+                      >
+                        <Text style={[styles.dailyChartPeriodText, statisticsPeriod === period && styles.dailyChartPeriodTextActive]}>
+                          {t.manage.statisticsPeriods[period]}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+                {dailyChartData.length ? (() => {
+                  const chartWidth = 320;
+                  const chartHeight = 150;
+                  const plotTop = 10;
+                  const plotBottom = 122;
+                  const maxValue = Math.max(...dailyChartData.map((day) => day.value), 1);
+                  const slotWidth = chartWidth / dailyChartData.length;
+                  const barWidth = Math.max(2, Math.min(24, slotWidth * 0.62));
+                  const labelEvery = Math.max(1, Math.ceil(dailyChartData.length / 7));
+                  return (
+                    <View style={styles.dailyChart}>
+                      <Svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
+                        <Line x1="0" y1={plotBottom} x2={chartWidth} y2={plotBottom} stroke="#D4D4D8" strokeWidth="1" />
+                        {dailyChartData.map((day, index) => {
+                          const height = day.value > 0 ? Math.max(3, (day.value / maxValue) * (plotBottom - plotTop)) : 0;
+                          const x = index * slotWidth + (slotWidth - barWidth) / 2;
+                          const showLabel = index % labelEvery === 0 || index === dailyChartData.length - 1;
+                          return (
+                            <React.Fragment key={day.date.toISOString()}>
+                              <Rect x={x} y={plotBottom - height} width={barWidth} height={height} rx={Math.min(4, barWidth / 2)} fill="#3B82F6" />
+                              {showLabel ? (
+                                <SvgText x={x + barWidth / 2} y="141" fontSize="9" fill="#71717A" textAnchor="middle">
+                                  {`${day.date.getDate()}/${day.date.getMonth() + 1}`}
+                                </SvgText>
+                              ) : null}
+                            </React.Fragment>
+                          );
+                        })}
+                      </Svg>
+                    </View>
+                  );
+                })() : (
+                  <Text style={styles.statisticsEmpty}>{t.manage.noStatistics}</Text>
+                )}
+              </View>
+              <View style={styles.statisticsSection}>
+                <Text style={[styles.statisticsSectionTitle, { textAlign }]}>
+                  {t.manage.distribution}
+                </Text>
+                <View style={[styles.statisticsTabs, { flexDirection: rowDirection }]}>
+                  {(['category', 'paymentMethod', 'collaborators', 'currency'] as StatisticsGroup[]).map((group) => (
+                    <TouchableOpacity
+                      key={group}
+                      style={[styles.statisticsTab, statisticsGroup === group && styles.statisticsTabActive]}
+                      onPress={() => setStatisticsGroup(group)}
+                    >
+                      <Text style={[styles.statisticsTabText, statisticsGroup === group && styles.statisticsTabTextActive]}>
+                        {t.manage.statisticsGroups[group]}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                {statisticsTotal > 0 ? (
+                  <>
+                    <View style={styles.pieChart}>
+                      <Svg width="100%" height={250} viewBox="0 0 440 260">
+                        <G transform="translate(110 20)">
+                        {statisticsItems.map((item, index) => {
+                          const previous = statisticsItems.slice(0, index).reduce((sum, entry) => sum + entry.value, 0);
+                          const start = (previous / statisticsTotal) * Math.PI * 2;
+                          const end = ((previous + item.value) / statisticsTotal) * Math.PI * 2;
+                          const palette = DISTRIBUTION_COLORS[statisticsGroup];
+                          return (
+                            <Path key={item.label} d={pieSlicePath(start, end, 220)} fill={palette[index % palette.length]} />
+                          );
+                        })}
+                        </G>
+                        {statisticsItems.map((item, index) => {
+                          const previous = statisticsItems.slice(0, index).reduce((sum, entry) => sum + entry.value, 0);
+                          const start = (previous / statisticsTotal) * Math.PI * 2;
+                          const end = ((previous + item.value) / statisticsTotal) * Math.PI * 2;
+                          const middle = (start + end) / 2 - Math.PI / 2;
+                          const rightSide = Math.cos(middle) >= 0;
+                          const edgeX = 220 + Math.cos(middle) * 100;
+                          const edgeY = 130 + Math.sin(middle) * 100;
+                          const outerX = 220 + Math.cos(middle) * 118;
+                          const outerY = 130 + Math.sin(middle) * 118;
+                          const lineEndX = rightSide ? 342 : 98;
+                          const textX = rightSide ? 348 : 92;
+                          const chartLabel = item.label.length > 17
+                            ? `${item.label.slice(0, 15)}…`
+                            : item.label;
+                          const color = DISTRIBUTION_COLORS[statisticsGroup][index % DISTRIBUTION_COLORS[statisticsGroup].length];
+                          return (
+                            <React.Fragment key={`${item.label}-label`}>
+                              <Line x1={edgeX} y1={edgeY} x2={outerX} y2={outerY} stroke={color} strokeWidth="2" />
+                              <Line x1={outerX} y1={outerY} x2={lineEndX} y2={outerY} stroke={color} strokeWidth="2" />
+                              <SvgText
+                                x={textX}
+                                y={outerY}
+                                fontSize="14"
+                                fontFamily={APP_FONT_FAMILY}
+                                fontWeight="700"
+                                fill="#3F3F46"
+                                textAnchor={rightSide ? 'start' : 'end'}
+                                alignmentBaseline="middle"
+                              >
+                                {chartLabel}
+                              </SvgText>
+                            </React.Fragment>
+                          );
+                        })}
+                      </Svg>
+                    </View>
+                    <View style={styles.statisticsLegend}>
+                      {statisticsItems.map((item, index) => (
+                        <View key={item.label} style={[styles.legendRow, { flexDirection: rowDirection }]}>
+                          <View style={[styles.legendDot, { backgroundColor: DISTRIBUTION_COLORS[statisticsGroup][index % DISTRIBUTION_COLORS[statisticsGroup].length] }]} />
+                          <Text style={[styles.legendLabel, { textAlign }]}>{item.label}</Text>
+                          <View style={styles.legendValues}>
+                            <Text style={styles.legendPercent}>{((item.value / statisticsTotal) * 100).toFixed(1)}%</Text>
+                            <Text style={styles.legendAmount}>{item.amountLabel}</Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  </>
+                ) : (
+                  <Text style={styles.statisticsEmpty}>{t.manage.noStatistics}</Text>
+                )}
+              </View>
+            </ScrollView>
+            <TouchableOpacity
+              style={[
+                styles.statisticsDoneButton,
+                { flexDirection: rowDirection, bottom: Math.max(insets.bottom, 12) + 8 },
+              ]}
+              onPress={() => setStatisticsVisible(false)}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              <Ionicons name="checkmark-circle-outline" size={19} color="#fff" />
+              <Text style={styles.statisticsDoneButtonText}>{t.common.done}</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -693,6 +1089,104 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.28)',
     backgroundColor: '#27272A',
   },
+  statisticsOverlay: { flex: 1, justifyContent: 'flex-end' },
+  statisticsBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(24, 24, 27, 0.42)',
+  },
+  statisticsSheet: {
+    height: '92%',
+    paddingTop: 14,
+    backgroundColor: colors.background,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    shadowColor: '#18181B',
+    shadowOpacity: 0.25,
+    shadowRadius: 30,
+    shadowOffset: { width: 0, height: -10 },
+    elevation: 8,
+  },
+  statisticsGrabberArea: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  statisticsGrabber: {
+    width: 46,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: '#D4D4D8',
+  },
+  statisticsHeader: {
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  statisticsCloseButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F0F1',
+    flexShrink: 0,
+  },
+  statisticsTitle: {
+    flex: 1,
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: -0.2,
+  },
+  statisticsContent: { padding: 20, gap: 16, paddingBottom: 110 },
+  statisticsSection: { backgroundColor: colors.card, borderRadius: 20, padding: 18 },
+  statisticsSectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+  statisticsAverageMain: { marginTop: 12, fontSize: 32, fontWeight: '800', color: PAGE_ACCENT },
+  statisticsAverageOther: { marginTop: 4, fontSize: 20, fontWeight: '700', color: colors.text },
+  statisticsAverageLead: { marginTop: 5, fontSize: 14, color: colors.textMuted },
+  statisticsHint: { marginTop: 4, fontSize: 13, color: colors.textMuted },
+  dailyChartHeader: { marginTop: 24, gap: 12 },
+  dailyChartTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
+  dailyChartPeriods: { gap: 8, flexWrap: 'wrap' },
+  dailyChartPeriod: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: colors.background },
+  dailyChartPeriodActive: { backgroundColor: PAGE_ACCENT },
+  dailyChartPeriodText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
+  dailyChartPeriodTextActive: { color: '#fff' },
+  dailyChart: { marginTop: 12, width: '100%' },
+  statisticsTabs: { flexWrap: 'wrap', gap: 8, marginTop: 16 },
+  statisticsTab: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 999, backgroundColor: colors.background },
+  statisticsTabActive: { backgroundColor: PAGE_ACCENT },
+  statisticsTabText: { color: colors.textMuted, fontWeight: '600', fontSize: 13 },
+  statisticsTabTextActive: { color: '#fff' },
+  pieChart: { alignItems: 'center', marginTop: 24 },
+  statisticsLegend: { gap: 12, marginTop: 22 },
+  legendRow: { alignItems: 'center', gap: 9 },
+  legendDot: { width: 12, height: 12, borderRadius: 6 },
+  legendLabel: { flex: 1, fontSize: 14, color: colors.text },
+  legendPercent: { fontSize: 14, fontWeight: '700', color: colors.text },
+  legendValues: { alignItems: 'flex-end', flexShrink: 1 },
+  legendAmount: { marginTop: 2, fontSize: 12, color: colors.textMuted, textAlign: 'right' },
+  statisticsEmpty: { marginTop: 24, textAlign: 'center', color: colors.textMuted },
+  statisticsDoneButton: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    height: 54,
+    borderRadius: 18,
+    backgroundColor: PAGE_ACCENT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    shadowColor: PAGE_ACCENT,
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+    zIndex: 10,
+  },
+  statisticsDoneButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
   summaryTextOnImage: { color: '#fff' },
   summaryMutedTextOnImage: { color: 'rgba(255, 255, 255, 0.82)' },
   photoAttribution: { alignItems: 'center', justifyContent: 'flex-end', marginTop: 10 },

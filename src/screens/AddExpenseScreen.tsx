@@ -68,7 +68,7 @@ export default function AddExpenseScreen() {
   const { vacationId, expenseId } = (route.params ?? {}) as RouteParams;
   const isEditing = !!expenseId;
 
-  const { addExpense, updateExpense, deleteExpense, expenses } = useExpenses();
+  const { addExpense, updateExpense, deleteExpense, setExpenseStatisticsExcluded, expenses } = useExpenses();
   const { methods, effectiveDefaultMethodId } = usePaymentMethods();
   const { t, isRTL, language } = useLanguage();
   const { vacations, setActiveVacationId } = useVacations();
@@ -753,18 +753,33 @@ export default function AddExpenseScreen() {
                 })}
               </View>
               {isEditing && (
-                <TouchableOpacity
-                  style={[
-                    styles.deleteExpenseButton,
-                    { alignSelf: isRTL ? 'flex-end' : 'flex-start' },
-                  ]}
-                  onPress={() => setDeleteConfirmVisible(true)}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.deleteExpenseText}>{t.add.deleteExpense}</Text>
-                </TouchableOpacity>
+                <View style={{ alignSelf: isRTL ? 'flex-end' : 'flex-start' }}>
+                  <TouchableOpacity
+                    style={styles.statisticsToggleButton}
+                    onPress={() => {
+                      if (existingExpense) {
+                        setExpenseStatisticsExcluded(existingExpense.id, !existingExpense.excludedFromStatistics);
+                      }
+                    }}
+                    activeOpacity={0.7}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.statisticsToggleText}>
+                      {existingExpense?.excludedFromStatistics
+                        ? t.add.includeInStatistics
+                        : t.add.excludeFromStatistics}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteExpenseButton}
+                    onPress={() => setDeleteConfirmVisible(true)}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.deleteExpenseText}>{t.add.deleteExpense}</Text>
+                  </TouchableOpacity>
+                </View>
               )}
             </ScrollView>
             {isEditing ? (
@@ -1128,6 +1143,8 @@ const styles = StyleSheet.create({
   categoryChipLabelSelected: { color: colors.primaryDark, fontWeight: '700' },
   deleteExpenseButton: { minHeight: 48, justifyContent: 'center', marginBottom: 12 },
   deleteExpenseText: { fontSize: 13, fontWeight: '600', color: colors.danger },
+  statisticsToggleButton: { minHeight: 48, justifyContent: 'center' },
+  statisticsToggleText: { fontSize: 13, fontWeight: '600', color: colors.primary },
   confirmOverlay: {
     flex: 1,
     backgroundColor: 'rgba(24, 24, 27, 0.45)',

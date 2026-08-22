@@ -18,14 +18,16 @@ function normalizeExpense(raw: any): Expense {
   const description = raw.description !== undefined ? raw.description : raw.note ?? '';
   const split = raw.split !== undefined ? raw.split : [];
   const vacationId = raw.vacationId !== undefined ? raw.vacationId : raw.groupId;
+  const excludedFromStatistics = raw.excludedFromStatistics === true;
   if (
     raw.description !== undefined &&
     raw.split !== undefined &&
-    raw.vacationId !== undefined
+    raw.vacationId !== undefined &&
+    raw.excludedFromStatistics !== undefined
   ) {
     return raw;
   }
-  return { ...raw, description, split, vacationId };
+  return { ...raw, description, split, vacationId, excludedFromStatistics };
 }
 
 interface ExpensesContextValue {
@@ -52,6 +54,7 @@ interface ExpensesContextValue {
     split: ExpenseSplitShare[]
   ) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+  setExpenseStatisticsExcluded: (id: string, excluded: boolean) => Promise<void>;
   deleteExpensesByVacation: (vacationId: string) => Promise<void>;
 }
 
@@ -102,6 +105,7 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
         paymentMethodId,
         vacationId,
         split,
+        excludedFromStatistics: false,
       };
       await persist([expense, ...expenses]);
       return expense.id;
@@ -147,6 +151,17 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
     [expenses, persist]
   );
 
+  const setExpenseStatisticsExcluded = useCallback(
+    async (id: string, excluded: boolean) => {
+      await persist(
+        expenses.map((expense) =>
+          expense.id === id ? { ...expense, excludedFromStatistics: excluded } : expense
+        )
+      );
+    },
+    [expenses, persist]
+  );
+
   const deleteExpensesByVacation = useCallback(
     async (vacationId: string) => {
       await persist(expenses.filter((e) => e.vacationId !== vacationId));
@@ -161,9 +176,10 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
       addExpense,
       updateExpense,
       deleteExpense,
+      setExpenseStatisticsExcluded,
       deleteExpensesByVacation,
     }),
-    [expenses, loading, addExpense, updateExpense, deleteExpense, deleteExpensesByVacation]
+    [expenses, loading, addExpense, updateExpense, deleteExpense, setExpenseStatisticsExcluded, deleteExpensesByVacation]
   );
 
   return <ExpensesContext.Provider value={value}>{children}</ExpensesContext.Provider>;
