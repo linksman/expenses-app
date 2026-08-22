@@ -1178,6 +1178,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.text,
     marginTop: 6,
+    textAlign: 'center',
   },
   categoryChipSelected: {
     backgroundColor: '#F0F0F1',
