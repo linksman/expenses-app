@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
+  Alert,
   Animated,
   Dimensions,
   Easing,
-  Linking,
   Modal,
   ScrollView,
   StyleSheet,
@@ -26,6 +26,8 @@ import { useExpenses } from '../storage/ExpensesContext';
 import { useVacations } from '../storage/VacationsContext';
 import { PaymentMethod } from '../types/paymentMethod';
 import { paymentMethodName } from '../utils/paymentMethodName';
+import { DEMO_EXPENSES, DEMO_PAYMENT_METHODS, DEMO_VACATIONS } from '../data/demoData';
+import { findDestinationImage } from '../utils/destinationImage';
 
 const METHOD_ICON_PALETTE = [
   { color: '#159C87', tint: '#E7F6F1' },
@@ -37,9 +39,6 @@ const METHOD_ICON_PALETTE = [
   { color: '#D9A21B', tint: '#FBF0DA' },
 ];
 
-const KOFI_ID = 'N7J8252YBS';
-const KOFI_URL = `https://ko-fi.com/${KOFI_ID}`;
-
 export default function SettingsScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -48,7 +47,7 @@ export default function SettingsScreen() {
   const textAlign = isRTL ? 'right' : 'left';
   const rowDirection = isRTL ? 'row-reverse' : 'row';
 
-  const { vacations, activeVacationId, setActiveVacationId } = useVacations();
+  const { vacations, activeVacationId, setActiveVacationId, importVacations } = useVacations();
 
   const {
     methods,
@@ -58,8 +57,10 @@ export default function SettingsScreen() {
     setMethodEnabled,
     moveMethod,
     setDefaultMethodId,
+    importPaymentMethods,
   } = usePaymentMethods();
-  const { expenses } = useExpenses();
+  const { expenses, importExpenses } = useExpenses();
+  const [importingDemoData, setImportingDemoData] = useState(false);
   const [newMethodName, setNewMethodName] = useState('');
   const [pendingDeleteMethod, setPendingDeleteMethod] = useState<PaymentMethod | null>(null);
   const [actionSheetMethod, setActionSheetMethod] = useState<PaymentMethod | null>(null);
@@ -104,6 +105,44 @@ export default function SettingsScreen() {
     setPendingDeleteMethod(null);
   };
 
+  const handleImportDemoData = async () => {
+    if (importingDemoData) return;
+    setImportingDemoData(true);
+    try {
+      await Promise.all([
+        importPaymentMethods(DEMO_PAYMENT_METHODS),
+        importVacations(DEMO_VACATIONS),
+        importExpenses(DEMO_EXPENSES),
+      ]);
+      const demoVacationsWithImages = await Promise.all(
+        DEMO_VACATIONS.map(async (demoVacation) => {
+          const image = await findDestinationImage(demoVacation.name);
+          const existingVacation = vacations.find((item) => item.id === demoVacation.id);
+          return {
+            ...demoVacation,
+            summaryImageUrl: image?.url ?? existingVacation?.summaryImageUrl,
+            summaryImagePhotographerName:
+              image?.photographerName ?? existingVacation?.summaryImagePhotographerName,
+            summaryImagePhotographerUrl:
+              image?.photographerUrl ?? existingVacation?.summaryImagePhotographerUrl,
+            summaryImageUnsplashUrl:
+              image?.unsplashUrl ?? existingVacation?.summaryImageUnsplashUrl,
+          };
+        })
+      );
+      await importVacations(demoVacationsWithImages);
+      AccessibilityInfo.announceForAccessibility('Demo data imported');
+      Alert.alert(
+        'Demo data imported',
+        'Added 3 payment methods, 5 vacations, and 50 expenses, and looked up their destination photos.'
+      );
+    } catch {
+      Alert.alert('Import failed', 'The demo data could not be imported. Please try again.');
+    } finally {
+      setImportingDemoData(false);
+    }
+  };
+
   return (
     <View style={styles.overlay}>
       <TouchableOpacity
@@ -134,11 +173,13 @@ export default function SettingsScreen() {
         </View>
         <TouchableOpacity
           style={[styles.headerIconButton, styles.coffeeHeaderButton]}
-          onPress={() => Linking.openURL(KOFI_URL)}
+          onPress={handleImportDemoData}
+          disabled={importingDemoData}
           activeOpacity={0.7}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="link"
-          accessibilityLabel={t.settings.buyMeCoffee}
+          accessibilityRole="button"
+          accessibilityLabel="Import demo data"
+          accessibilityState={{ disabled: importingDemoData }}
         >
           <Ionicons name="cafe-outline" size={19} color="#fff" />
         </TouchableOpacity>

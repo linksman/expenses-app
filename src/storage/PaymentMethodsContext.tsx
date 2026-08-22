@@ -39,6 +39,7 @@ interface PaymentMethodsContextValue {
   setMethodEnabled: (id: string, enabled: boolean) => Promise<void>;
   moveMethod: (id: string, direction: 'up' | 'down') => Promise<void>;
   setDefaultMethodId: (id: string) => Promise<void>;
+  importPaymentMethods: (incoming: PaymentMethod[]) => Promise<void>;
 }
 
 const PaymentMethodsContext = createContext<PaymentMethodsContextValue | undefined>(
@@ -138,6 +139,14 @@ export function PaymentMethodsProvider({ children }: { children: React.ReactNode
     [methods, persist]
   );
 
+  const importPaymentMethods = useCallback(
+    async (incoming: PaymentMethod[]) => {
+      const incomingIds = new Set(incoming.map((method) => method.id));
+      await persist([...methods.filter((method) => !incomingIds.has(method.id)), ...incoming]);
+    },
+    [methods, persist]
+  );
+
   const effectiveDefaultMethodId = useMemo(() => {
     const enabledMethods = methods.filter((m) => m.enabled);
     const currentDefault = defaultMethodId
@@ -157,6 +166,7 @@ export function PaymentMethodsProvider({ children }: { children: React.ReactNode
       setMethodEnabled,
       moveMethod,
       setDefaultMethodId,
+      importPaymentMethods,
     }),
     [
       methods,
@@ -168,6 +178,7 @@ export function PaymentMethodsProvider({ children }: { children: React.ReactNode
       setMethodEnabled,
       moveMethod,
       setDefaultMethodId,
+      importPaymentMethods,
     ]
   );
 

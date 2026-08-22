@@ -14,6 +14,11 @@ export interface VacationCurrency {
   fixedRate?: number | null;
 }
 
+export interface VacationBudget {
+  amount: number;
+  currencyCode: string;
+}
+
 export interface Vacation {
   id: string;
   name: string;
@@ -23,6 +28,7 @@ export interface Vacation {
   leadCurrency: string | null;
   groupBy: ExpenseGrouping;
   companions: TravelCompanion[];
+  budget?: VacationBudget | null;
   summaryImageUrl?: string;
   summaryImagePhotographerName?: string;
   summaryImagePhotographerUrl?: string;

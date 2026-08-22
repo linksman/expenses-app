@@ -27,7 +27,7 @@ import { useExchangeRates } from '../storage/ExchangeRatesContext';
 import { usePaymentMethods } from '../storage/PaymentMethodsContext';
 import { CURRENCIES, currencyColors, currencyInfo } from '../types/currency';
 import { TravelCompanion } from '../types/companion';
-import { VacationCurrency } from '../types/vacation';
+import { VacationBudget, VacationCurrency } from '../types/vacation';
 import { EXPENSE_GROUPINGS, ExpenseGrouping } from '../types/expenseGrouping';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
 import { companionAvatarColor } from '../utils/companionAvatar';
@@ -148,6 +148,13 @@ export default function VacationFormScreen() {
   const isEditing = !!vacation;
 
   const [name, setName] = useState(vacation?.name ?? '');
+  const [budgetAmount, setBudgetAmount] = useState(
+    vacation?.budget?.amount != null ? String(vacation.budget.amount) : ''
+  );
+  const [budgetCurrencyCode, setBudgetCurrencyCode] = useState(
+    vacation?.budget?.currencyCode ?? 'USD'
+  );
+  const [budgetCurrencyModalVisible, setBudgetCurrencyModalVisible] = useState(false);
   const [currencies, setCurrencies] = useState<VacationCurrency[]>(
     vacation?.currencies ?? [{ code: 'USD', isDefault: true }]
   );
@@ -167,6 +174,11 @@ export default function VacationFormScreen() {
   );
 
   const canSave = name.trim().length > 0;
+  const parsedBudgetAmount = Number(budgetAmount.trim().replace(',', '.'));
+  const budget: VacationBudget | null =
+    Number.isFinite(parsedBudgetAmount) && parsedBudgetAmount > 0
+      ? { amount: parsedBudgetAmount, currencyCode: budgetCurrencyCode }
+      : null;
   const nameInputRef = useRef<TextInput>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const companionInputNodeRef = useRef<unknown>(null);
@@ -210,9 +222,9 @@ export default function VacationFormScreen() {
       return;
     }
     if (!isEditing || !vacation || !canSave) return;
-    updateVacation(vacation.id, name.trim(), currencies, leadCurrency, companions);
+    updateVacation(vacation.id, name.trim(), currencies, leadCurrency, companions, budget);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, currencies, leadCurrency, companions]);
+  }, [name, currencies, leadCurrency, companions, budgetAmount, budgetCurrencyCode]);
 
   useEffect(() => {
     if (leadCurrency) ensureRates(leadCurrency);
@@ -412,7 +424,8 @@ export default function VacationFormScreen() {
         currencies,
         leadCurrency,
         companions,
-        groupBy
+        groupBy,
+        budget
       );
       if (createdVacation.summaryImageUrl) {
         try {
@@ -533,6 +546,34 @@ export default function VacationFormScreen() {
                 accessibilityState={{ disabled: saving }}
               />
             </View>
+          </View>
+
+          <Text style={[styles.sectionLabel, { textAlign }]}>{t.vacations.budgetLabel}</Text>
+          <Text style={[styles.sectionHint, { textAlign }]}>{t.vacations.budgetHint}</Text>
+          <View style={[styles.budgetCard, { flexDirection: rowDirection }]}>
+            <View style={styles.budgetIconBadge}>
+              <Ionicons name="pie-chart-outline" size={16} color={colors.primary} />
+            </View>
+            <TextInput
+              style={[styles.budgetInput, { textAlign }]}
+              value={budgetAmount}
+              onChangeText={setBudgetAmount}
+              keyboardType="decimal-pad"
+              placeholder={t.vacations.budgetPlaceholder}
+              placeholderTextColor={colors.textMuted}
+              onFocus={(e) => scrollToFocusedInput(scrollViewRef, e)}
+              accessibilityLabel={t.vacations.budgetLabel}
+            />
+            <TouchableOpacity
+              style={[styles.budgetCurrencyButton, { flexDirection: rowDirection }]}
+              onPress={() => setBudgetCurrencyModalVisible(true)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`${t.vacations.budgetCurrencyLabel}, ${budgetCurrencyCode}`}
+            >
+              <Text style={styles.budgetCurrencyText}>{budgetCurrencyCode}</Text>
+              <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
+            </TouchableOpacity>
           </View>
 
           <Text style={[styles.sectionLabel, { textAlign }]}>{t.vacations.currenciesLabel}</Text>
@@ -943,6 +984,13 @@ export default function VacationFormScreen() {
         </View>
       </Modal>
 
+      <CurrencyPickerModal
+        visible={budgetCurrencyModalVisible}
+        selectedCode={budgetCurrencyCode}
+        onSelect={setBudgetCurrencyCode}
+        onClose={() => setBudgetCurrencyModalVisible(false)}
+      />
+
       <Modal
         visible={pendingDeleteCompanion !== null}
         transparent
@@ -1148,6 +1196,39 @@ const styles = StyleSheet.create({
   nameTextBlock: { flex: 1, minWidth: 0 },
   fieldLabel: { fontSize: 12, color: colors.textMuted, fontWeight: '500' },
   nameInput: { fontSize: 15, fontWeight: '600', color: colors.text, padding: 0, marginTop: 1 },
+  budgetCard: {
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    marginBottom: 24,
+    borderRadius: 20,
+    backgroundColor: colors.card,
+  },
+  budgetIconBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#F0F0F1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  budgetInput: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.text,
+    paddingVertical: 8,
+  },
+  budgetCurrencyButton: {
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 12,
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: colors.background,
+  },
+  budgetCurrencyText: { fontSize: 14, fontWeight: '700', color: colors.text },
   sectionLabel: {
     fontSize: 12,
     fontWeight: '700',

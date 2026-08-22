@@ -150,6 +150,11 @@ export default function ManageExpensesScreen() {
     if (leadCurrency) ensureRates(leadCurrency);
   }, [leadCurrency, ensureRates]);
 
+  const budget = selectedVacation?.budget ?? null;
+  useEffect(() => {
+    if (budget?.currencyCode) ensureRates(budget.currencyCode);
+  }, [budget?.currencyCode, ensureRates]);
+
   const convert = (expense: Expense, amount: number) =>
     selectedVacation
       ? convertForVacationCurrency(selectedVacation, rawConvert, expense.currencyCode, expense.rateSnapshot, amount)
@@ -173,6 +178,27 @@ export default function ManageExpensesScreen() {
   const leadTotal = leadCurrency ? convertedTotal(filteredExpenses, convert) : null;
   const statisticsTotalsByCurrency = totalsByCurrencyFor(statisticsExpenses);
   const statisticsLeadTotal = leadCurrency ? convertedTotal(statisticsExpenses, convert) : null;
+  const budgetSpent = budget
+    ? statisticsExpenses.reduce<number | null>((total, expense) => {
+        if (total === null) return null;
+        let converted: number | null;
+        if (expense.currencyCode === budget.currencyCode) {
+          converted = expense.amount;
+        } else if (budget.currencyCode === leadCurrency) {
+          converted = convert(expense, expense.amount);
+        } else if (expense.rateSnapshot) {
+          const fromRate = expense.rateSnapshot.rates[expense.currencyCode];
+          const toRate = expense.rateSnapshot.rates[budget.currencyCode];
+          converted = fromRate && toRate ? (expense.amount / fromRate) * toRate : null;
+        } else {
+          converted = rawConvert(expense.amount, expense.currencyCode, budget.currencyCode);
+        }
+        return converted === null ? null : total + converted;
+      }, 0)
+    : null;
+  const budgetPercentage = budget && budgetSpent !== null
+    ? (budgetSpent / budget.amount) * 100
+    : null;
   const methodName = (id: string): string | null => {
     const method = methods.find((m) => m.id === id);
     return method ? paymentMethodName(method, t) : null;
@@ -825,24 +851,43 @@ export default function ManageExpensesScreen() {
             >
               <View style={styles.statisticsGrabber} />
             </TouchableOpacity>
-            <View style={[styles.statisticsHeader, { flexDirection: rowDirection }]}>
-              <Text
-                style={[styles.statisticsTitle, { textAlign }]}
-                accessibilityRole="header"
-              >
-                {t.manage.statistics}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setStatisticsVisible(false)}
-                style={styles.statisticsCloseButton}
-                accessibilityRole="button"
-                accessibilityLabel={t.common.close}
-              >
-                <Ionicons name="close" size={16} color={colors.textMuted} />
-              </TouchableOpacity>
-            </View>
             <ScrollView contentContainerStyle={styles.statisticsContent}>
               <View style={styles.statisticsSection}>
+                {budget && budgetSpent !== null && budgetPercentage !== null ? (
+                  <View style={styles.budgetProgressSection}>
+                    <View style={[styles.budgetProgressHeader, { flexDirection: rowDirection }]}>
+                      <View style={styles.budgetProgressAmounts}>
+                        <Text style={[styles.statisticsSectionTitle, { textAlign }]}>
+                          {t.vacations.budgetLabel}
+                        </Text>
+                        <Text style={[styles.budgetProgressValue, { textAlign }]}>
+                          {formatAmount(budgetSpent, budget.currencyCode)} / {formatAmount(budget.amount, budget.currencyCode)}
+                        </Text>
+                      </View>
+                      <Text
+                        style={[
+                          styles.budgetProgressPercentage,
+                          budgetPercentage > 100 && styles.budgetProgressPercentageOver,
+                        ]}
+                      >
+                        {budgetPercentage.toFixed(1)}%
+                      </Text>
+                    </View>
+                    <View
+                      style={styles.budgetProgressTrack}
+                      accessibilityRole="progressbar"
+                      accessibilityValue={{ min: 0, max: 100, now: Math.min(budgetPercentage, 100) }}
+                    >
+                      <View
+                        style={[
+                          styles.budgetProgressFill,
+                          { width: `${Math.min(Math.max(budgetPercentage, 0), 100)}%` },
+                          budgetPercentage > 100 && styles.budgetProgressFillOver,
+                        ]}
+                      />
+                    </View>
+                  </View>
+                ) : null}
                 <Text style={[styles.statisticsSectionTitle, { textAlign }]}>
                   {t.manage.dailyAverage}
                 </Text>
@@ -1170,29 +1215,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#D4D4D8',
   },
-  statisticsHeader: {
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  statisticsCloseButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F0F0F1',
-    flexShrink: 0,
-  },
-  statisticsTitle: {
-    flex: 1,
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
-    letterSpacing: -0.2,
-  },
   statisticsContent: { padding: 20, gap: 16, paddingBottom: 110 },
   statisticsSection: { backgroundColor: colors.card, borderRadius: 20, padding: 18 },
   statisticsSectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
@@ -1200,6 +1222,26 @@ const styles = StyleSheet.create({
   statisticsAverageOther: { marginTop: 4, fontSize: 20, fontWeight: '700', color: colors.text },
   statisticsAverageLead: { marginTop: 5, fontSize: 14, color: colors.textMuted },
   statisticsHint: { marginTop: 4, fontSize: 13, color: colors.textMuted },
+  budgetProgressSection: {
+    paddingBottom: 20,
+    marginBottom: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  budgetProgressHeader: { alignItems: 'center', justifyContent: 'space-between', gap: 16 },
+  budgetProgressAmounts: { flex: 1, minWidth: 0 },
+  budgetProgressValue: { marginTop: 6, fontSize: 18, fontWeight: '700', color: colors.text },
+  budgetProgressPercentage: { fontSize: 22, fontWeight: '800', color: '#159C87' },
+  budgetProgressPercentageOver: { color: colors.danger },
+  budgetProgressTrack: {
+    height: 12,
+    marginTop: 14,
+    borderRadius: 999,
+    backgroundColor: '#E4E4E7',
+    overflow: 'hidden',
+  },
+  budgetProgressFill: { height: '100%', borderRadius: 999, backgroundColor: '#159C87' },
+  budgetProgressFillOver: { backgroundColor: colors.danger },
   dailyChartHeader: { marginTop: 24, gap: 12 },
   dailyChartTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
   dailyChartPeriods: { gap: 8, flexWrap: 'wrap' },

@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { Vacation, VacationCurrency } from '../types/vacation';
+import { Vacation, VacationBudget, VacationCurrency } from '../types/vacation';
 import { TravelCompanion } from '../types/companion';
 import { ExpenseGrouping, isExpenseGrouping } from '../types/expenseGrouping';
 import { type DestinationImageResult, findDestinationImage } from '../utils/destinationImage';
@@ -47,6 +47,10 @@ function normalizeVacation(raw: any, legacyGroupBy: unknown = 'date'): Vacation 
     defaultCurrency: undefined,
     fixedExchangeRate: undefined,
     companions: raw.companions ?? [],
+    budget:
+      raw.budget && Number.isFinite(raw.budget.amount) && raw.budget.amount > 0 && raw.budget.currencyCode
+        ? raw.budget
+        : null,
     groupBy: isExpenseGrouping(raw.groupBy)
       ? raw.groupBy
       : isExpenseGrouping(legacyGroupBy)
@@ -82,20 +86,23 @@ interface VacationsContextValue {
     currencies: VacationCurrency[],
     leadCurrency: string | null,
     companions: TravelCompanion[],
-    groupBy: ExpenseGrouping
+    groupBy: ExpenseGrouping,
+    budget: VacationBudget | null
   ) => Promise<Vacation>;
   updateVacation: (
     id: string,
     name: string,
     currencies: VacationCurrency[],
     leadCurrency: string | null,
-    companions: TravelCompanion[]
+    companions: TravelCompanion[],
+    budget: VacationBudget | null
   ) => Promise<Vacation>;
   deleteVacation: (id: string) => Promise<void>;
   setVacationSummaryImage: (id: string, image: DestinationImageResult | null) => void;
   setVacationCurrencyFixedRate: (id: string, currencyCode: string, rate: number | null) => void;
   setVacationGroupBy: (id: string, groupBy: ExpenseGrouping) => void;
   setActiveVacationId: (id: string) => void;
+  importVacations: (incoming: Vacation[]) => Promise<void>;
 }
 
 const VacationsContext = createContext<VacationsContextValue | undefined>(undefined);
@@ -211,7 +218,8 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
       currencies: VacationCurrency[],
       leadCurrency: string | null,
       companions: TravelCompanion[],
-      groupBy: ExpenseGrouping
+      groupBy: ExpenseGrouping,
+      budget: VacationBudget | null
     ) => {
       const vacation: Vacation = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -220,6 +228,7 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
         leadCurrency,
         groupBy,
         companions,
+        budget,
         createdAt: new Date().toISOString(),
       };
       const image = await findDestinationImage(vacation.name);
@@ -242,12 +251,13 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
       name: string,
       currencies: VacationCurrency[],
       leadCurrency: string | null,
-      companions: TravelCompanion[]
+      companions: TravelCompanion[],
+      budget: VacationBudget | null
     ) => {
       let updated: Vacation | undefined;
       const next = vacations.map((v) => {
         if (v.id !== id) return v;
-        updated = { ...v, name: name.trim(), currencies: clampCurrencies(currencies), leadCurrency, companions };
+        updated = { ...v, name: name.trim(), currencies: clampCurrencies(currencies), leadCurrency, companions, budget };
         return updated;
       });
       setVacations(next);
@@ -273,6 +283,17 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
     [vacations, activeVacationId]
   );
 
+  const importVacations = useCallback(
+    async (incoming: Vacation[]) => {
+      const incomingIds = new Set(incoming.map((vacation) => vacation.id));
+      const next = [...vacations.filter((vacation) => !incomingIds.has(vacation.id)), ...incoming];
+      setVacations(next);
+      await AsyncStorage.setItem(VACATIONS_KEY, JSON.stringify(next));
+      if (!activeVacationId && incoming[0]) setActiveVacationId(incoming[0].id);
+    },
+    [vacations, activeVacationId, setActiveVacationId]
+  );
+
   const activeVacation = useMemo(
     () => vacations.find((v) => v.id === activeVacationId) ?? null,
     [vacations, activeVacationId]
@@ -291,6 +312,7 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
       setVacationCurrencyFixedRate,
       setVacationGroupBy,
       setActiveVacationId,
+      importVacations,
     }),
     [
       vacations,
@@ -304,6 +326,7 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
       setVacationCurrencyFixedRate,
       setVacationGroupBy,
       setActiveVacationId,
+      importVacations,
     ]
   );
 

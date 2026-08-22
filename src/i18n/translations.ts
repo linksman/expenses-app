@@ -124,6 +124,10 @@ export interface Translations {
     editTitle: string;
     nameLabel: string;
     namePlaceholder: string;
+    budgetLabel: string;
+    budgetHint: string;
+    budgetPlaceholder: string;
+    budgetCurrencyLabel: string;
     currenciesLabel: string;
     currenciesHint: string;
     addCurrencyLabel: string;
@@ -249,6 +253,10 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       editTitle: 'Edit Vacation',
       nameLabel: 'Vacation name \\ destination',
       namePlaceholder: 'e.g. Trip to Paris 2026',
+      budgetLabel: 'Budget',
+      budgetHint: 'Optional — choose any currency',
+      budgetPlaceholder: 'No budget',
+      budgetCurrencyLabel: 'Budget currency',
       currenciesLabel: 'Currencies',
       currenciesHint: 'Currencies you’ll log expenses in for this vacation',
       addCurrencyLabel: 'Add Currency',
@@ -391,6 +399,10 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       editTitle: 'Modifier le séjour',
       nameLabel: 'Nom du séjour \\ destination',
       namePlaceholder: 'ex. Voyage à Paris 2026',
+      budgetLabel: 'Budget',
+      budgetHint: 'Facultatif — choisissez n’importe quelle devise',
+      budgetPlaceholder: 'Aucun budget',
+      budgetCurrencyLabel: 'Devise du budget',
       currenciesLabel: 'Devises du séjour',
       currenciesHint: 'Devises utilisées pour les dépenses de ce séjour',
       addCurrencyLabel: 'Ajouter une devise',
@@ -535,6 +547,10 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       editTitle: 'Urlaub bearbeiten',
       nameLabel: 'Urlaubsname \\ Reiseziel',
       namePlaceholder: 'z. B. Reise nach Paris 2026',
+      budgetLabel: 'Budget',
+      budgetHint: 'Optional — beliebige Währung auswählen',
+      budgetPlaceholder: 'Kein Budget',
+      budgetCurrencyLabel: 'Budgetwährung',
       currenciesLabel: 'Reisewährungen',
       currenciesHint: 'Währungen, in denen du Ausgaben für diesen Urlaub erfasst',
       addCurrencyLabel: 'Währung hinzufügen',
@@ -679,6 +695,10 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       editTitle: 'Editar viaje',
       nameLabel: 'Nombre del viaje \\ destino',
       namePlaceholder: 'p. ej. Viaje a París 2026',
+      budgetLabel: 'Presupuesto',
+      budgetHint: 'Opcional — elige cualquier moneda',
+      budgetPlaceholder: 'Sin presupuesto',
+      budgetCurrencyLabel: 'Moneda del presupuesto',
       currenciesLabel: 'Monedas del viaje',
       currenciesHint: 'Monedas en las que registrarás los gastos de este viaje',
       addCurrencyLabel: 'Añadir moneda',
@@ -821,6 +841,10 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       editTitle: 'עריכת חופשה',
       nameLabel: 'שם החופשה \\ יעד',
       namePlaceholder: 'לדוגמה: טיול לפריז 2026',
+      budgetLabel: 'תקציב',
+      budgetHint: 'אופציונלי — ניתן לבחור כל מטבע',
+      budgetPlaceholder: 'ללא תקציב',
+      budgetCurrencyLabel: 'מטבע התקציב',
       currenciesLabel: 'מטבעות הטיול',
       currenciesHint: 'המטבעות שבהם יירשמו ההוצאות בחופשה זו',
       addCurrencyLabel: 'הוספת מטבע',

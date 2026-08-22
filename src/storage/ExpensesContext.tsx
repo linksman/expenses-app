@@ -58,6 +58,7 @@ interface ExpensesContextValue {
   deleteExpense: (id: string) => Promise<void>;
   setExpenseStatisticsExcluded: (id: string, excluded: boolean) => Promise<void>;
   deleteExpensesByVacation: (vacationId: string) => Promise<void>;
+  importExpenses: (incoming: Expense[]) => Promise<void>;
 }
 
 const ExpensesContext = createContext<ExpensesContextValue | undefined>(undefined);
@@ -174,6 +175,14 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
     [expenses, persist]
   );
 
+  const importExpenses = useCallback(
+    async (incoming: Expense[]) => {
+      const incomingIds = new Set(incoming.map((expense) => expense.id));
+      await persist([...incoming, ...expenses.filter((expense) => !incomingIds.has(expense.id))]);
+    },
+    [expenses, persist]
+  );
+
   const value = useMemo(
     () => ({
       expenses,
@@ -183,8 +192,9 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
       deleteExpense,
       setExpenseStatisticsExcluded,
       deleteExpensesByVacation,
+      importExpenses,
     }),
-    [expenses, loading, addExpense, updateExpense, deleteExpense, setExpenseStatisticsExcluded, deleteExpensesByVacation]
+    [expenses, loading, addExpense, updateExpense, deleteExpense, setExpenseStatisticsExcluded, deleteExpensesByVacation, importExpenses]
   );
 
   return <ExpensesContext.Provider value={value}>{children}</ExpensesContext.Provider>;
