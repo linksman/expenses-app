@@ -751,7 +751,11 @@ export default function ManageExpensesScreen() {
                       : formatAmount(item.amount, item.currencyCode)}
                   </Text>
                   {leadCurrency && leadCurrency !== item.currencyCode && (() => {
-                    const converted = convert(item, item.amount);
+                    const amountToConvert =
+                      groupBy === 'collaborators' && item.split.length > 0
+                        ? companionShare(item, section.key)
+                        : item.amount;
+                    const converted = convert(item, amountToConvert);
                     return converted !== null ? (
                       <Text style={styles.rowConverted}>
                         ≈ {formatAmount(converted, leadCurrency)}
@@ -817,6 +821,12 @@ export default function ManageExpensesScreen() {
               <View style={styles.statisticsGrabber} />
             </TouchableOpacity>
             <View style={[styles.statisticsHeader, { flexDirection: rowDirection }]}>
+              <Text
+                style={[styles.statisticsTitle, { textAlign }]}
+                accessibilityRole="header"
+              >
+                {t.manage.statistics}
+              </Text>
               <TouchableOpacity
                 onPress={() => setStatisticsVisible(false)}
                 style={styles.statisticsCloseButton}
@@ -825,12 +835,6 @@ export default function ManageExpensesScreen() {
               >
                 <Ionicons name="close" size={16} color={colors.textMuted} />
               </TouchableOpacity>
-              <Text
-                style={[styles.statisticsTitle, { textAlign }]}
-                accessibilityRole="header"
-              >
-                {t.manage.statistics}
-              </Text>
             </View>
             <ScrollView contentContainerStyle={styles.statisticsContent}>
               <View style={styles.statisticsSection}>

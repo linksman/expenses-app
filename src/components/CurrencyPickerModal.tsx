@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Dimensions, Easing, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../theme/colors';
-import { CURRENCIES } from '../types/currency';
+import { CURRENCIES, currencyColors } from '../types/currency';
 import { useLanguage } from '../storage/LanguageContext';
 
 interface Props {
@@ -104,6 +104,7 @@ export default function CurrencyPickerModal({
             }
             renderItem={({ item }) => {
               const selected = item.code === selectedCode;
+              const itemColors = currencyColors(item.code);
               return (
                 <TouchableOpacity
                   style={[styles.row, selected && styles.rowSelected, { flexDirection: rowDirection }]}
@@ -116,8 +117,10 @@ export default function CurrencyPickerModal({
                   accessibilityLabel={`${item.code}, ${item.name}`}
                   accessibilityState={{ selected }}
                 >
-                  <View style={[styles.iconBadge, selected && styles.iconBadgeSelected]}>
-                    <Text style={[styles.symbol, selected && styles.symbolSelected]}>
+                  <View
+                    style={[styles.iconBadge, { backgroundColor: itemColors.backgroundColor }]}
+                  >
+                    <Text style={[styles.symbol, { color: itemColors.color }]}>
                       {item.symbol}
                     </Text>
                   </View>
@@ -197,9 +200,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
   },
-  iconBadgeSelected: { backgroundColor: '#E4E4E7' },
   symbol: { fontSize: 15, fontWeight: '700', color: '#8B8B96' },
-  symbolSelected: { color: '#27272A' },
   rowMiddle: { flex: 1, minWidth: 0 },
   code: { fontSize: 15, fontWeight: '600', color: colors.text },
   codeSelected: { fontWeight: '700' },

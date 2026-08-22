@@ -376,6 +376,14 @@ export default function AddExpenseScreen() {
             <View style={styles.grabber} />
           </TouchableOpacity>
           <View style={[styles.header, { flexDirection: rowDirection }]}>
+            <Text
+              style={[styles.headerTitle, { textAlign }]}
+              onPress={handleClose}
+              accessibilityRole="button"
+              accessibilityLabel={`${isEditing ? t.add.editTitle : t.add.title}, ${t.common.close}`}
+            >
+              {isEditing ? t.add.editTitle : t.add.title}
+            </Text>
             <TouchableOpacity
               onPress={handleClose}
               style={styles.closeButton}
@@ -385,14 +393,6 @@ export default function AddExpenseScreen() {
             >
               <Ionicons name="close" size={16} color={colors.textMuted} />
             </TouchableOpacity>
-            <Text
-              style={[styles.headerTitle, { textAlign }]}
-              onPress={handleClose}
-              accessibilityRole="button"
-              accessibilityLabel={`${isEditing ? t.add.editTitle : t.add.title}, ${t.common.close}`}
-            >
-              {isEditing ? t.add.editTitle : t.add.title}
-            </Text>
           </View>
           <View style={{ flex: 1 }}>
           <KeyboardAvoidingView

@@ -81,7 +81,8 @@ interface VacationsContextValue {
     name: string,
     currencies: VacationCurrency[],
     leadCurrency: string | null,
-    companions: TravelCompanion[]
+    companions: TravelCompanion[],
+    groupBy: ExpenseGrouping
   ) => Promise<Vacation>;
   updateVacation: (
     id: string,
@@ -209,14 +210,15 @@ export function VacationsProvider({ children }: { children: React.ReactNode }) {
       name: string,
       currencies: VacationCurrency[],
       leadCurrency: string | null,
-      companions: TravelCompanion[]
+      companions: TravelCompanion[],
+      groupBy: ExpenseGrouping
     ) => {
       const vacation: Vacation = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         name: name.trim(),
         currencies: clampCurrencies(currencies),
         leadCurrency,
-        groupBy: 'date',
+        groupBy,
         companions,
         createdAt: new Date().toISOString(),
       };

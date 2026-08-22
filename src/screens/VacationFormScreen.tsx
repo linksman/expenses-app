@@ -25,12 +25,11 @@ import { useVacations } from '../storage/VacationsContext';
 import { useExpenses } from '../storage/ExpensesContext';
 import { useExchangeRates } from '../storage/ExchangeRatesContext';
 import { usePaymentMethods } from '../storage/PaymentMethodsContext';
-import { currencyInfo } from '../types/currency';
+import { CURRENCIES, currencyColors, currencyInfo } from '../types/currency';
 import { TravelCompanion } from '../types/companion';
 import { VacationCurrency } from '../types/vacation';
 import { EXPENSE_GROUPINGS, ExpenseGrouping } from '../types/expenseGrouping';
 import CurrencyPickerModal from '../components/CurrencyPickerModal';
-import VacationCurrenciesPickerModal from '../components/VacationCurrenciesPickerModal';
 import { companionAvatarColor } from '../utils/companionAvatar';
 import { scrollNodeIntoViewAboveKeyboard, scrollToFocusedInput } from '../utils/scrollToFocusedInput';
 import { findDestinationImage } from '../utils/destinationImage';
@@ -153,9 +152,10 @@ export default function VacationFormScreen() {
     vacation?.currencies ?? [{ code: 'USD', isDefault: true }]
   );
   const [leadCurrency, setLeadCurrency] = useState<string | null>(vacation?.leadCurrency ?? null);
+  const [groupBy, setGroupBy] = useState<ExpenseGrouping>(vacation?.groupBy ?? 'date');
   const [companions, setCompanions] = useState<TravelCompanion[]>(vacation?.companions ?? []);
   const [newCompanionName, setNewCompanionName] = useState('');
-  const [currenciesModalVisible, setCurrenciesModalVisible] = useState(false);
+  const [addCurrencyModalVisible, setAddCurrencyModalVisible] = useState(false);
   const [leadCurrencyModalVisible, setLeadCurrencyModalVisible] = useState(false);
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -217,8 +217,49 @@ export default function VacationFormScreen() {
     if (leadCurrency) ensureRates(leadCurrency);
   }, [leadCurrency, ensureRates]);
 
-  const defaultCurrency = currencies.find((c) => c.isDefault)?.code ?? currencies[0]?.code ?? 'USD';
   const nonLeadCurrencies = leadCurrency ? currencies.filter((c) => c.code !== leadCurrency) : [];
+  const addableCurrencyCodes = CURRENCIES.map((c) => c.code).filter(
+    (code) => !currencies.some((c) => c.code === code)
+  );
+
+  const [currencyHint, setCurrencyHint] = useState<string | null>(null);
+  const currencyHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (currencyHintTimerRef.current) clearTimeout(currencyHintTimerRef.current);
+    };
+  }, []);
+  const flashCurrencyHint = (message: string) => {
+    setCurrencyHint(message);
+    if (currencyHintTimerRef.current) clearTimeout(currencyHintTimerRef.current);
+    currencyHintTimerRef.current = setTimeout(() => setCurrencyHint(null), 2500);
+  };
+
+  const setDefaultCurrency = (code: string) => {
+    setCurrencies((prev) => prev.map((c) => ({ ...c, isDefault: c.code === code })));
+  };
+
+  const addCurrency = (code: string) => {
+    if (!code) return;
+    setCurrencies((prev) => [...prev, { code, isDefault: prev.length === 0 }]);
+  };
+
+  const removeCurrency = (code: string) => {
+    if (currencyCodesInUse.has(code)) {
+      flashCurrencyHint(t.vacations.cannotRemoveCurrencyInUse);
+      return;
+    }
+    if (currencies.length <= 1) {
+      flashCurrencyHint(t.vacations.cannotRemoveLastCurrency);
+      return;
+    }
+    setCurrencies((prev) => {
+      const removed = prev.find((c) => c.code === code);
+      const next = prev.filter((c) => c.code !== code);
+      if (removed?.isDefault && next.length > 0) next[0] = { ...next[0], isDefault: true };
+      return next;
+    });
+  };
 
   const imageLookupTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -344,7 +385,8 @@ export default function VacationFormScreen() {
         name.trim(),
         currencies,
         leadCurrency,
-        companions
+        companions,
+        groupBy
       );
       if (createdVacation.summaryImageUrl) {
         try {
@@ -410,6 +452,14 @@ export default function VacationFormScreen() {
           </TouchableOpacity>
           <SafeAreaView style={styles.safe} edges={[]} accessibilityLanguage={language.locale}>
       <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
+        <Text
+          style={[styles.title, { textAlign }]}
+          onPress={handleClose}
+          accessibilityRole="button"
+          accessibilityLabel={`${isEditing ? t.vacations.editTitle : t.vacations.createTitle}, ${t.common.close}`}
+        >
+          {isEditing ? t.vacations.editTitle : t.vacations.createTitle}
+        </Text>
         <TouchableOpacity
           style={styles.backButton}
           onPress={handleClose}
@@ -421,14 +471,6 @@ export default function VacationFormScreen() {
         >
           <Ionicons name="close" size={16} color={colors.textMuted} />
         </TouchableOpacity>
-        <Text
-          style={[styles.title, { textAlign }]}
-          onPress={handleClose}
-          accessibilityRole="button"
-          accessibilityLabel={`${isEditing ? t.vacations.editTitle : t.vacations.createTitle}, ${t.common.close}`}
-        >
-          {isEditing ? t.vacations.editTitle : t.vacations.createTitle}
-        </Text>
       </View>
       <View style={{ flex: 1 }}>
       <KeyboardAvoidingView
@@ -469,24 +511,70 @@ export default function VacationFormScreen() {
 
           <Text style={[styles.sectionLabel, { textAlign }]}>{t.vacations.currenciesLabel}</Text>
           <Text style={[styles.sectionHint, { textAlign }]}>{t.vacations.currenciesHint}</Text>
+          {currencyHint && (
+            <Text style={[styles.blockedHint, { textAlign }]}>{currencyHint}</Text>
+          )}
           <View style={styles.card}>
+            {currencies.map((c) => {
+              const info = currencyInfo(c.code);
+              const badgeColors = currencyColors(c.code);
+              return (
+                <View
+                  key={c.code}
+                  style={[styles.row, styles.rowBorder, { flexDirection: rowDirection }]}
+                >
+                  <View
+                    style={[
+                      styles.currencyIconBadge,
+                      { backgroundColor: badgeColors.backgroundColor },
+                    ]}
+                  >
+                    <Text style={[styles.currencyIconText, { color: badgeColors.color }]}>
+                      {info.symbol}
+                    </Text>
+                  </View>
+                  <View style={styles.rowTextBlock}>
+                    <Text style={[styles.rowValue, { textAlign }]}>
+                      {c.code} · {info.name}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setDefaultCurrency(c.code)}
+                    disabled={c.isDefault}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t.vacations.setAsDefaultLabel}, ${c.code}`}
+                    accessibilityState={{ disabled: c.isDefault }}
+                  >
+                    <Text style={c.isDefault ? styles.defaultText : styles.setDefaultText}>
+                      {c.isDefault ? t.vacations.defaultBadgeLabel : t.vacations.setAsDefaultLabel}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => removeCurrency(c.code)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={styles.currencyRemoveButton}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t.manage.delete}, ${c.code}`}
+                  >
+                    <Ionicons name="close" size={14} color={colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+
             <TouchableOpacity
-              style={[styles.row, styles.rowBorder, { flexDirection: rowDirection }]}
-              onPress={() => setCurrenciesModalVisible(true)}
+              style={[styles.row, { flexDirection: rowDirection }]}
+              onPress={() => setAddCurrencyModalVisible(true)}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={`${t.vacations.currenciesLabel}, ${currencies.map((c) => c.code).join(', ')}`}
+              accessibilityLabel={t.vacations.addCurrencyLabel}
             >
               <View style={[styles.currencyIconBadge, { backgroundColor: '#F0F0F1' }]}>
-                <Text style={[styles.currencyIconText, { color: colors.primary }]}>
-                  {currencyInfo(defaultCurrency).symbol}
-                </Text>
+                <Ionicons name="add" size={18} color={colors.primary} />
               </View>
               <View style={styles.rowTextBlock}>
-                <Text style={[styles.fieldLabel, { textAlign }]}>{t.vacations.currenciesLabel}</Text>
-                <Text style={[styles.rowValue, { textAlign }]}>
-                  {currencies.map((c) => c.code).join('  ·  ')}
-                </Text>
+                <Text style={[styles.rowValue, { textAlign }]}>{t.vacations.addCurrencyLabel}</Text>
               </View>
               <Ionicons
                 name={isRTL ? 'chevron-back' : 'chevron-forward'}
@@ -494,11 +582,14 @@ export default function VacationFormScreen() {
                 color={colors.border}
               />
             </TouchableOpacity>
+          </View>
 
+          <Text style={[styles.sectionLabel, { textAlign }]}>{t.vacations.leadCurrency}</Text>
+          <View style={styles.card}>
             <TouchableOpacity
               style={[
                 styles.row,
-                isEditing && leadCurrency && nonLeadCurrencies.length > 0 && styles.rowBorder,
+                leadCurrency && nonLeadCurrencies.length > 0 && styles.rowBorder,
                 { flexDirection: rowDirection },
               ]}
               onPress={() => setLeadCurrencyModalVisible(true)}
@@ -506,13 +597,30 @@ export default function VacationFormScreen() {
               accessibilityRole="button"
               accessibilityLabel={`${t.vacations.leadCurrency}, ${leadCurrency ?? t.vacations.leadCurrencyNone}`}
             >
-              <View style={[styles.currencyIconBadge, { backgroundColor: '#E7F6F1' }]}>
-                <Text style={[styles.currencyIconText, { color: '#159C87' }]}>
+              <View
+                style={[
+                  styles.currencyIconBadge,
+                  {
+                    backgroundColor: leadCurrency
+                      ? currencyColors(leadCurrency).backgroundColor
+                      : '#F0F0F1',
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.currencyIconText,
+                    {
+                      color: leadCurrency
+                        ? currencyColors(leadCurrency).color
+                        : colors.textMuted,
+                    },
+                  ]}
+                >
                   {leadCurrency ? currencyInfo(leadCurrency).symbol : '—'}
                 </Text>
               </View>
               <View style={styles.rowTextBlock}>
-                <Text style={[styles.fieldLabel, { textAlign }]}>{t.vacations.leadCurrency}</Text>
                 <Text style={[styles.rowValue, { textAlign }]}>
                   {leadCurrency ? leadCurrency : t.vacations.leadCurrencyNone}
                 </Text>
@@ -524,8 +632,7 @@ export default function VacationFormScreen() {
               />
             </TouchableOpacity>
 
-            {isEditing &&
-              leadCurrency &&
+            {leadCurrency &&
               nonLeadCurrencies.map((vc, index) => (
                 <View key={vc.code} style={index < nonLeadCurrencies.length - 1 ? styles.rowBorder : undefined}>
                   <FixedRateRow
@@ -534,8 +641,7 @@ export default function VacationFormScreen() {
                     rate={vc.fixedRate ?? null}
                     automaticRate={rawConvert(1, vc.code, leadCurrency)}
                     onChange={(nextRate) => {
-                      if (!vacation) return;
-                      setVacationCurrencyFixedRate(vacation.id, vc.code, nextRate);
+                      if (vacation) setVacationCurrencyFixedRate(vacation.id, vc.code, nextRate);
                       setCurrencies((prev) =>
                         prev.map((c) => (c.code === vc.code ? { ...c, fixedRate: nextRate } : c))
                       );
@@ -545,40 +651,43 @@ export default function VacationFormScreen() {
               ))}
           </View>
 
+          <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.groupBy}</Text>
+          <View style={styles.card}>
+            {EXPENSE_GROUPINGS.map((option, index) => (
+              <TouchableOpacity
+                key={option}
+                style={[
+                  styles.optionRow,
+                  { flexDirection: rowDirection },
+                  index < EXPENSE_GROUPINGS.length - 1 && styles.rowBorder,
+                ]}
+                onPress={() => {
+                  setGroupBy(option);
+                  if (vacation) setVacationGroupBy(vacation.id, option);
+                }}
+                activeOpacity={0.7}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: groupBy === option }}
+              >
+                <Ionicons
+                  name={GROUPING_ICONS[option]}
+                  size={19}
+                  color={colors.textMuted}
+                />
+                <Text style={[styles.optionLabel, { textAlign }]}>
+                  {t.settings.groupByOptions[option]}
+                </Text>
+                <Ionicons
+                  name={groupBy === option ? 'radio-button-on' : 'radio-button-off'}
+                  size={20}
+                  color={groupBy === option ? colors.primary : colors.textMuted}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+
           {isEditing && vacation && (
             <>
-              <Text style={[styles.sectionLabel, { textAlign }]}>{t.settings.groupBy}</Text>
-              <View style={styles.card}>
-                {EXPENSE_GROUPINGS.map((option, index) => (
-                  <TouchableOpacity
-                    key={option}
-                    style={[
-                      styles.optionRow,
-                      { flexDirection: rowDirection },
-                      index < EXPENSE_GROUPINGS.length - 1 && styles.rowBorder,
-                    ]}
-                    onPress={() => setVacationGroupBy(vacation.id, option)}
-                    activeOpacity={0.7}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: vacation.groupBy === option }}
-                  >
-                    <Ionicons
-                      name={GROUPING_ICONS[option]}
-                      size={19}
-                      color={colors.textMuted}
-                    />
-                    <Text style={[styles.optionLabel, { textAlign }]}>
-                      {t.settings.groupByOptions[option]}
-                    </Text>
-                    <Ionicons
-                      name={vacation.groupBy === option ? 'radio-button-on' : 'radio-button-off'}
-                      size={20}
-                      color={vacation.groupBy === option ? colors.primary : colors.textMuted}
-                    />
-                  </TouchableOpacity>
-                ))}
-              </View>
-
               <Text style={[styles.sectionLabel, { textAlign }]}>
                 {t.settings.exportCurrentView}
               </Text>
@@ -826,12 +935,12 @@ export default function VacationFormScreen() {
         </View>
       </Modal>
 
-      <VacationCurrenciesPickerModal
-        visible={currenciesModalVisible}
-        currencies={currencies}
-        onChange={setCurrencies}
-        onClose={() => setCurrenciesModalVisible(false)}
-        currencyCodesInUse={currencyCodesInUse}
+      <CurrencyPickerModal
+        visible={addCurrencyModalVisible}
+        selectedCode=""
+        onSelect={addCurrency}
+        onClose={() => setAddCurrencyModalVisible(false)}
+        restrictToCodes={addableCurrencyCodes}
       />
       <CurrencyPickerModal
         visible={leadCurrencyModalVisible}
@@ -926,6 +1035,7 @@ const styles = StyleSheet.create({
     marginBottom: 9,
   },
   sectionHint: { fontSize: 13, color: colors.textMuted, marginTop: -5, marginBottom: 9 },
+  blockedHint: { fontSize: 12, color: colors.danger, marginTop: -5, marginBottom: 9 },
   card: {
     backgroundColor: colors.card,
     borderRadius: 20,
@@ -996,6 +1106,16 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   currencyIconText: { fontSize: 16, fontWeight: '700' },
+  defaultText: { fontSize: 13, fontWeight: '700', color: colors.primary, flexShrink: 0 },
+  setDefaultText: { fontSize: 13, fontWeight: '600', color: colors.textMuted, flexShrink: 0 },
+  currencyRemoveButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
   companionRow: {
     alignItems: 'center',
     gap: 12,

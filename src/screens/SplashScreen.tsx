@@ -8,6 +8,50 @@ import { useReducedMotion } from '../utils/useReducedMotion';
 
 const WORLD_CAPITALS_COLLAGE = require('../../assets/world-capitals-collage.png');
 
+function TaglineLine({
+  text,
+  delay,
+  reduceMotion,
+}: {
+  text: string;
+  delay: number;
+  reduceMotion: boolean;
+}) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(8)).current;
+
+  useEffect(() => {
+    if (reduceMotion) {
+      opacity.setValue(1);
+      translateY.setValue(0);
+      return;
+    }
+    const timer = setTimeout(() => {
+      Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 450,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 450,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }, delay);
+    return () => clearTimeout(timer);
+  }, [delay, opacity, translateY, reduceMotion]);
+
+  return (
+    <Animated.Text style={[styles.tagline, { opacity, transform: [{ translateY }] }]}>
+      {text}
+    </Animated.Text>
+  );
+}
+
 function LoadingDot({ delay, reduceMotion }: { delay: number; reduceMotion: boolean }) {
   const opacity = useRef(new Animated.Value(0.25)).current;
 
@@ -122,7 +166,11 @@ export default function SplashScreen() {
           ]}
         >
           <Text style={styles.title}>{t.splash.title}</Text>
-          <Text style={styles.tagline}>{t.splash.tagline}</Text>
+          <View style={styles.taglineBlock}>
+            <TaglineLine text={t.splash.taglineLines[0]} delay={1000} reduceMotion={reduceMotion} />
+            <TaglineLine text={t.splash.taglineLines[1]} delay={2000} reduceMotion={reduceMotion} />
+            <TaglineLine text={t.splash.taglineLines[2]} delay={3000} reduceMotion={reduceMotion} />
+          </View>
         </Animated.View>
       </View>
 
@@ -208,7 +256,8 @@ const styles = StyleSheet.create({
   },
   textBlock: { alignItems: 'center', gap: 9 },
   title: { fontSize: 27, fontWeight: '700', color: '#FFFFFF', letterSpacing: -0.2 },
-  tagline: { fontSize: 14, color: 'rgba(255,255,255,0.62)', letterSpacing: 0.2 },
+  taglineBlock: { alignItems: 'center', gap: 6 },
+  tagline: { fontSize: 18, color: 'rgba(255,255,255,0.62)', letterSpacing: 0.2 },
   dots: {
     position: 'absolute',
     bottom: 58,

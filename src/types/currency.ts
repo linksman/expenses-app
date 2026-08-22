@@ -35,3 +35,19 @@ export const CURRENCIES: Currency[] = [
 export function currencyInfo(code: string): Currency {
   return CURRENCIES.find((c) => c.code === code) ?? CURRENCIES[0];
 }
+
+export interface CurrencyColors {
+  backgroundColor: string;
+  color: string;
+}
+
+// Golden-angle spacing keeps every supported currency visually distinct while
+// producing stable colors when the same currency appears on different screens.
+export function currencyColors(code: string): CurrencyColors {
+  const index = Math.max(0, CURRENCIES.findIndex((currency) => currency.code === code));
+  const hue = Math.round((index * 137.508) % 360);
+  return {
+    backgroundColor: `hsl(${hue}, 68%, 94%)`,
+    color: `hsl(${hue}, 58%, 38%)`,
+  };
+}

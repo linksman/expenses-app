@@ -18,8 +18,10 @@ const RootStack = createNativeStackNavigator();
 
 // Long enough for the splash's own wordmark to actually be seen in the
 // user's saved language (it updates the instant `loading` clears) rather
-// than the screen just flashing past before anyone can read it.
-const MIN_SPLASH_MS = 2000;
+// than the screen just flashing past before anyone can read it. Also covers
+// the tagline's staggered 3-line reveal (last line starts at 3000ms, finishes
+// fading in at 3450ms) plus a 2s hold after it lands.
+const MIN_SPLASH_MS = 5450;
 
 function AppGate() {
   const { loading } = useLanguage();

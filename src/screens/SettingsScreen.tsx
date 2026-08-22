@@ -81,16 +81,6 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']} accessibilityLanguage={language.locale}>
       <View style={[styles.headerRow, { flexDirection: rowDirection }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel={t.common.back}
-        >
-          <Ionicons name={isRTL ? 'chevron-forward' : 'chevron-back'} size={20} color={colors.primary} />
-        </TouchableOpacity>
         <View style={styles.headerTextBlock}>
           <Text style={[styles.title, { textAlign }]} accessibilityRole="header">
             {t.settings.title}
@@ -99,6 +89,16 @@ export default function SettingsScreen() {
             {t.settings.subtitle}
           </Text>
         </View>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel={t.common.close}
+        >
+          <Ionicons name="close" size={16} color={colors.textMuted} />
+        </TouchableOpacity>
       </View>
       <ScrollView
         contentContainerStyle={styles.scrollContent}

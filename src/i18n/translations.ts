@@ -3,7 +3,7 @@ import { LanguageCode } from './languages';
 export interface Translations {
   tabs: { expenses: string; settings: string };
   common: { back: string; save: string; done: string; close: string; previous: string; next: string };
-  splash: { title: string; tagline: string };
+  splash: { title: string; taglineLines: [string, string, string] };
   add: {
     title: string;
     editTitle: string;
@@ -127,6 +127,7 @@ export interface Translations {
     namePlaceholder: string;
     currenciesLabel: string;
     currenciesHint: string;
+    addCurrencyLabel: string;
     setAsDefaultLabel: string;
     defaultBadgeLabel: string;
     cannotRemoveLastCurrency: string;
@@ -156,7 +157,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   en: {
     tabs: { expenses: 'Expenses', settings: 'Settings' },
     common: { back: 'Back', save: 'Save', done: 'Done', close: 'Close', previous: 'Previous', next: 'Next' },
-    splash: { title: 'Vacation Expenses', tagline: 'Every vacation, every expense, every currency' },
+    splash: { title: 'Vacation Expenses', taglineLines: ['every vacation', 'every expense', 'every currency'] },
     add: {
       title: 'Add Expense',
       editTitle: 'Edit Expense',
@@ -251,13 +252,14 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       editTitle: 'Edit Vacation',
       nameLabel: 'Vacation name',
       namePlaceholder: 'e.g. Trip to Paris 2026',
-      currenciesLabel: 'Trip Currencies',
+      currenciesLabel: 'Currencies',
       currenciesHint: 'Currencies you’ll log expenses in for this vacation',
+      addCurrencyLabel: 'Add Currency',
       setAsDefaultLabel: 'Set as default',
       defaultBadgeLabel: 'Default',
       cannotRemoveLastCurrency: 'A vacation needs at least one currency',
       cannotRemoveCurrencyInUse: 'This currency is used by an expense and can’t be removed',
-      leadCurrency: 'Show Totals Also In',
+      leadCurrency: 'Show Amounts Also In',
       leadCurrencyHint: 'Convert every expense and the vacation total into one currency',
       leadCurrencyNone: 'None',
       autoRateLabel: 'Auto',
@@ -298,7 +300,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   fr: {
     tabs: { expenses: 'Dépenses', settings: 'Réglages' },
     common: { back: 'Retour', save: 'Enregistrer', done: 'Terminé', close: 'Fermer', previous: 'Précédent', next: 'Suivant' },
-    splash: { title: 'Dépenses de séjour', tagline: 'Chaque séjour, chaque dépense, chaque devise' },
+    splash: { title: 'Dépenses de séjour', taglineLines: ['chaque séjour', 'chaque dépense', 'chaque devise'] },
     add: {
       title: 'Ajouter une dépense',
       editTitle: 'Modifier la dépense',
@@ -396,6 +398,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       namePlaceholder: 'ex. Voyage à Paris 2026',
       currenciesLabel: 'Devises du séjour',
       currenciesHint: 'Devises utilisées pour les dépenses de ce séjour',
+      addCurrencyLabel: 'Ajouter une devise',
       setAsDefaultLabel: 'Définir par défaut',
       defaultBadgeLabel: 'Par défaut',
       cannotRemoveLastCurrency: 'Un séjour doit avoir au moins une devise',
@@ -443,7 +446,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   de: {
     tabs: { expenses: 'Ausgaben', settings: 'Einstellungen' },
     common: { back: 'Zurück', save: 'Speichern', done: 'Fertig', close: 'Schließen', previous: 'Zurück', next: 'Weiter' },
-    splash: { title: 'Urlaubsausgaben', tagline: 'Jeder Urlaub, jede Ausgabe, jede Währung' },
+    splash: { title: 'Urlaubsausgaben', taglineLines: ['jeder urlaub', 'jede ausgabe', 'jede währung'] },
     add: {
       title: 'Ausgabe hinzufügen',
       editTitle: 'Ausgabe bearbeiten',
@@ -541,6 +544,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       namePlaceholder: 'z. B. Reise nach Paris 2026',
       currenciesLabel: 'Reisewährungen',
       currenciesHint: 'Währungen, in denen du Ausgaben für diesen Urlaub erfasst',
+      addCurrencyLabel: 'Währung hinzufügen',
       setAsDefaultLabel: 'Als Standard festlegen',
       defaultBadgeLabel: 'Standard',
       cannotRemoveLastCurrency: 'Ein Urlaub benötigt mindestens eine Währung',
@@ -588,7 +592,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   es: {
     tabs: { expenses: 'Gastos', settings: 'Ajustes' },
     common: { back: 'Atrás', save: 'Guardar', done: 'Listo', close: 'Cerrar', previous: 'Anterior', next: 'Siguiente' },
-    splash: { title: 'Gastos de viaje', tagline: 'Cada viaje, cada gasto, cada moneda' },
+    splash: { title: 'Gastos de viaje', taglineLines: ['Cada viaje', 'cada gasto', 'cada moneda'] },
     add: {
       title: 'Añadir gasto',
       editTitle: 'Editar gasto',
@@ -686,6 +690,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       namePlaceholder: 'p. ej. Viaje a París 2026',
       currenciesLabel: 'Monedas del viaje',
       currenciesHint: 'Monedas en las que registrarás los gastos de este viaje',
+      addCurrencyLabel: 'Añadir moneda',
       setAsDefaultLabel: 'Establecer como predeterminada',
       defaultBadgeLabel: 'Predeterminada',
       cannotRemoveLastCurrency: 'Un viaje necesita al menos una moneda',
@@ -732,7 +737,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
   he: {
     tabs: { expenses: 'הוצאות', settings: 'הגדרות' },
     common: { back: 'חזרה', save: 'שמירה', done: 'סיום', close: 'סגירה', previous: 'הקודם', next: 'הבא' },
-    splash: { title: 'הוצאות חופשה', tagline: 'כל חופשה, כל הוצאה, כל מטבע' },
+    splash: { title: 'הוצאות חופשה', taglineLines: ['כל חופשה', 'כל הוצאה', 'כל מטבע'] },
     add: {
       title: 'הוספת הוצאה',
       editTitle: 'עריכת הוצאה',
@@ -829,6 +834,7 @@ export const TRANSLATIONS: Record<LanguageCode, Translations> = {
       namePlaceholder: 'לדוגמה: טיול לפריז 2026',
       currenciesLabel: 'מטבעות הטיול',
       currenciesHint: 'המטבעות שבהם יירשמו ההוצאות בחופשה זו',
+      addCurrencyLabel: 'הוספת מטבע',
       setAsDefaultLabel: 'הגדרה כברירת מחדל',
       defaultBadgeLabel: 'ברירת מחדל',
       cannotRemoveLastCurrency: 'בחופשה חייב להישאר לפחות מטבע אחד',
